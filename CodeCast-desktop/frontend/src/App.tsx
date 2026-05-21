@@ -28,6 +28,7 @@ const App: React.FC = () => {
     setAttachments,
     activePanel,
     setActivePanel,
+    setPlatform,
   } = useAppStore();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,6 +49,16 @@ const App: React.FC = () => {
   }, [currentSessionId]);
 
   const initApp = async () => {
+    // Detect platform
+    try {
+      const p = await api.getPlatform();
+      if (p === 'darwin' || p === 'linux' || p === 'windows') {
+        setPlatform(p);
+      }
+    } catch (e) {
+      console.error('Failed to detect platform:', e);
+    }
+
     // Init theme
     const savedTheme = localStorage.getItem('codecast_theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);

@@ -3,7 +3,7 @@
   "outputfilename": "CodeCast",
   "frontend:install": "npm install",
   "frontend:build": "npm run generate:keys && npm run build",
-  "frontend:dev:watcher": "",
+  "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "Your Name",

@@ -150,6 +150,10 @@ interface AppState {
   // Right panel: Changed files
   changedFiles: ChangedFile[];
   setChangedFiles: (files: ChangedFile[]) => void;
+
+  // Platform
+  platform: 'windows' | 'darwin' | 'linux';
+  setPlatform: (platform: 'windows' | 'darwin' | 'linux') => void;
 }
 
 // ─── Store Implementation ───────────────────────────────────────
@@ -253,4 +257,8 @@ export const useAppStore = create<AppState>((set) => ({
   // Right panel: Changed files
   changedFiles: [],
   setChangedFiles: (files) => set({ changedFiles: files }),
+
+  // Platform
+  platform: 'windows',
+  setPlatform: (platform) => set({ platform }),
 }));

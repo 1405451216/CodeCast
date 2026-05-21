@@ -247,6 +247,9 @@ const BUILTIN_COMMANDS = [
 const SettingsPage: React.FC = () => {
   const settingsOpen = useAppStore((s) => s.settingsOpen);
   const closeSettings = useAppStore((s) => s.closeSettings);
+  const platform = useAppStore((s) => s.platform);
+  const isDarwin = platform === 'darwin';
+  const modKey = isDarwin ? '⌘' : 'Ctrl';
 
   // Active tab
   const [activeTab, setActiveTab] = useState<TabId>('general');
@@ -478,12 +481,19 @@ const SettingsPage: React.FC = () => {
           { value: 'terminal', label: '终端' },
           { value: 'browser', label: '浏览器' },
         ], '默认打开目标')}
-        {renderSelect(S.shell, settings.shell || 'powershell', [
-          { value: 'powershell', label: 'PowerShell' },
-          { value: 'cmd', label: 'CMD' },
-          { value: 'bash', label: 'Bash' },
-          { value: 'zsh', label: 'Zsh' },
-        ], 'Shell')}
+        {renderSelect(S.shell, settings.shell || (isDarwin ? 'zsh' : 'powershell'),
+          isDarwin
+            ? [
+                { value: 'zsh', label: 'Zsh' },
+                { value: 'bash', label: 'Bash' },
+              ]
+            : [
+                { value: 'powershell', label: 'PowerShell' },
+                { value: 'cmd', label: 'CMD' },
+                { value: 'bash', label: 'Bash' },
+                { value: 'zsh', label: 'Zsh' },
+              ],
+          'Shell')}
         {renderSelect(S.language, settings.language || 'zh-CN', [
           { value: 'zh-CN', label: '简体中文' },
           { value: 'en', label: 'English' },
@@ -497,10 +507,10 @@ const SettingsPage: React.FC = () => {
             className="settings-add-btn"
             onClick={() => alert('请按下新的快捷键组合')}
           >
-            {settings.hotkey || 'Ctrl+Shift+K'}
+            {settings.hotkey || (isDarwin ? '⌘+Shift+K' : 'Ctrl+Shift+K')}
           </button>
         </div>
-        {renderToggle(S.ctrl_enter_send, settings.ctrl_enter ?? false, 'Ctrl+Enter 发送', '使用 Ctrl+Enter 替代 Enter 发送消息')}
+        {renderToggle(S.ctrl_enter_send, settings.ctrl_enter ?? false, `${modKey}+Enter 发送`, `使用 ${modKey}+Enter 替代 Enter 发送消息`)}
         <div className="settings-row">
           <div className="settings-row-left">
             <div className="settings-row-title">后续模式</div>

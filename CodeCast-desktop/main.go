@@ -195,12 +195,21 @@ type SlashCommand struct {
 
 var migrationNeeded bool
 
+func defaultShell() string {
+	if runtime.GOOS == "darwin" {
+		return "zsh"
+	} else if runtime.GOOS == "linux" {
+		return "bash"
+	}
+	return "powershell"
+}
+
 var DefaultSettings = Settings{
 	WorkMode:         "daily",
 	DefaultPerm:      true,
 	AutoReview:       false,
 	FullAccess:       false,
-	Shell:            "powershell",
+	Shell:            defaultShell(),
 	OpenTarget:       "default_app",
 	Language:         "zh-CN",
 	Hotkey:           "",
@@ -1204,15 +1213,39 @@ func (a *App) RemoveAllowedDomain(domain string) error {
 func (a *App) ClearBrowserData() error {
 	var errors []string
 
-	edgePaths := []string{
-		filepath.Join(os.Getenv("LOCALAPPDATA"), "Microsoft", "Edge", "User Data", "Default", "Cache"),
-		filepath.Join(os.Getenv("LOCALAPPDATA"), "Microsoft", "Edge", "User Data", "Default", "Cookies"),
-		filepath.Join(os.Getenv("LOCALAPPDATA"), "Microsoft", "Edge", "User Data", "Default", "Code Cache"),
-	}
-	chromePaths := []string{
-		filepath.Join(os.Getenv("LOCALAPPDATA"), "Google", "Chrome", "User Data", "Default", "Cache"),
-		filepath.Join(os.Getenv("LOCALAPPDATA"), "Google", "Chrome", "User Data", "Default", "Cookies"),
-		filepath.Join(os.Getenv("LOCALAPPDATA"), "Google", "Chrome", "User Data", "Default", "Code Cache"),
+	var browserPaths []string
+
+	if runtime.GOOS == "windows" {
+		localAppData := os.Getenv("LOCALAPPDATA")
+		browserPaths = []string{
+			filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Cache"),
+			filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Cookies"),
+			filepath.Join(localAppData, "Microsoft", "Edge", "User Data", "Default", "Code Cache"),
+			filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Cache"),
+			filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Cookies"),
+			filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default", "Code Cache"),
+		}
+	} else if runtime.GOOS == "darwin" {
+		home, _ := os.UserHomeDir()
+		appSupport := filepath.Join(home, "Library", "Application Support")
+		browserPaths = []string{
+			filepath.Join(appSupport, "Google", "Chrome", "Default", "Cache"),
+			filepath.Join(appSupport, "Google", "Chrome", "Default", "Cookies"),
+			filepath.Join(appSupport, "Google", "Chrome", "Default", "Code Cache"),
+			filepath.Join(appSupport, "Microsoft Edge", "Default", "Cache"),
+			filepath.Join(appSupport, "Microsoft Edge", "Default", "Cookies"),
+			filepath.Join(appSupport, "Microsoft Edge", "Default", "Code Cache"),
+		}
+	} else {
+		// Linux
+		home, _ := os.UserHomeDir()
+		configDir := filepath.Join(home, ".config")
+		browserPaths = []string{
+			filepath.Join(configDir, "google-chrome", "Default", "Cache"),
+			filepath.Join(configDir, "google-chrome", "Default", "Cookies"),
+			filepath.Join(configDir, "microsoft-edge", "Default", "Cache"),
+			filepath.Join(configDir, "microsoft-edge", "Default", "Cookies"),
+		}
 	}
 
 	clearDir := func(path string) {
@@ -1231,10 +1264,7 @@ func (a *App) ClearBrowserData() error {
 		}
 	}
 
-	for _, p := range edgePaths {
-		clearDir(p)
-	}
-	for _, p := range chromePaths {
+	for _, p := range browserPaths {
 		clearDir(p)
 	}
 
@@ -1336,7 +1366,14 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 		shell = "cmd"
 		flag = "/C"
 	} else {
-		shell = "/bin/bash"
+		shell = os.Getenv("SHELL")
+		if shell == "" {
+			if runtime.GOOS == "darwin" {
+				shell = "/bin/zsh"
+			} else {
+				shell = "/bin/bash"
+			}
+		}
 		flag = "-c"
 	}
 
@@ -1761,7 +1798,14 @@ func (a *App) RunTaskNow(id string) error {
 			shell = "cmd"
 			flag = "/C"
 		} else {
-			shell = "/bin/bash"
+			shell = os.Getenv("SHELL")
+			if shell == "" {
+				if runtime.GOOS == "darwin" {
+					shell = "/bin/zsh"
+				} else {
+					shell = "/bin/bash"
+				}
+			}
 			flag = "-c"
 		}
 
@@ -2863,6 +2907,11 @@ func (a *App) WindowClose() {
 // ==================== 5.6 在编辑器中打开 ====================
 
 // EditorInfo 描述一个可用的外部编辑器
+// GetPlatform 返回当前操作系统标识，供前端做平台差异化 UI
+func (a *App) GetPlatform() string {
+	return runtime.GOOS // "windows", "darwin", "linux"
+}
+
 type EditorInfo struct {
 	ID      string `json:"id"`      // 唯一标识 (如 "vscode", "catpaw")
 	Name    string `json:"name"`    // 显示名称
@@ -3116,7 +3165,7 @@ func main() {
 		Height:           900,
 		MinWidth:         1024,
 		MinHeight:        600,
-		Frameless:        true,
+		Frameless:        runtime.GOOS != "darwin",
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -3128,7 +3177,7 @@ func main() {
 			app,
 		},
 		Mac: &mac.Options{
-			TitleBar:             mac.TitleBarDefault(),
+			TitleBar:             mac.TitleBarHiddenInset(),
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 			About: &mac.AboutInfo{

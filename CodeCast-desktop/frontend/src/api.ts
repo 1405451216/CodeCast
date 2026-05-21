@@ -56,6 +56,9 @@ export const readFileContent = (filePath: string) => callGo('ReadFileContent', f
 export const getConfig = () => callGo('GetConfig');
 export const setApiKey = (key: string) => callGo('SetAPIKey', key);
 
+// Platform
+export const getPlatform = () => callGo<string>('GetPlatform');
+
 // Editors
 export const getAvailableEditors = () => callGo('GetAvailableEditors');
 export const setPreferredEditor = (editorId: string) => callGo('SetPreferredEditor', editorId);

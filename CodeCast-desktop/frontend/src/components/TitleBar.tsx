@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore, ActiveMenu } from '../store';
 import * as api from '../api';
 
+const modKey = () => (useAppStore.getState().platform === 'darwin' ? '⌘' : 'Ctrl');
+
 interface EditorInfo {
   id: string;
   name: string;
@@ -23,6 +25,8 @@ const TitleBar: React.FC = () => {
   const toggleFilesPanel = useAppStore((s) => s.toggleFilesPanel);
   const currentProject = useAppStore((s) => s.currentProject);
   const projects = useAppStore((s) => s.projects);
+  const platform = useAppStore((s) => s.platform);
+  const isDarwin = platform === 'darwin';
 
   const titlebarRef = useRef<HTMLDivElement>(null);
   const editorBtnRef = useRef<HTMLDivElement>(null);
@@ -102,11 +106,11 @@ const TitleBar: React.FC = () => {
           </button>
           <div className={`tb-dropdown${activeMenu === 'file' ? ' show' : ''}`}>
             <button className="tb-dropdown-item" onClick={closeMenus}>
-              新建对话 <span className="shortcut">Ctrl+N</span>
+              新建对话 <span className="shortcut">{modKey()}+N</span>
             </button>
             <div className="tb-dropdown-sep" />
             <button className="tb-dropdown-item" onClick={() => { closeMenus(); api.windowClose(); }}>
-              退出 <span className="shortcut">Alt+F4</span>
+              退出 <span className="shortcut">{isDarwin ? '⌘+Q' : 'Alt+F4'}</span>
             </button>
           </div>
         </div>
@@ -122,24 +126,24 @@ const TitleBar: React.FC = () => {
           </button>
           <div className={`tb-dropdown${activeMenu === 'edit' ? ' show' : ''}`}>
             <button className="tb-dropdown-item" onClick={closeMenus}>
-              撤销 <span className="shortcut">Ctrl+Z</span>
+              撤销 <span className="shortcut">{modKey()}+Z</span>
             </button>
             <button className="tb-dropdown-item" onClick={closeMenus}>
-              重做 <span className="shortcut">Ctrl+Y</span>
-            </button>
-            <div className="tb-dropdown-sep" />
-            <button className="tb-dropdown-item" onClick={closeMenus}>
-              剪切 <span className="shortcut">Ctrl+X</span>
-            </button>
-            <button className="tb-dropdown-item" onClick={closeMenus}>
-              复制 <span className="shortcut">Ctrl+C</span>
-            </button>
-            <button className="tb-dropdown-item" onClick={closeMenus}>
-              粘贴 <span className="shortcut">Ctrl+V</span>
+              重做 <span className="shortcut">{modKey()}+{isDarwin ? 'Shift+Z' : 'Y'}</span>
             </button>
             <div className="tb-dropdown-sep" />
             <button className="tb-dropdown-item" onClick={closeMenus}>
-              全选 <span className="shortcut">Ctrl+A</span>
+              剪切 <span className="shortcut">{modKey()}+X</span>
+            </button>
+            <button className="tb-dropdown-item" onClick={closeMenus}>
+              复制 <span className="shortcut">{modKey()}+C</span>
+            </button>
+            <button className="tb-dropdown-item" onClick={closeMenus}>
+              粘贴 <span className="shortcut">{modKey()}+V</span>
+            </button>
+            <div className="tb-dropdown-sep" />
+            <button className="tb-dropdown-item" onClick={closeMenus}>
+              全选 <span className="shortcut">{modKey()}+A</span>
             </button>
           </div>
         </div>
@@ -245,29 +249,34 @@ const TitleBar: React.FC = () => {
           </button>
         </div>
 
-        <div className="tb-separator" />
+        {/* Window controls - hidden on macOS (native traffic lights) */}
+        {!isDarwin && (
+          <>
+            <div className="tb-separator" />
 
-        {/* Minimize */}
-        <button className="tb-btn" onClick={() => api.windowMinimise()} title="最小化">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
+            {/* Minimize */}
+            <button className="tb-btn" onClick={() => api.windowMinimise()} title="最小化">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
 
-        {/* Maximize */}
-        <button className="tb-btn" onClick={() => api.windowMaximise()} title="最大化">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="4" y="4" width="16" height="16" rx="1" />
-          </svg>
-        </button>
+            {/* Maximize */}
+            <button className="tb-btn" onClick={() => api.windowMaximise()} title="最大化">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="4" y="4" width="16" height="16" rx="1" />
+              </svg>
+            </button>
 
-        {/* Close */}
-        <button className="tb-btn-close" onClick={() => api.windowClose()} title="关闭">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+            {/* Close */}
+            <button className="tb-btn-close" onClick={() => api.windowClose()} title="关闭">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

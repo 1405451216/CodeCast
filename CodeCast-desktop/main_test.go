@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestNewApp(t *testing.T) {
@@ -38,8 +43,14 @@ func TestDefaultSettings(t *testing.T) {
 	if settings.Theme != "dark" {
 		t.Errorf("Expected Theme 'dark', got '%s'", settings.Theme)
 	}
-	if settings.Shell != "powershell" {
-		t.Errorf("Expected Shell 'powershell', got '%s'", settings.Shell)
+	expectedShell := "powershell"
+	if runtime.GOOS == "darwin" {
+		expectedShell = "zsh"
+	} else if runtime.GOOS == "linux" {
+		expectedShell = "bash"
+	}
+	if settings.Shell != expectedShell {
+		t.Errorf("Expected Shell '%s', got '%s'", expectedShell, settings.Shell)
 	}
 	if len(settings.MCPServers) == 0 {
 		t.Error("MCPServers should contain at least one builtin server")
@@ -778,7 +789,7 @@ func init() {
 // ==================== 内存泄漏修复测试 (W-03) ====================
 
 func TestCancelEntryStructure(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	entry := cancelEntry{
 		cancel:     cancel,
 		createdAt: time.Now(),
@@ -799,7 +810,7 @@ func TestActiveCancelsMapOperations(t *testing.T) {
 	cancelMu.Unlock()
 
 	// 测试添加条目
-	ctx1, cancel1 := context.WithCancel(context.Background())
+	_, cancel1 := context.WithCancel(context.Background())
 	cancelMu.Lock()
 	activeCancels["session_1"] = cancelEntry{
 		cancel:     cancel1,
@@ -812,7 +823,7 @@ func TestActiveCancelsMapOperations(t *testing.T) {
 	}
 
 	// 测试添加第二个条目
-	ctx2, cancel2 := context.WithCancel(context.Background())
+	_, cancel2 := context.WithCancel(context.Background())
 	cancelMu.Lock()
 	activeCancels["session_2"] = cancelEntry{
 		cancel:     cancel2,
@@ -847,7 +858,7 @@ func TestCleanupExpiredEntries(t *testing.T) {
 	cancelMu.Unlock()
 
 	// 添加一个已过期的条目（创建时间为 31 分钟前）
-	oldCtx, oldCancel := context.WithCancel(context.Background())
+	_, oldCancel := context.WithCancel(context.Background())
 	cancelMu.Lock()
 	activeCancels["expired_session"] = cancelEntry{
 		cancel:     oldCancel,
@@ -856,7 +867,7 @@ func TestCleanupExpiredEntries(t *testing.T) {
 	cancelMu.Unlock()
 
 	// 添加一个未过期的条目（刚刚创建）
-	newCtx, newCancel := context.WithCancel(context.Background())
+	_, newCancel := context.WithCancel(context.Background())
 	cancelMu.Lock()
 	activeCancels["active_session"] = cancelEntry{
 		cancel:     newCancel,
@@ -896,7 +907,7 @@ func TestDeleteSessionCleansUpCancel(t *testing.T) {
 	}
 
 	// 为该 session 注册一个 cancel 函数
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	cancelMu.Lock()
 	activeCancels[session.ID] = cancelEntry{
 		cancel:     cancel,
@@ -932,7 +943,7 @@ func TestConcurrentAccessToActiveCancels(t *testing.T) {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			ctx, cancel := context.WithCancel(context.Background())
+			_, cancel := context.WithCancel(context.Background())
 			cancelMu.Lock()
 			activeCancels[fmt.Sprintf("session_%d", id)] = cancelEntry{
 				cancel:     cancel,
@@ -980,7 +991,7 @@ func TestMassiveSessionCreationAndDestruction(t *testing.T) {
 		sessionIDs = append(sessionIDs, session.ID)
 
 		// 为每个 session 注册 cancel 函数
-		ctx, cancel := context.WithCancel(context.Background())
+		_, cancel := context.WithCancel(context.Background())
 		cancelMu.Lock()
 		activeCancels[session.ID] = cancelEntry{
 			cancel:     cancel,
@@ -1055,7 +1066,7 @@ func TestShutdownCleansAllResources(t *testing.T) {
 	app := NewApp()
 
 	for i := 0; i < 10; i++ {
-		ctx, cancel := context.WithCancel(context.Background())
+		_, cancel := context.WithCancel(context.Background())
 		cancelMu.Lock()
 		activeCancels[fmt.Sprintf("session_%d", i)] = cancelEntry{
 			cancel:     cancel,
