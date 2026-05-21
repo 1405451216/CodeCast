@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCast - AI 驱动的智能编程与协作平台</title>
+    <meta name="description" content="CodeCast 是一款 AI 驱动的智能编程助手与代码协作平台，智能补全、实时协作、AI 对话，让编程效率提升 10 倍。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#09090B;--bg2:#111113;--bg3:#18181B;
+            --card:rgba(255,255,255,0.02);
+            --t1:#FAFAFA;--t2:#A1A1AA;--t3:#71717A;
+            --accent:#8B5CF6;--accent-l:#A78BFA;--accent-d:#6D28D9;
+            --cyan:#06B6D4;--green:#10B981;--amber:#F59E0B;
+            --border:rgba(255,255,255,0.06);--border-h:rgba(139,92,246,0.3);
+            --glow:rgba(139,92,246,0.15)
+        }
+        html{scroll-behavior:smooth}
+        body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--t1);line-height:1.6;overflow-x:hidden}
+
+        /* NAV */
+        .nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:0 48px;height:64px;display:flex;align-items:center;justify-content:space-between;background:rgba(9,9,11,0.85);backdrop-filter:blur(24px) saturate(180%);border-bottom:1px solid var(--border)}
+        .nav-logo{font-size:20px;font-weight:700;letter-spacing:.5px;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;gap:32px;list-style:none}
+        .nav-links a{color:var(--t2);text-decoration:none;font-size:14px;font-weight:500;transition:color .2s}
+        .nav-links a:hover{color:var(--t1)}
+        .nav-cta{padding:8px 20px;background:var(--accent);border-radius:8px;color:#fff;font-size:14px;font-weight:500;text-decoration:none;transition:all .2s}
+        .nav-cta:hover{background:var(--accent-l);box-shadow:0 4px 16px var(--glow);transform:translateY(-1px)}
+
+        /* HERO */
+        .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:140px 24px 100px;position:relative}
+        .hero-bg{position:absolute;inset:0;overflow:hidden;z-index:0}
+        .hero-bg::before{content:'';position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,var(--glow) 0%,transparent 70%);animation:pulse 8s ease-in-out infinite}
+        .hero-bg::after{content:'';position:absolute;bottom:0;left:0;right:0;height:200px;background:linear-gradient(to top,var(--bg),transparent)}
+        .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(139,92,246,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.03) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse at center,black 30%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse at center,black 30%,transparent 70%)}
+        @keyframes pulse{0%,100%{opacity:.6;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.1)}}
+        .hero-content{position:relative;z-index:2;max-width:900px}
+        .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:100px;font-size:13px;font-weight:500;color:var(--accent-l);margin-bottom:40px}
+        .hero-badge-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;animation:dot 2s infinite}
+        @keyframes dot{0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,0.4)}50%{box-shadow:0 0 0 6px rgba(139,92,246,0)}}
+        .hero h1{font-size:clamp(44px,7vw,80px);font-weight:800;line-height:1.05;margin-bottom:28px;letter-spacing:-2px}
+        .hero h1 .gradient{background:linear-gradient(135deg,var(--accent-l),var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero-desc{font-size:18px;color:var(--t2);max-width:600px;margin:0 auto 48px;line-height:1.8}
+        .hero-buttons{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
+        .btn-primary{display:inline-flex;align-items:center;gap:10px;padding:16px 36px;background:linear-gradient(135deg,var(--accent),var(--accent-d));border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:600;text-decoration:none;transition:all .3s;position:relative;overflow:hidden}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 32px var(--glow),0 0 0 1px rgba(139,92,246,0.3)}
+        .btn-ghost{display:inline-flex;align-items:center;gap:10px;padding:16px 36px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;color:var(--t1);font-size:16px;font-weight:500;text-decoration:none;transition:all .3s}
+        .btn-ghost:hover{border-color:var(--border-h);background:rgba(139,92,246,0.05);transform:translateY(-2px)}
+        .hero-stats{display:flex;gap:48px;justify-content:center}
+        .stat-item{text-align:center}
+        .stat-value{font-size:28px;font-weight:700;color:var(--t1)}
+        .stat-label{font-size:13px;color:var(--t3);margin-top:4px}
+
+        /* SHOWCASE */
+        .showcase{padding:40px 24px 120px;max-width:1100px;margin:0 auto;text-align:center;position:relative;z-index:2}
+        .section-label{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--accent-l);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px}
+        .section-label::before{content:'';width:20px;height:2px;background:var(--accent)}
+        .showcase-title{font-size:clamp(28px,4vw,42px);font-weight:800;line-height:1.2;margin-bottom:40px;letter-spacing:-1px}
+        .showcase-tabs{display:flex;gap:4px;margin:0 auto 32px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:4px;width:fit-content}
+        .tab-btn{padding:10px 24px;border-radius:8px;font-size:14px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .2s;border:none;background:none}
+        .tab-btn.active{background:var(--accent);color:#fff;box-shadow:0 4px 12px var(--glow)}
+        .tab-btn:hover:not(.active){color:var(--t1);background:rgba(255,255,255,0.03)}
+        .showcase-window{border-radius:16px;border:1px solid var(--border);overflow:hidden;box-shadow:0 32px 100px rgba(0,0,0,0.5);background:#111113;text-align:left;position:relative;z-index:3}
+        .window-titlebar{display:flex;align-items:center;padding:14px 20px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);gap:8px}
+        .window-dot{width:12px;height:12px;border-radius:50%}
+        .window-dot.red{background:#FF5F57}.window-dot.yellow{background:#FEBC2E}.window-dot.green{background:#28C840}
+        .window-title{flex:1;text-align:center;font-size:12px;color:var(--t3)}
+        .window-body{min-height:420px;position:relative}
+        .tab-content{display:none;padding:0}
+        .tab-content.active{display:block;animation:fadeIn .4s ease}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+        /* Code Demo */
+        .code-demo{display:grid;grid-template-columns:180px 1fr 240px;min-height:420px}
+        .demo-sidebar{padding:16px;border-right:1px solid var(--border);background:rgba(0,0,0,0.2)}
+        .sidebar-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:12px;color:var(--t2);margin-bottom:2px}
+        .sidebar-item.active{background:rgba(139,92,246,0.1);color:var(--accent-l)}
+        .demo-editor{padding:20px;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:12px;line-height:2;overflow:hidden;border-right:1px solid var(--border)}
+        .editor-line{white-space:nowrap}
+        .line-num{color:var(--t3);display:inline-block;width:24px;text-align:right;margin-right:16px;opacity:.5;user-select:none}
+        .keyword{color:#C586C0}.func{color:#DCDCAA}.str{color:#CE9178}.comment{color:#6A9955}
+        .ai-line{background:rgba(139,92,246,0.06);border-left:2px solid var(--accent);margin:0 -20px;padding:0 20px}
+        .ai-suggest{color:rgba(139,92,246,0.6);font-style:italic}
+        .demo-chat{padding:16px;background:rgba(0,0,0,0.15);display:flex;flex-direction:column;gap:10px}
+        .chat-header{font-size:11px;font-weight:600;color:var(--t2);padding-bottom:10px;border-bottom:1px solid var(--border)}
+        .chat-msg{padding:8px 10px;border-radius:8px;font-size:11px;line-height:1.5}
+        .chat-msg.bot{background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--t2)}
+        .chat-msg.user{background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--accent-l);align-self:flex-end}
+        .chat-msg.typing::after{content:'...';animation:typing 1s infinite}
+        @keyframes typing{0%{content:'.'}33%{content:'..'}66%{content:'...'}}
+
+        /* Collab Demo */
+        .collab-demo{padding:24px;min-height:420px;display:flex;flex-direction:column;gap:16px}
+        .collab-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--border)}
+        .collab-badge{font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px}
+        .collab-badge.live{background:rgba(239,68,68,0.1);color:#EF4444;border:1px solid rgba(239,68,68,0.2)}
+        .collab-users{display:flex;align-items:center;gap:8px}
+        .user-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;margin-left:-8px}
+        .user-avatar:first-child{margin-left:0}
+        .collab-count{font-size:12px;color:var(--t2);margin-left:4px}
+        .collab-body{flex:1;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:13px;line-height:2.2;padding:16px;background:rgba(0,0,0,0.2);border-radius:8px}
+        .collab-line{position:relative;padding-left:8px}
+        .cursor-tag{font-size:10px;padding:1px 6px;border-radius:3px;color:#fff;margin-right:8px;font-family:'Inter',sans-serif}
+        .collab-chat{display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid var(--border)}
+        .collab-msg{font-size:12px;color:var(--t2)}
+        .collab-msg strong{color:var(--t1)}
+
+        /* Code Complete Demo */
+        .code-complete-demo{padding:40px;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:13px;line-height:2.2;min-height:420px;display:flex;flex-direction:column;justify-content:center}
+        .complete-line{padding:0 16px}
+        .complete-line.ghost{color:rgba(139,92,246,0.4);font-style:italic;background:rgba(139,92,246,0.03);border-left:2px solid rgba(139,92,246,0.3);margin-left:0}
+        .complete-hint{margin-top:24px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--t3);font-family:'Inter',sans-serif;padding:0 16px}
+        .hint-icon{padding:3px 8px;background:rgba(255,255,255,0.08);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:600;color:var(--t2)}
+
+        .showcase-desc{margin-top:32px;font-size:15px;color:var(--t2);line-height:1.7}
+
+        /* FEATURES DETAIL */
+        .features-detail{padding:120px 24px;max-width:1200px;margin:0 auto;position:relative;z-index:2}
+        .features-detail-title{font-size:clamp(28px,4vw,42px);font-weight:800;line-height:1.2;margin-bottom:16px;letter-spacing:-1px}
+        .section-desc{font-size:16px;color:var(--t2);max-width:560px;line-height:1.7;margin-bottom:64px}
+        .feature-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+        .feature-detail-card{padding:32px 28px;background:rgba(17,17,19,0.92);border:1px solid var(--border);border-radius:16px;transition:all .4s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;backdrop-filter:blur(8px)}
+        .feature-detail-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--cyan));opacity:0;transition:opacity .3s}
+        .feature-detail-card:hover::before{opacity:1}
+        .feature-detail-card:hover{border-color:var(--border-h);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,0.3)}
+        .fdc-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:20px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.15)}
+        .feature-detail-card h3{font-size:17px;font-weight:600;margin-bottom:10px}
+        .feature-detail-card p{font-size:14px;color:var(--t2);line-height:1.7}
+
+        /* SECURITY */
+        .security-section{padding:120px 24px;max-width:1100px;margin:0 auto;position:relative;z-index:2}
+        .security-title{font-size:clamp(28px,4vw,42px);font-weight:800;line-height:1.2;margin-bottom:16px;letter-spacing:-1px}
+        .security-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+        .security-card{padding:32px 24px;background:rgba(17,17,19,0.92);border:1px solid var(--border);border-radius:16px;transition:all .3s;backdrop-filter:blur(8px)}
+        .security-card:hover{border-color:var(--border-h);transform:translateY(-2px)}
+        .security-icon{width:44px;height:44px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px}
+        .security-card h3{font-size:16px;font-weight:600;margin-bottom:8px}
+        .security-card p{font-size:13px;color:var(--t2);line-height:1.7}
+
+        /* DOWNLOAD CTA */
+        .download-cta{padding:120px 24px 80px;text-align:center;position:relative;z-index:2}
+        .download-cta::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 80%,rgba(139,92,246,0.08) 0%,transparent 60%);pointer-events:none}
+        .download-cta h2{font-size:clamp(28px,5vw,48px);font-weight:700;margin-bottom:16px;position:relative}
+        .download-cta .section-desc{max-width:480px;margin:0 auto 48px;position:relative}
+        .download-platforms{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;position:relative}
+        .platform-card{padding:28px 36px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;text-decoration:none;color:var(--t1);transition:all .3s;min-width:200px;text-align:center}
+        .platform-card:hover{border-color:var(--border-h);transform:translateY(-4px);box-shadow:0 12px 40px var(--glow);background:rgba(139,92,246,0.05)}
+        .platform-card.disabled{opacity:.4;pointer-events:none}
+        .platform-icon{font-size:36px;margin-bottom:12px}
+        .platform-name{font-size:16px;font-weight:600;margin-bottom:4px}
+        .platform-detail{font-size:12px;color:var(--t2)}
+        .download-version{margin-top:32px;font-size:13px;color:var(--t3);position:relative}
+
+        /* FOOTER */
+        footer{padding:48px 24px;border-top:1px solid var(--border);position:relative;z-index:2;background:rgba(9,9,11,0.9);backdrop-filter:blur(12px)}
+        .footer-content{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr auto auto;gap:60px;align-items:start}
+        .footer-logo{font-size:18px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+        .footer-desc{font-size:13px;color:var(--t2);max-width:280px;line-height:1.6}
+        .footer-col h4{font-size:13px;font-weight:600;margin-bottom:16px;color:var(--t1)}
+        .footer-col ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+        .footer-col a{color:var(--t2);text-decoration:none;font-size:13px;transition:color .2s}
+        .footer-col a:hover{color:var(--t1)}
+        .footer-bottom{max-width:1200px;margin:32px auto 0;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--t3)}
+
+        /* RESPONSIVE */
+        @media(max-width:768px){
+            .nav{padding:0 20px}
+            .nav-links{display:none}
+            .hero{padding:100px 20px 60px;min-height:auto}
+            .hero-stats{gap:24px}
+            .showcase{padding:40px 16px 80px}
+            .code-demo{grid-template-columns:1fr}
+            .demo-sidebar,.demo-chat{display:none}
+            .features-detail{padding:80px 20px}
+            .feature-detail-grid{grid-template-columns:1fr}
+            .security-section{padding:80px 20px}
+            .download-cta{padding:80px 20px 60px}
+            .download-platforms{flex-direction:column;align-items:center}
+            .footer-content{grid-template-columns:1fr;gap:32px}
+            .footer-bottom{flex-direction:column;gap:8px}
+        }
+
+        /* COSMOS BACKGROUND */
+        .cosmos{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden}
+        .stars-layer{position:absolute;inset:0}
+        .star{position:absolute;border-radius:50%;background:#fff}
+        .star-sm{width:1px;height:1px;opacity:.4}
+        .star-md{width:2px;height:2px;opacity:.6}
+        .star-lg{width:3px;height:3px;opacity:.8;box-shadow:0 0 4px 1px rgba(255,255,255,0.3)}
+        @keyframes twinkle{0%,100%{opacity:.3}50%{opacity:1}}
+        @keyframes twinkle2{0%,100%{opacity:.5}50%{opacity:.15}}
+
+        /* Nebula / Star Clouds */
+        .nebula{position:absolute;border-radius:50%;filter:blur(80px);opacity:.12;animation:nebulaDrift 30s ease-in-out infinite alternate}
+        .nebula-1{width:600px;height:400px;background:radial-gradient(ellipse,rgba(139,92,246,0.6),transparent 70%);top:10%;left:-5%}
+        .nebula-2{width:500px;height:500px;background:radial-gradient(ellipse,rgba(6,182,212,0.5),transparent 70%);top:50%;right:-10%;animation-delay:-15s}
+        .nebula-3{width:400px;height:300px;background:radial-gradient(ellipse,rgba(245,158,11,0.4),transparent 70%);bottom:10%;left:30%;animation-delay:-8s}
+        @keyframes nebulaDrift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(30px,-20px) scale(1.1)}}
+
+        /* Shooting Stars */
+        .shooting-star{position:absolute;width:120px;height:1px;background:linear-gradient(90deg,rgba(255,255,255,0.8),transparent);opacity:0;animation:shoot 4s linear infinite}
+        .shooting-star::before{content:'';position:absolute;left:0;top:-1px;width:4px;height:3px;border-radius:50%;background:#fff;box-shadow:0 0 6px 2px rgba(255,255,255,0.6)}
+        .shooting-star:nth-child(1){top:15%;left:70%;animation-delay:0s;transform:rotate(-35deg)}
+        .shooting-star:nth-child(2){top:35%;left:20%;animation-delay:3s;transform:rotate(-25deg);width:80px}
+        .shooting-star:nth-child(3){top:60%;left:80%;animation-delay:7s;transform:rotate(-40deg);width:100px}
+        .shooting-star:nth-child(4){top:80%;left:40%;animation-delay:11s;transform:rotate(-30deg);width:60px}
+        @keyframes shoot{0%{opacity:0;transform:translateX(0) rotate(inherit)}5%{opacity:1}30%{opacity:0;transform:translateX(-300px) rotate(inherit)}100%{opacity:0}}
+
+        /* Solar System */
+        .solar-system{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1400px;height:1400px;pointer-events:none;z-index:0;opacity:.45}
+        .sun{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:180px;height:180px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFF7C2 0%,#FDE68A 15%,#F59E0B 35%,#D97706 55%,#92400E 80%,#451A03 100%);box-shadow:0 0 100px 40px rgba(245,158,11,0.5),0 0 200px 80px rgba(245,158,11,0.2),0 0 300px 120px rgba(245,158,11,0.08);animation:sunPulse 4s ease-in-out infinite;overflow:hidden}
+        .sun::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 25% 25%,rgba(255,255,255,0.3),transparent 50%)}
+        .sun::after{content:'';position:absolute;inset:-10px;border-radius:50%;background:radial-gradient(circle,transparent 40%,rgba(255,200,50,0.08) 60%,rgba(255,150,0,0.15) 80%,transparent 100%);animation:sunCorona 6s ease-in-out infinite alternate}
+        @keyframes sunPulse{0%,100%{box-shadow:0 0 100px 40px rgba(245,158,11,0.5),0 0 200px 80px rgba(245,158,11,0.2),0 0 300px 120px rgba(245,158,11,0.08)}50%{box-shadow:0 0 120px 50px rgba(245,158,11,0.6),0 0 240px 100px rgba(245,158,11,0.25),0 0 360px 140px rgba(245,158,11,0.1)}}
+        @keyframes sunCorona{0%{transform:scale(1) rotate(0deg)}100%{transform:scale(1.05) rotate(10deg)}}
+        .orbit{position:absolute;top:50%;left:50%;border-radius:50%;border:1px solid rgba(255,255,255,0.04);transform:translate(-50%,-50%)}
+        .orbit-1{width:320px;height:320px;animation:orbitSpin 12s linear infinite}
+        .orbit-2{width:480px;height:480px;animation:orbitSpin 20s linear infinite}
+        .orbit-3{width:680px;height:680px;animation:orbitSpin 32s linear infinite}
+        .orbit-4{width:940px;height:940px;animation:orbitSpin 50s linear infinite}
+        .orbit-5{width:1240px;height:1240px;animation:orbitSpin 72s linear infinite}
+        @keyframes orbitSpin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+        .planet{position:absolute;top:0;left:50%;border-radius:50%;transform:translateX(-50%)}
+        /* Mercury - 灰色岩石表面，有陨石坑纹理 */
+        .planet-mercury{width:24px;height:24px;background:radial-gradient(circle at 35% 30%,#D4D4D8,#A1A1AA 40%,#71717A 70%,#52525B 100%);box-shadow:0 0 8px 2px rgba(161,161,170,0.4),inset -3px -3px 6px rgba(0,0,0,0.4);overflow:hidden}
+        .planet-mercury::before{content:'';position:absolute;width:5px;height:5px;top:30%;left:55%;border-radius:50%;background:rgba(0,0,0,0.15);box-shadow:8px 6px 0 2px rgba(0,0,0,0.1),-4px 8px 0 1px rgba(0,0,0,0.12)}
+        /* Venus - 金黄色厚大气层，表面模糊 */
+        .planet-venus{width:36px;height:36px;background:radial-gradient(circle at 35% 30%,#FEF3C7,#FDE68A 25%,#F59E0B 50%,#B45309 80%,#78350F 100%);box-shadow:0 0 14px 4px rgba(245,158,11,0.4),inset -4px -4px 10px rgba(0,0,0,0.3);overflow:hidden}
+        .planet-venus::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 30% 25%,rgba(255,255,255,0.35),transparent 45%)}
+        .planet-venus::after{content:'';position:absolute;inset:2px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,200,100,0.08) 0deg 20deg,transparent 20deg 40deg);opacity:.6}
+        /* Earth - 蓝色海洋+绿色大陆+白色云层 */
+        .planet-earth{width:42px;height:42px;background:radial-gradient(circle at 35% 30%,#93C5FD,#3B82F6 30%,#1D4ED8 55%,#1E3A5F 80%,#0F172A 100%);box-shadow:0 0 16px 5px rgba(59,130,246,0.5),0 0 30px 8px rgba(59,130,246,0.2),inset -5px -5px 12px rgba(0,0,0,0.4);overflow:hidden}
+        .planet-earth::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 45% 40%,rgba(34,197,94,0.7) 0%,transparent 25%),radial-gradient(ellipse at 65% 60%,rgba(34,197,94,0.5) 0%,transparent 20%),radial-gradient(ellipse at 30% 65%,rgba(34,197,94,0.4) 0%,transparent 15%)}
+        .planet-earth::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 25% 20%,rgba(255,255,255,0.5),transparent 35%),radial-gradient(ellipse at 60% 30%,rgba(255,255,255,0.2),transparent 20%),radial-gradient(ellipse at 50% 70%,rgba(255,255,255,0.15),transparent 25%)}
+        /* Mars - 红色表面+极冠+峡谷纹理 */
+        .planet-mars{width:32px;height:32px;background:radial-gradient(circle at 35% 30%,#FECACA,#F87171 25%,#DC2626 45%,#991B1B 70%,#450A0A 100%);box-shadow:0 0 12px 4px rgba(220,38,38,0.4),inset -4px -4px 10px rgba(0,0,0,0.4);overflow:hidden}
+        .planet-mars::before{content:'';position:absolute;top:0;left:30%;width:40%;height:20%;border-radius:50%;background:rgba(255,255,255,0.3);filter:blur(2px)}
+        .planet-mars::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 50% 50%,transparent 30%,rgba(120,20,20,0.3) 50%,transparent 70%)}
+        /* Jupiter - 巨大气态行星+条纹+大红斑 */
+        .planet-jupiter{width:72px;height:72px;background:radial-gradient(circle at 35% 30%,#FEF3C7,#FDE68A 15%,#D97706 35%,#92400E 60%,#451A03 85%,#1C0A00 100%);box-shadow:0 0 24px 8px rgba(217,119,6,0.4),0 0 48px 16px rgba(217,119,6,0.15),inset -8px -8px 16px rgba(0,0,0,0.4);overflow:hidden}
+        .planet-jupiter::before{content:'';position:absolute;inset:0;border-radius:50%;background:repeating-linear-gradient(0deg,transparent,transparent 8px,rgba(139,69,19,0.2) 8px,rgba(139,69,19,0.2) 10px,transparent 10px,transparent 14px,rgba(210,150,60,0.15) 14px,rgba(210,150,60,0.15) 16px)}
+        .planet-jupiter::after{content:'';position:absolute;width:16px;height:10px;top:55%;left:35%;border-radius:50%;background:radial-gradient(ellipse,#DC2626,#991B1B);opacity:.7;box-shadow:0 0 4px 1px rgba(220,38,38,0.3)}
+
+        /* Dividers */
+        .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);max-width:1200px;margin:0 auto}
+    </style>
+</head>
+<body>
+    <!-- Cosmos Background -->
+    <div class="cosmos">
+        <div class="stars-layer" id="stars-layer"></div>
+        <div class="nebula nebula-1"></div>
+        <div class="nebula nebula-2"></div>
+        <div class="nebula nebula-3"></div>
+        <div class="shooting-star"></div>
+        <div class="shooting-star"></div>
+        <div class="shooting-star"></div>
+        <div class="shooting-star"></div>
+    </div>
+
+    <!-- Solar System -->
+    <div class="solar-system">
+        <div class="sun"></div>
+        <div class="orbit orbit-1"><div class="planet planet-mercury"></div></div>
+        <div class="orbit orbit-2"><div class="planet planet-venus"></div></div>
+        <div class="orbit orbit-3"><div class="planet planet-earth"></div></div>
+        <div class="orbit orbit-4"><div class="planet planet-mars"></div></div>
+        <div class="orbit orbit-5"><div class="planet planet-jupiter"></div></div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="nav">
+        <div class="nav-logo">CodeCast</div>
+        <ul class="nav-links">
+            <li><a href="#showcase">产品</a></li>
+            <li><a href="#features">功能</a></li>
+            <li><a href="#security">安全</a></li>
+            <li><a href="#download">下载</a></li>
+            <li><a href="https://github.com/1405451216/codecast" target="_blank">GitHub</a></li>
+        </ul>
+        <a href="#download" class="nav-cta">下载 CodeCast</a>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-bg"><div class="hero-grid"></div></div>
+        <div class="hero-content">
+            <div class="hero-badge"><span class="hero-badge-dot"></span> 全新发布 v1.0</div>
+            <h1>智能无限，<br><span class="gradient">协作无间</span></h1>
+            <p class="hero-desc">CodeCast 围绕真实开发工作流进行整体设计：AI 驱动的智能编程助手与代码协作平台，只需提出想法，执行交给 AI。</p>
+            <div class="hero-buttons">
+                <a href="#download" class="btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    免费下载
+                </a>
+                <a href="https://github.com/1405451216/codecast" class="btn-ghost" target="_blank">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    GitHub
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item"><div class="stat-value">10x</div><div class="stat-label">效率提升</div></div>
+                <div class="stat-item"><div class="stat-value">AI</div><div class="stat-label">原生驱动</div></div>
+                <div class="stat-item"><div class="stat-value">0</div><div class="stat-label">使用门槛</div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Showcase -->
+    <section class="showcase" id="showcase">
+        <div class="section-label"><span>产品展示</span></div>
+        <h2 class="showcase-title">CodeCast 为你解锁全新可能</h2>
+        <div class="showcase-tabs">
+            <button class="tab-btn active" data-tab="ai">AI 对话</button>
+            <button class="tab-btn" data-tab="collab">实时协作</button>
+            <button class="tab-btn" data-tab="code">智能编码</button>
+        </div>
+        <div class="showcase-window">
+            <div class="window-titlebar">
+                <div class="window-dot red"></div>
+                <div class="window-dot yellow"></div>
+                <div class="window-dot green"></div>
+                <span class="window-title">CodeCast - main.ts</span>
+            </div>
+            <div class="window-body">
+                <!-- Tab: AI -->
+                <div class="tab-content active" id="tab-ai">
+                    <div class="code-demo">
+                        <div class="demo-sidebar">
+                            <div class="sidebar-item active">&#x1F4C4; main.ts</div>
+                            <div class="sidebar-item">&#x1F4C4; api.ts</div>
+                            <div class="sidebar-item">&#x1F4C4; utils.ts</div>
+                            <div class="sidebar-item">&#x1F4C4; store.ts</div>
+                            <div class="sidebar-item">&#x1F4C1; components/</div>
+                            <div class="sidebar-item">&#x1F4C1; hooks/</div>
+                        </div>
+                        <div class="demo-editor">
+                            <div class="editor-line"><span class="line-num">1</span><span class="comment">// CodeCast AI 正在帮你编写代码...</span></div>
+                            <div class="editor-line"><span class="line-num">2</span></div>
+                            <div class="editor-line"><span class="line-num">3</span><span class="keyword">import</span> { createApp } <span class="keyword">from</span> <span class="str">'vue'</span></div>
+                            <div class="editor-line"><span class="line-num">4</span><span class="keyword">import</span> { setupRouter } <span class="keyword">from</span> <span class="str">'./router'</span></div>
+                            <div class="editor-line"><span class="line-num">5</span><span class="keyword">import</span> { createPinia } <span class="keyword">from</span> <span class="str">'pinia'</span></div>
+                            <div class="editor-line"><span class="line-num">6</span></div>
+                            <div class="editor-line"><span class="line-num">7</span><span class="keyword">const</span> app = <span class="func">createApp</span>(App)</div>
+                            <div class="editor-line"><span class="line-num">8</span>app.<span class="func">use</span>(<span class="func">createPinia</span>())</div>
+                            <div class="editor-line"><span class="line-num">9</span>app.<span class="func">use</span>(<span class="func">setupRouter</span>())</div>
+                            <div class="editor-line"><span class="line-num">10</span>app.<span class="func">mount</span>(<span class="str">'#app'</span>)</div>
+                            <div class="editor-line ai-line"><span class="line-num">11</span><span class="ai-suggest">// &#x2728; AI: 添加全局错误处理和性能监控</span></div>
+                            <div class="editor-line ai-line"><span class="line-num">12</span><span class="ai-suggest">app.config.errorHandler = (err) =&gt; report(err)</span></div>
+                        </div>
+                        <div class="demo-chat">
+                            <div class="chat-header">&#x1F916; AI 助手</div>
+                            <div class="chat-msg bot">已为你生成 Vue 3 项目脚手架，包含路由和状态管理。还需要什么？</div>
+                            <div class="chat-msg user">加上登录页和权限控制</div>
+                            <div class="chat-msg bot typing">正在生成登录模块</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Tab: Collab -->
+                <div class="tab-content" id="tab-collab">
+                    <div class="collab-demo">
+                        <div class="collab-header">
+                            <span class="collab-badge live">&#x1F534; Live Session</span>
+                            <span class="collab-users">
+                                <span class="user-avatar" style="background:#8B5CF6">Y</span>
+                                <span class="user-avatar" style="background:#06B6D4">L</span>
+                                <span class="user-avatar" style="background:#F59E0B">Z</span>
+                                <span class="collab-count">3 人在线协作</span>
+                            </span>
+                        </div>
+                        <div class="collab-body">
+                            <div class="collab-line"><span class="cursor-tag" style="background:#8B5CF6">杨晨</span><span class="keyword">function</span> <span class="func">handleAuth</span>(req: Request) {</div>
+                            <div class="collab-line">    <span class="keyword">const</span> token = req.headers.get(<span class="str">'Authorization'</span>)</div>
+                            <div class="collab-line"><span class="cursor-tag" style="background:#06B6D4">李明</span>    <span class="keyword">if</span> (!token) <span class="keyword">return</span> <span class="func">unauthorized</span>()</div>
+                            <div class="collab-line">    <span class="keyword">const</span> user = <span class="keyword">await</span> <span class="func">verifyToken</span>(token)</div>
+                            <div class="collab-line">    <span class="keyword">return</span> <span class="func">next</span>(req, user)</div>
+                            <div class="collab-line">}</div>
+                        </div>
+                        <div class="collab-chat">
+                            <div class="collab-msg"><strong>李明:</strong> 这里需要加个 try-catch 处理 token 过期的情况</div>
+                            <div class="collab-msg"><strong>杨晨:</strong> 好主意，我来加上 refresh token 逻辑</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Tab: Code -->
+                <div class="tab-content" id="tab-code">
+                    <div class="code-complete-demo">
+                        <div class="complete-line"><span class="keyword">async function</span> <span class="func">fetchUserProfile</span>(id: string) {</div>
+                        <div class="complete-line">    <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="str">`/api/users/${id}`</span>)</div>
+                        <div class="complete-line ghost">    if (!res.ok) throw new HttpError(res.status)</div>
+                        <div class="complete-line ghost">    const data: UserProfile = await res.json()</div>
+                        <div class="complete-line ghost">    cache.set(id, data)</div>
+                        <div class="complete-line ghost">    return data</div>
+                        <div class="complete-line">}</div>
+                        <div class="complete-line"></div>
+                        <div class="complete-line"><span class="keyword">interface</span> <span class="func">UserProfile</span> {</div>
+                        <div class="complete-line ghost">    id: string</div>
+                        <div class="complete-line ghost">    name: string</div>
+                        <div class="complete-line ghost">    avatar: string</div>
+                        <div class="complete-line ghost">    role: 'admin' | 'member'</div>
+                        <div class="complete-line">}</div>
+                        <div class="complete-hint">
+                            <span class="hint-icon">Tab</span>
+                            <span>按 Tab 接受 AI 补全建议 (灰色部分)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="showcase-desc">全场景提效，释放你的生产力潜能。支持 AI Coding Agent，流畅推动每一步开发。</p>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Features Detail -->
+    <section class="features-detail" id="features">
+        <div class="section-label"><span>核心功能</span></div>
+        <h2 class="features-detail-title">智能 IDE，将 AI 融入你的工作流</h2>
+        <p class="section-desc">以智能生产力为核心，灵活适配你的开发节奏，与你默契协作，共同实现高效、高质的项目交付。</p>
+        <div class="feature-detail-grid">
+            <div class="feature-detail-card">
+                <div class="fdc-icon">&#x1F916;</div>
+                <h3>AI 智能体，构建专属团队</h3>
+                <p>提供可自由配置的智能体体系。根据需求灵活定义工具、技能和任务逻辑，轻松构建专属的 AI 智能体团队，让 AI 真正为你所用。</p>
+            </div>
+            <div class="feature-detail-card">
+                <div class="fdc-icon">&#x1F50C;</div>
+                <h3>工具自由装配，拓展能力边界</h3>
+                <p>支持多种外部工具的无缝集成。通过 MCP 协议赋予智能体专属的外部资源调用能力，精细化打磨 AI 的能力边界。</p>
+            </div>
+            <div class="feature-detail-card">
+                <div class="fdc-icon">&#x1F4AC;</div>
+                <h3>更多上下文，更符合个人偏好</h3>
+                <p>理解能力全面升级，不仅理解代码仓库、终端信息，还支持联网搜索、上传文档集。配置 AI 工作规则，让 AI 融入你的工作流。</p>
+            </div>
+            <div class="feature-detail-card">
+                <div class="fdc-icon">&#x26A1;</div>
+                <h3>智能补全，实现智能预测</h3>
+                <p>基于优化模型实现精准续写，智能感知仓库上下文与编辑轨迹，自动预测下一改动点。按 Tab 即可快速应用建议，让开发行云流水。</p>
+            </div>
+            <div class="feature-detail-card">
+                <div class="fdc-icon">&#x1F465;</div>
+                <h3>实时协作，团队无缝协同</h3>
+                <p>多人实时编辑同一项目，代码变更即时同步。内置聊天和代码评审，让团队协作像在同一房间一样自然。</p>
+            </div>
+            <div class="feature-detail-card">
+                <div class="fdc-icon">&#x1F4E6;</div>
+                <h3>开放生态，无限扩展</h3>
+                <p>开源项目，社区驱动。丰富的插件系统支持自定义扩展，从代码格式化到部署自动化，按需定制你的工作流。</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Security -->
+    <section class="security-section" id="security">
+        <div class="section-label"><span>隐私与安全</span></div>
+        <h2 class="security-title">始终致力于保护你的数据安全</h2>
+        <p class="section-desc">坚持"本地优先"和"最小化数据收集"的原则，你的代码始终在你的掌控之中。</p>
+        <div class="security-grid">
+            <div class="security-card">
+                <div class="security-icon">&#x1F512;</div>
+                <h3>数据隐私保护</h3>
+                <p>代码文件默认保存在用户本地设备。处理完成后，所有明文数据将被删除。你可以通过隐私模式来限制数据的使用。</p>
+            </div>
+            <div class="security-card">
+                <div class="security-icon">&#x1F6E1;&#xFE0F;</div>
+                <h3>安全访问控制</h3>
+                <p>通过严格的访问权限管理和加密传输机制，防止未经授权的访问，降低安全风险。</p>
+            </div>
+            <div class="security-card">
+                <div class="security-icon">&#x1F310;</div>
+                <h3>开源透明</h3>
+                <p>完全开源，代码可审计。社区共同维护，确保没有后门、没有隐藏的数据收集行为。</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Download CTA -->
+    <section class="download-cta" id="download">
+        <div class="section-label"><span>立即体验</span></div>
+        <h2>CodeCast<br>先一步体验未来</h2>
+        <p class="section-desc">下载 CodeCast，开启 AI 驱动的全新编程与协作方式</p>
+        <div class="download-platforms">
+            <a href="https://github.com/1405451216/codecast/releases/latest/download/codecast-setup.exe" class="platform-card">
+                <div class="platform-icon">&#x1FA9F;</div>
+                <div class="platform-name">Windows</div>
+                <div class="platform-detail">Windows 10+ x64</div>
+            </a>
+            <a href="#" class="platform-card disabled">
+                <div class="platform-icon">&#x1F34E;</div>
+                <div class="platform-name">macOS</div>
+                <div class="platform-detail">即将推出</div>
+            </a>
+            <a href="#" class="platform-card disabled">
+                <div class="platform-icon">&#x1F427;</div>
+                <div class="platform-name">Linux</div>
+                <div class="platform-detail">即将推出</div>
+            </a>
+        </div>
+        <p class="download-version">当前版本: v1.0.0 &middot; 开源免费</p>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <div class="footer-logo">CodeCast</div>
+                <p class="footer-desc">AI 驱动的智能编程助手与代码协作平台，让编程更高效、协作更流畅。</p>
+            </div>
+            <div class="footer-col">
+                <h4>社区与文档</h4>
+                <ul>
+                    <li><a href="https://github.com/1405451216/codecast" target="_blank">GitHub</a></li>
+                    <li><a href="#">开发者文档</a></li>
+                    <li><a href="#">更新日志</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>联系我们</h4>
+                <ul>
+                    <li><a href="#">建议反馈</a></li>
+                    <li><a href="#">加入社区</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>&copy; 2025 CodeCast. Open Source under MIT License.</span>
+            <span>Made with &#x1F49C; for developers</span>
+        </div>
+    </footer>
+
+    <script>
+    // Generate Stars
+    (function(){
+        var layer=document.getElementById('stars-layer');
+        var count=200;
+        var html='';
+        for(var i=0;i<count;i++){
+            var size=['star-sm','star-sm','star-sm','star-md','star-md','star-lg'][Math.floor(Math.random()*6)];
+            var x=Math.random()*100;
+            var y=Math.random()*100;
+            var delay=Math.random()*5;
+            var duration=2+Math.random()*3;
+            var anim=Math.random()>0.5?'twinkle':'twinkle2';
+            html+='<div class="star '+size+'" style="left:'+x+'%;top:'+y+'%;animation:'+anim+' '+duration+'s '+delay+'s infinite"></div>';
+        }
+        layer.innerHTML=html;
+    })();
+
+    // Tabs
+    (function(){
+        var tabs=document.querySelectorAll('.tab-btn'),contents=document.querySelectorAll('.tab-content');
+        tabs.forEach(function(t){
+            t.addEventListener('click',function(){
+                var target=this.getAttribute('data-tab');
+                tabs.forEach(function(b){b.classList.remove('active')});
+                contents.forEach(function(c){c.classList.remove('active')});
+                this.classList.add('active');
+                document.getElementById('tab-'+target).classList.add('active')
+            })
+        });
+        // Auto rotate
+        var idx=0,keys=['ai','collab','code'];
+        setInterval(function(){
+            idx=(idx+1)%keys.length;
+            tabs.forEach(function(b){b.classList.remove('active')});
+            contents.forEach(function(c){c.classList.remove('active')});
+            tabs[idx].classList.add('active');
+            document.getElementById('tab-'+keys[idx]).classList.add('active')
+        },6000)
+    })();
+
+    // Scroll reveal
+    (function(){
+        var obs=new IntersectionObserver(function(entries){
+            entries.forEach(function(e){if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)'}})
+        },{threshold:0.1});
+        document.querySelectorAll('.feature-detail-card,.security-card,.platform-card').forEach(function(el){
+            el.style.opacity='0';el.style.transform='translateY(30px)';el.style.transition='opacity .6s ease,transform .6s ease';obs.observe(el)
+        })
+    })();
+
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(function(a){
+        a.addEventListener('click',function(e){e.preventDefault();var t=document.querySelector(this.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth'})})
+    });
+    </script>
+</body>
+</html>
