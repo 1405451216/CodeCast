@@ -28,7 +28,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.24'
           cache: true
           cache-dependency-path: CodeCast-desktop/go.sum
 
@@ -69,13 +69,16 @@ jobs:
             rm -rf dmg-staging
           fi
 
+      - name: List build output
+        working-directory: CodeCast-desktop/build/bin
+        run: ls -laR
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: CodeCast-macOS-${{ matrix.platform.arch }}
-          path: |
-            CodeCast-desktop/build/bin/CodeCast.app
-            CodeCast-desktop/build/bin/*.dmg
+          path: CodeCast-desktop/build/bin/
+          if-no-files-found: warn
           retention-days: 30
 
   # 合并为 Universal Binary（同时支持 Intel 和 Apple Silicon）
