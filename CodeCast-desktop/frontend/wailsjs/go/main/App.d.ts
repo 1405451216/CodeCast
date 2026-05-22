@@ -18,7 +18,11 @@ export function AddSlashCommand(arg1:string,arg2:string,arg3:string):Promise<mai
 
 export function ArchiveSession(arg1:string):Promise<void>;
 
+export function CancelAgent(arg1:string):Promise<void>;
+
 export function CancelRequest():Promise<void>;
+
+export function CancelSessionAgents(arg1:string):Promise<void>;
 
 export function CancelSessionRequest(arg1:string):Promise<void>;
 
@@ -36,6 +40,8 @@ export function CreateSkill(arg1:string,arg2:string,arg3:string):Promise<main.Sk
 
 export function CreateTask(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.Task>;
 
+export function DispatchAgents(arg1:string):Promise<Array<string>>;
+
 export function DeleteSession(arg1:string):Promise<void>;
 
 export function DeleteSkill(arg1:string):Promise<void>;
@@ -46,11 +52,17 @@ export function ExecuteCommand(arg1:string,arg2:number):Promise<string>;
 
 export function ExtractSummaryAsync(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function GetAgentDetail(arg1:string):Promise<any>;
+
+export function GetAgents(arg1:string):Promise<Array<any>>;
+
 export function GetArchivedSessions():Promise<Array<main.Session>>;
 
 export function GetAvailableEditors():Promise<Array<main.EditorInfo>>;
 
 export function GetConfig():Promise<Record<string, any>>;
+
+export function GetCurrentProject():Promise<main.Project>;
 
 export function GetDomainRules():Promise<Record<string, any>>;
 
@@ -63,6 +75,8 @@ export function GetMCPStatus():Promise<Array<Record<string, any>>>;
 export function GetMemoryStats():Promise<Record<string, any>>;
 
 export function GetNoProjectMode():Promise<boolean>;
+
+export function GetPlatform():Promise<string>;
 
 export function GetPopoutState():Promise<Record<string, any>>;
 
@@ -133,6 +147,8 @@ export function SendMessageEx(arg1:string,arg2:string,arg3:string,arg4:boolean):
 export function SendNotification(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SetAPIKey(arg1:string):Promise<string>;
+
+export function SetCurrentProject(arg1:string):Promise<void>;
 
 export function SetNoProjectMode(arg1:boolean):Promise<void>;
 

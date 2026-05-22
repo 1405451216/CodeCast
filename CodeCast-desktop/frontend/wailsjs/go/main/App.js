@@ -34,8 +34,16 @@ export function ArchiveSession(arg1) {
   return window['go']['main']['App']['ArchiveSession'](arg1);
 }
 
+export function CancelAgent(arg1) {
+  return window['go']['main']['App']['CancelAgent'](arg1);
+}
+
 export function CancelRequest() {
   return window['go']['main']['App']['CancelRequest']();
+}
+
+export function CancelSessionAgents(arg1) {
+  return window['go']['main']['App']['CancelSessionAgents'](arg1);
 }
 
 export function CancelSessionRequest(arg1) {
@@ -70,6 +78,10 @@ export function CreateTask(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateTask'](arg1, arg2, arg3, arg4);
 }
 
+export function DispatchAgents(arg1) {
+  return window['go']['main']['App']['DispatchAgents'](arg1);
+}
+
 export function DeleteSession(arg1) {
   return window['go']['main']['App']['DeleteSession'](arg1);
 }
@@ -90,6 +102,14 @@ export function ExtractSummaryAsync(arg1, arg2, arg3) {
   return window['go']['main']['App']['ExtractSummaryAsync'](arg1, arg2, arg3);
 }
 
+export function GetAgentDetail(arg1) {
+  return window['go']['main']['App']['GetAgentDetail'](arg1);
+}
+
+export function GetAgents(arg1) {
+  return window['go']['main']['App']['GetAgents'](arg1);
+}
+
 export function GetArchivedSessions() {
   return window['go']['main']['App']['GetArchivedSessions']();
 }
@@ -100,6 +120,10 @@ export function GetAvailableEditors() {
 
 export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
+}
+
+export function GetCurrentProject() {
+  return window['go']['main']['App']['GetCurrentProject']();
 }
 
 export function GetDomainRules() {
@@ -124,6 +148,10 @@ export function GetMemoryStats() {
 
 export function GetNoProjectMode() {
   return window['go']['main']['App']['GetNoProjectMode']();
+}
+
+export function GetPlatform() {
+  return window['go']['main']['App']['GetPlatform']();
 }
 
 export function GetPopoutState() {
@@ -264,6 +292,10 @@ export function SendNotification(arg1, arg2, arg3) {
 
 export function SetAPIKey(arg1) {
   return window['go']['main']['App']['SetAPIKey'](arg1);
+}
+
+export function SetCurrentProject(arg1) {
+  return window['go']['main']['App']['SetCurrentProject'](arg1);
 }
 
 export function SetNoProjectMode(arg1) {
