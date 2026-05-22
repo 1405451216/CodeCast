@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useAppStore, Message, Session } from './store';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useAppStore, AppState } from './store';
+import { useAppInit } from './hooks/useAppInit';
+import { useSessionActions } from './hooks/useSessionActions';
+import { useChatSender } from './hooks/useChatSender';
 import * as api from './api';
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
@@ -13,174 +16,64 @@ import SettingsPage from './components/SettingsPage';
 import PluginsPanel from './components/PluginsPanel';
 import AutomationPanel from './components/AutomationPanel';
 import ProjectsPanel from './components/ProjectsPanel';
+import AgentsPanel from './components/AgentsPanel';
 import NotificationCenter from './components/NotificationCenter';
+import PanelResizer from './components/PanelResizer';
 
 const App: React.FC = () => {
-  const {
-    sessions,
-    currentSessionId,
-    selectedModel,
-    thinkingMode,
-    setSessions,
-    setCurrentSessionId,
-    addSession,
-    removeSession,
-    setAttachments,
-    activePanel,
-    setActivePanel,
-    setPlatform,
-  } = useAppStore();
-
-  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [title, setTitle] = useState('CodeCast');
   const [view, setView] = useState<'welcome' | 'chat'>('welcome');
 
-  // Initialize: load sessions and settings
-  useEffect(() => {
-    initApp();
+  // Panel widths
+  const [sidebarWidth, setSidebarWidth] = useState(260);
+  const [previewWidth, setPreviewWidth] = useState(420);
+  const [filesWidth, setFilesWidth] = useState(240);
+
+  const sidebarVisible = useAppStore((s: AppState) => s.sidebarVisible);
+  const previewPanelVisible = useAppStore((s: AppState) => s.previewPanelVisible);
+  const filesPanelVisible = useAppStore((s: AppState) => s.filesPanelVisible);
+  const activePanel = useAppStore((s: AppState) => s.activePanel);
+
+  useAppInit();
+
+  const { handleNewSession, handleSelectSession, handleDeleteSession, handleClearSession } =
+    useSessionActions(setTitle, setView);
+
+  const { handleSendMessage } = useChatSender({
+    isLoading,
+    setIsLoading,
+    setView,
+    setTitle,
+  });
+
+  const handleStop = useCallback(async () => {
+    try {
+      await api.cancelRequest();
+    } catch (e) {
+      console.error('Cancel request failed:', e);
+    }
+    setIsLoading(false);
   }, []);
 
-  // Listen for clear-session event from TitleBar
   useEffect(() => {
     const handler = () => handleClearSession();
     window.addEventListener('clear-session', handler);
     return () => window.removeEventListener('clear-session', handler);
-  }, [currentSessionId]);
+  }, [handleClearSession]);
 
-  const initApp = async () => {
-    // Detect platform
-    try {
-      const p = await api.getPlatform();
-      if (p === 'darwin' || p === 'linux' || p === 'windows') {
-        setPlatform(p);
-      }
-    } catch (e) {
-      console.error('Failed to detect platform:', e);
-    }
+  // Resize handlers
+  const handleSidebarResize = useCallback((delta: number) => {
+    setSidebarWidth((w) => Math.max(180, Math.min(500, w + delta)));
+  }, []);
 
-    // Init theme
-    const savedTheme = localStorage.getItem('codecast_theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
+  const handlePreviewResize = useCallback((delta: number) => {
+    setPreviewWidth((w) => Math.max(250, Math.min(800, w - delta)));
+  }, []);
 
-    // Load settings
-    try {
-      const settings = await api.getSettings();
-      if (settings) {
-        if (settings.theme) {
-          document.documentElement.setAttribute('data-theme', settings.theme);
-          localStorage.setItem('codecast_theme', settings.theme);
-        }
-        if (settings.font_size) {
-          document.documentElement.style.setProperty(
-            '--font-size-base',
-            settings.font_size === 'small' ? '12px' : settings.font_size === 'large' ? '16px' : '14px'
-          );
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load settings:', e);
-    }
-
-    // Load sessions
-    try {
-      const data = await api.getSessions();
-      setSessions(data || []);
-    } catch (e) {
-      setSessions([]);
-    }
-  };
-
-  const handleNewSession = () => {
-    setCurrentSessionId(null);
-    setAttachments([]);
-    setMessages([]);
-    setTitle('CodeCast');
-    setView('welcome');
-    setActivePanel(null);
-  };
-
-  const handleSelectSession = async (id: string) => {
-    setCurrentSessionId(id);
-    setActivePanel(null);
-    try {
-      const s = await api.getSession(id);
-      if (s) {
-        setTitle(s.Name);
-        setMessages(s.Messages || []);
-        setView('chat');
-      }
-    } catch (e) {
-      const s = sessions.find((x) => x.ID === id);
-      if (s) {
-        setTitle(s.Name);
-        setMessages(s.Messages || []);
-        setView('chat');
-      }
-    }
-  };
-
-  const handleDeleteSession = async (id: string) => {
-    try {
-      await api.deleteSession(id);
-      removeSession(id);
-      if (currentSessionId === id) {
-        setCurrentSessionId(null);
-        setMessages([]);
-        setTitle('CodeCast');
-        setView('welcome');
-      }
-    } catch (e) {
-      console.error('Delete session failed:', e);
-    }
-  };
-
-  const handleClearSession = () => {
-    if (currentSessionId) {
-      handleDeleteSession(currentSessionId);
-    }
-  };
-
-  const handleSendMessage = async (text: string) => {
-    // Guard against duplicate sends while loading
-    if (isLoading) return;
-
-    let sessionId: string | null = currentSessionId;
-
-    // Create session if needed
-    if (!sessionId) {
-      try {
-        const session = await api.createSession('新对话', '');
-        sessionId = session.ID;
-        setCurrentSessionId(sessionId);
-        addSession(session);
-      } catch (e) {
-        console.error('Create session failed:', e);
-        return;
-      }
-    }
-
-    // At this point sessionId is guaranteed non-null
-    if (!sessionId) return;
-
-    // Show user message
-    const userMsg: Message = { role: 'user', content: text };
-    setMessages((prev) => [...prev, userMsg]);
-    setView('chat');
-    setTitle('新对话');
-    setIsLoading(true);
-
-    try {
-      const resp = await api.sendMessageEx(sessionId, text, selectedModel, thinkingMode);
-      if (resp && resp.length > 0) {
-        setMessages((prev) => [...prev, resp[0]]);
-      }
-    } catch (e: any) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: '抱歉，发生了错误: ' + (e.message || e) }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const handleFilesResize = useCallback((delta: number) => {
+    setFilesWidth((w) => Math.max(160, Math.min(500, w - delta)));
+  }, []);
 
   return (
     <>
@@ -190,24 +83,34 @@ const App: React.FC = () => {
           onNewSession={handleNewSession}
           onSelectSession={handleSelectSession}
           onDeleteSession={handleDeleteSession}
+          style={sidebarVisible ? { width: sidebarWidth } : undefined}
         />
+        {sidebarVisible && (
+          <PanelResizer onResize={handleSidebarResize} />
+        )}
         <div className="main">
-          <TopBar title={title} />
+          <TopBar />
           <div className="chat-area" id="chatArea">
             {view === 'welcome' ? (
               <WelcomeView onSend={handleSendMessage} />
             ) : (
-              <MessagesView messages={messages} isLoading={isLoading} />
+              <MessagesView isLoading={isLoading} />
             )}
           </div>
-          {view === 'chat' && <ChatInput onSend={handleSendMessage} />}
-          {/* Panel overlays inside .main */}
+          {view === 'chat' && <ChatInput onSend={handleSendMessage} isLoading={isLoading} onStop={handleStop} />}
           <PluginsPanel />
           <AutomationPanel />
           <ProjectsPanel />
+          {activePanel === 'agents' && <AgentsPanel />}
         </div>
-        <PreviewPanel />
-        <FilesPanel />
+        {previewPanelVisible && (
+          <PanelResizer onResize={handlePreviewResize} />
+        )}
+        <PreviewPanel style={previewPanelVisible ? { width: previewWidth } : undefined} />
+        {filesPanelVisible && (
+          <PanelResizer onResize={handleFilesResize} />
+        )}
+        <FilesPanel style={filesPanelVisible ? { width: filesWidth } : undefined} />
       </div>
       <SettingsPage />
       <NotificationCenter />
