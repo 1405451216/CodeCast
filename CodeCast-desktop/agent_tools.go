@@ -136,6 +136,10 @@ func (pool *AgentPool) toolWriteFile(agent *SubAgent, argsJSON string) ToolResul
 		return ToolResult{Content: "内容过大，超过 10MB 上限", IsError: true}
 	}
 
+	// Layer 2: Acquire file-level write lock
+	pool.AcquireFileLock(path)
+	defer pool.ReleaseFileLock(path)
+
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return ToolResult{Content: fmt.Sprintf("创建目录失败: %v", err), IsError: true}
@@ -168,6 +172,10 @@ func (pool *AgentPool) toolEditFile(agent *SubAgent, argsJSON string) ToolResult
 			IsError: true,
 		}
 	}
+
+	// Layer 2: Acquire file-level write lock
+	pool.AcquireFileLock(path)
+	defer pool.ReleaseFileLock(path)
 
 	data, err := os.ReadFile(path)
 	if err != nil {

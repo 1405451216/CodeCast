@@ -753,6 +753,15 @@ func (a *App) DispatchAgents(tasksJSON string) ([]string, error) {
 		return nil, fmt.Errorf("至少需要一个子任务")
 	}
 
+	// Layer 1 + 3: Validate files_scope — no overlap, at most 1 global writer
+	scopes := make([][]string, len(input.Tasks))
+	for i, t := range input.Tasks {
+		scopes[i] = t.FilesScope
+	}
+	if err := ValidateFilesScopes(scopes); err != nil {
+		return nil, fmt.Errorf("files_scope 冲突校验失败: %v", err)
+	}
+
 	mode := AgentModeExplicit
 	if input.Mode == "implicit" {
 		mode = AgentModeImplicit

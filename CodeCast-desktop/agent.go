@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -95,6 +98,10 @@ type AgentPool struct {
 	app       *App
 	ctx       context.Context
 	cancel    context.CancelFunc
+
+	// Layer 2: Runtime file-level write locks to prevent concurrent writes
+	fileLocksMu sync.Mutex
+	fileLocks   map[string]*sync.Mutex
 }
 
 func NewAgentPool(app *App, maxConcurrency int) *AgentPool {
@@ -105,7 +112,84 @@ func NewAgentPool(app *App, maxConcurrency int) *AgentPool {
 		app:       app,
 		ctx:       ctx,
 		cancel:    cancel,
+		fileLocks: make(map[string]*sync.Mutex),
 	}
+}
+
+// AcquireFileLock acquires an exclusive write lock for a file path.
+// This prevents two agents from writing the same file concurrently.
+func (pool *AgentPool) AcquireFileLock(absPath string) {
+	pool.fileLocksMu.Lock()
+	lk, exists := pool.fileLocks[absPath]
+	if !exists {
+		lk = &sync.Mutex{}
+		pool.fileLocks[absPath] = lk
+	}
+	pool.fileLocksMu.Unlock()
+	lk.Lock()
+}
+
+// ReleaseFileLock releases the write lock for a file path.
+func (pool *AgentPool) ReleaseFileLock(absPath string) {
+	pool.fileLocksMu.Lock()
+	lk, exists := pool.fileLocks[absPath]
+	pool.fileLocksMu.Unlock()
+	if exists {
+		lk.Unlock()
+	}
+}
+
+// ValidateFilesScopes checks that a batch of tasks has no overlapping files_scope.
+// Rules:
+//   - At most one task may have an empty scope (global write).
+//   - No two non-empty scopes may overlap (one is a prefix of the other).
+func ValidateFilesScopes(tasks [][]string) error {
+	globalCount := 0
+	for _, scope := range tasks {
+		if len(scope) == 0 {
+			globalCount++
+		}
+	}
+	if globalCount > 1 {
+		return fmt.Errorf("同一批次中最多允许 1 个子任务拥有全局写权限 (files_scope 为空)，当前有 %d 个", globalCount)
+	}
+
+	// Check pairwise overlap for non-empty scopes
+	for i := 0; i < len(tasks); i++ {
+		if len(tasks[i]) == 0 {
+			continue
+		}
+		for j := i + 1; j < len(tasks); j++ {
+			if len(tasks[j]) == 0 {
+				continue
+			}
+			if overlap := findScopeOverlap(tasks[i], tasks[j]); overlap != "" {
+				return fmt.Errorf("子任务 %d 和子任务 %d 的 files_scope 存在重叠: %s", i+1, j+1, overlap)
+			}
+		}
+	}
+	return nil
+}
+
+// findScopeOverlap checks if any path in scopeA overlaps with any path in scopeB.
+// Overlap means one path is a prefix of (or equal to) the other.
+func findScopeOverlap(scopeA, scopeB []string) string {
+	for _, a := range scopeA {
+		cleanA := filepath.Clean(a)
+		for _, b := range scopeB {
+			cleanB := filepath.Clean(b)
+			if cleanA == cleanB {
+				return cleanA
+			}
+			if strings.HasPrefix(cleanA, cleanB+string(filepath.Separator)) {
+				return fmt.Sprintf("%s (属于 %s)", cleanA, cleanB)
+			}
+			if strings.HasPrefix(cleanB, cleanA+string(filepath.Separator)) {
+				return fmt.Sprintf("%s (属于 %s)", cleanB, cleanA)
+			}
+		}
+	}
+	return ""
 }
 
 func (pool *AgentPool) Submit(agent *SubAgent) {
