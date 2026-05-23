@@ -103,18 +103,26 @@ jobs:
 
       - name: Build for macOS ARM64
         working-directory: CodeCast-desktop
-        run: wails build -platform darwin/arm64
+        run: wails build
 
-      - name: List build output
-        run: find CodeCast-desktop/build -type f \( -name "*.dmg" -o -name "*.app" \) 2>/dev/null | head -20
+      - name: Find and rename build output
+        run: |
+          echo "=== 搜索所有构建产物 ==="
+          find CodeCast-desktop/build -type f \( -name "*.dmg" -o -name "*.app" -o -name "*.zip" \) 2>/dev/null
+          echo "=== 重命名产物 ==="
+          mkdir -p dist
+          for f in $(find CodeCast-desktop/build -name "*.dmg" 2>/dev/null); do
+            cp "$f" "dist/CodeCast-macOS-arm64.dmg"
+            echo "✅ 复制: $f → dist/CodeCast-macOS-arm64.dmg"
+            break
+          done
+          ls -la dist/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: CodeCast-macOS-arm64
-          path: |
-            CodeCast-desktop/build/bin/*.dmg
-            CodeCast-desktop/build/darwin/*.dmg
+          path: dist/
           retention-days: 30
           if-no-files-found: warn
 
@@ -149,18 +157,32 @@ jobs:
 
       - name: Build for macOS AMD64
         working-directory: CodeCast-desktop
-        run: wails build -platform darwin/amd64
+        run: |
+          export CGO_ENABLED=1
+          export GOOS=darwin
+          export GOARCH=amd64
+          export CC=o64-clang
+          export CXX=o64-clang++
+          wails build
 
-      - name: List build output
-        run: find CodeCast-desktop/build -type f -name "*.dmg" 2>/dev/null | head -10
+      - name: Find and rename build output
+        run: |
+          echo "=== 搜索所有构建产物 ==="
+          find CodeCast-desktop/build -type f \( -name "*.dmg" -o -name "*.app" -o -name "*.zip" \) 2>/dev/null
+          echo "=== 重命名产物 ==="
+          mkdir -p dist
+          for f in $(find CodeCast-desktop/build -name "*.dmg" 2>/dev/null); do
+            cp "$f" "dist/CodeCast-macOS-amd64.dmg"
+            echo "✅ 复制: $f → dist/CodeCast-macOS-amd64.dmg"
+            break
+          done
+          ls -la dist/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: CodeCast-macOS-amd64
-          path: |
-            CodeCast-desktop/build/bin/*.dmg
-            CodeCast-desktop/build/darwin/*.dmg
+          path: dist/
           retention-days: 30
           if-no-files-found: warn
 
