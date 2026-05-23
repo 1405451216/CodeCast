@@ -190,17 +190,21 @@ jobs:
           if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
             echo "✅ Release ID: ${RELEASE_ID}，开始上传文件..."
             
-            # 上传所有构建产物
+            # 上传所有构建产物（使用 Gitee attach_files 接口）
             for file in dist/*; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
                 echo "  📤 上传: ${filename}"
-                curl -sS -X POST \
-                  "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases/${RELEASE_ID}/assets" \
-                  -H "Content-Type: multipart/form-data" \
+                UPLOAD_RESP=$(curl -sS -X POST \
+                  "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases/${RELEASE_ID}/attach_files" \
                   -F "access_token=${GITEE_TOKEN}" \
-                  -F "file=@${file};filename=${filename}" \
-                  || echo "  ⚠️ ${filename} 上传失败"
+                  -F "file=@${file};type=application/octet-stream")
+                UPLOAD_OK=$(echo "$UPLOAD_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if 'id' in d or 'attach_file_id' in d else d.get('message','unknown'))" 2>/dev/null || echo "parse_error")
+                if [ "$UPLOAD_OK" = "ok" ]; then
+                  echo "  ✅ ${filename} 上传成功"
+                else
+                  echo "  ⚠️ ${filename} 上传失败: ${UPLOAD_RESP}"
+                fi
               done
             
             echo ""
