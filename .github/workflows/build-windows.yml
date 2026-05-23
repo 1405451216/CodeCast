@@ -1,4 +1,4 @@
-name: Build & Publish (Windows + macOS)
+name: Build & Publish (Windows)
 
 on:
   push:
@@ -72,88 +72,8 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  build-macos:
-    runs-on: macos-latest
-    name: Build macOS (Universal)
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.26'
-          cache: true
-          cache-dependency-path: CodeCast-desktop/go.sum
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: CodeCast-desktop/frontend/package-lock.json
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Install frontend dependencies
-        working-directory: CodeCast-desktop/frontend
-        run: npm ci
-
-      - name: Build for macOS
-        working-directory: CodeCast-desktop
-        run: wails build
-
-      - name: Package .app as zip
-        run: |
-          echo "=== 列出 build 目录结构 ==="
-          find CodeCast-desktop/build -maxdepth 5 -type f -o -type d 2>/dev/null | head -40
-          echo "=== 搜索 .app ==="
-          find CodeCast-desktop/build -type d -name "*.app" 2>/dev/null
-          echo "=== 搜索 dmg/zip ==="
-          find CodeCast-desktop/build -type f \( -name "*.dmg" -o -name "*.zip" \) 2>/dev/null
-          echo "=== 打包 ==="
-          mkdir -p dist
-          # 尝试1: 找 .app bundle
-          APP=$(find CodeCast-desktop/build -type d -name "*.app" 2>/dev/null | head -1)
-          if [ -n "$APP" ] && [ -d "$APP" ]; then
-            echo "✅ 找到 .app: $APP"
-            ditto -c -k --keepParent "$APP" dist/CodeCast-macOS.zip
-            echo "✅ 已打包 zip"
-          # 尝试2: 找 dmg
-          else
-            DMG=$(find CodeCast-desktop/build -name "*.dmg" 2>/dev/null | head -1)
-            if [ -n "$DMG" ] && [ -f "$DMG" ]; then
-              echo "✅ 找到 dmg: $DMG"
-              cp "$DMG" dist/CodeCast-macOS.dmg
-            # 尝试3: 找任何可执行文件
-              else
-                EXE=$(find CodeCast-desktop/build -type f -perm +111 ! -name "*.sh" 2>/dev/null | head -5)
-                if [ -n "$EXE" ]; then
-                  echo "⚠️ 未找到 .app/dmg，找到可执行文件:"
-                  echo "$EXE"
-                  cd CodeCast-desktop/build/bin
-                  zip -r ../../../dist/CodeCast-macOS.zip ./* 2>/dev/null || true
-                else
-                  echo "❌ 未找到任何构建产物"
-                fi
-              fi
-            fi
-          fi
-          echo "=== 最终 dist 内容 ==="
-          ls -lah dist/ 2>/dev/null || echo "(空)"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: CodeCast-macOS
-          path: dist/
-          retention-days: 30
-          if-no-files-found: warn
-
   publish-github-release:
-    needs: [build-windows, build-macos]
+    needs: build-windows
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -163,34 +83,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Windows artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: CodeCast-Windows
-          path: dist/windows
-
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: CodeCast-macOS
-          path: dist/macos
+          path: dist
 
       - name: Generate checksums
-        run: find dist -type f -exec sha256sum {} \; > SHA256SUMS.txt
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           generate_release_notes: true
-          files: |
-            dist/windows/*
-            dist/macos/*
-            SHA256SUMS.txt
+          files: dist/*
 
   publish-gitee-release:
-    needs: [build-windows, build-macos]
+    needs: build-windows
     runs-on: ubuntu-latest
     if: |
       startsWith(github.ref, 'refs/tags/v') || github.event.inputs.gitee_sync == 'true'
@@ -201,15 +112,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: CodeCast-*
+          name: CodeCast-Windows
           path: dist
-          merge-multiple: true
 
       - name: Generate checksums
-        run: find dist -type f -exec sha256sum {} \; > dist/SHA256SUMS.txt
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
 
       - name: Determine version tag
         id: version
