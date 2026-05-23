@@ -107,8 +107,7 @@ jobs:
     needs: build-windows
     runs-on: ubuntu-latest
     if: |
-      (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.gitee_sync == 'true')
-      && secrets.GITEE_TOKEN != ''
+      startsWith(github.ref, 'refs/tags/v') || github.event.inputs.gitee_sync == 'true'
     permissions:
       contents: read
 
