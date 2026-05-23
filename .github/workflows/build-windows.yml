@@ -133,14 +133,21 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Sync to Gitee and create Release
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install upload dependencies
+        working-directory: .github/scripts
+        run: npm init -y && npm install axios form-data
+
+      - name: Sync code to Gitee
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           GITEE_OWNER: ${{ vars.GITEE_OWNER || 'CodeCast' }}
           GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'code-cast' }}
-          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          # 1. 同步代码到 Gitee（强制推送）
           echo "🔄 同步代码到 Gitee..."
           git clone --bare https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git repo.git
           cd repo.git
@@ -148,72 +155,12 @@ jobs:
           cd ..
           rm -rf repo.git
 
-          # 2. 通过 Gitee API 创建 Release 并上传文件
-          echo "📦 创建 Gitee Release..."
-          
-          # 获取 Gitee 上的 tag（如果不存在则创建）
-          TAG_EXISTS=$(curl -sS \
-            -H "Content-Type: application/json" \
-            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/tags/${TAG}" \
-            -w "%{http_code}" -o /dev/null) || true
-          
-          if [ "$TAG_EXISTS" != "200" ]; then
-            echo "  创建 tag ${TAG}..."
-            curl -sS -X POST \
-              "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/tags" \
-              -H "Content-Type: application/json" \
-              -d "{\"access_token\":\"${GITEE_TOKEN}\",\"message\":\"Release ${TAG}\",\"tag_name\":\"${TAG}\"}" \
-              || echo "  ⚠️ Tag 创建失败（可能已存在）"
-          fi
-
-          # 创建 Release
-          RELEASE_RESP=$(curl -sS -X POST \
-            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"access_token\": \"${GITEE_TOKEN}\",
-              \"tag_name\": \"${TAG}\",
-              \"name\": \"CodeCast ${TAG}\",
-              \"body\": \"## CodeCast ${TAG}\\n\\n🚀 Windows 版本\\n\\n从 GitHub Actions 自动构建并同步发布\\n\\n### 文件列表\\n$(ls -la dist/ | awk '{print \"- **\" $NF \"** (\" $5 \" bytes)\"}')\",
-              \"prerelease\": false
-            }")
-          
-          RELEASE_ID=$(echo "$RELEASE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
-          
-          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
-            echo "⚠️ Release 创建失败或已存在，尝试获取已有的..."
-            RELEASE_ID=$(curl -sS \
-              "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}" \
-              | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
-          fi
-          
-          if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
-            echo "✅ Release ID: ${RELEASE_ID}，开始上传文件..."
-            
-            # 上传所有构建产物（使用 Gitee attach_files 接口）
-            for file in dist/*; do
-              if [ -f "$file" ]; then
-                filename=$(basename "$file")
-                echo "  📤 上传: ${filename}"
-                UPLOAD_RESP=$(curl -sS -X POST \
-                  "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases/${RELEASE_ID}/attach_files" \
-                  -F "access_token=${GITEE_TOKEN}" \
-                  -F "file=@${file};type=application/octet-stream")
-                UPLOAD_OK=$(echo "$UPLOAD_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if 'id' in d or 'attach_file_id' in d else d.get('message','unknown'))" 2>/dev/null || echo "parse_error")
-                if [ "$UPLOAD_OK" = "ok" ]; then
-                  echo "  ✅ ${filename} 上传成功"
-                else
-                  echo "  ⚠️ ${filename} 上传失败: ${UPLOAD_RESP}"
-                fi
-              done
-            
-            echo ""
-            echo "========================================="
-            echo "✅ Gitee 发布完成！"
-            echo "🔗 下载地址:"
-            echo "   https://gitee.com/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases/tag/${TAG}"
-            echo "========================================="
-          else
-            echo "❌ 无法获取 Release ID，跳过文件上传"
-            echo "   请确认 Gitee 仓库已创建且 Token 有权限"
-          fi
+      - name: Upload to Gitee Release (Node.js)
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_OWNER: ${{ vars.GITEE_OWNER || 'CodeCast' }}
+          GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'code-cast' }}
+          TAG: ${{ steps.version.outputs.tag }}
+          FILES_DIR: dist
+        working-directory: .github/scripts
+        run: node gitee-upload.mjs
