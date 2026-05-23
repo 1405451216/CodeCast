@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.gitee_sync == 'true')
-      && env.GITEE_TOKEN != ''
+      && secrets.GITEE_TOKEN != ''
     permissions:
       contents: read
 
