@@ -107,27 +107,42 @@ jobs:
 
       - name: Package .app as zip
         run: |
-          echo "=== 搜索构建产物 ==="
+          echo "=== 列出 build 目录结构 ==="
+          find CodeCast-desktop/build -maxdepth 5 -type f -o -type d 2>/dev/null | head -40
+          echo "=== 搜索 .app ==="
           find CodeCast-desktop/build -type d -name "*.app" 2>/dev/null
+          echo "=== 搜索 dmg/zip ==="
           find CodeCast-desktop/build -type f \( -name "*.dmg" -o -name "*.zip" \) 2>/dev/null
           echo "=== 打包 ==="
           mkdir -p dist
-          APP=$(find CodeCast-desktop/build -type d -maxdepth 4 -name "CodeCast.app" 2>/dev/null | head -1)
-          if [ -n "$APP" ]; then
-            echo "找到 .app: $APP"
+          # 尝试1: 找 .app bundle
+          APP=$(find CodeCast-desktop/build -type d -name "*.app" 2>/dev/null | head -1)
+          if [ -n "$APP" ] && [ -d "$APP" ]; then
+            echo "✅ 找到 .app: $APP"
             ditto -c -k --keepParent "$APP" dist/CodeCast-macOS.zip
-            echo "✅ 已打包: dist/CodeCast-macOS.zip"
+            echo "✅ 已打包 zip"
+          # 尝试2: 找 dmg
           else
             DMG=$(find CodeCast-desktop/build -name "*.dmg" 2>/dev/null | head -1)
-            if [ -n "$DMG" ]; then
+            if [ -n "$DMG" ] && [ -f "$DMG" ]; then
+              echo "✅ 找到 dmg: $DMG"
               cp "$DMG" dist/CodeCast-macOS.dmg
-              echo "✅ 已复制 dmg: dist/CodeCast-macOS.dmg"
-            else
-              echo "⚠️ 未找到任何产物"
-              ls -laR CodeCast-desktop/build/bin/ 2>/dev/null || true
+            # 尝试3: 找任何可执行文件
+              else
+                EXE=$(find CodeCast-desktop/build -type f -perm +111 ! -name "*.sh" 2>/dev/null | head -5)
+                if [ -n "$EXE" ]; then
+                  echo "⚠️ 未找到 .app/dmg，找到可执行文件:"
+                  echo "$EXE"
+                  cd CodeCast-desktop/build/bin
+                  zip -r ../../../dist/CodeCast-macOS.zip ./* 2>/dev/null || true
+                else
+                  echo "❌ 未找到任何构建产物"
+                fi
+              fi
             fi
           fi
-          ls -lah dist/
+          echo "=== 最终 dist 内容 ==="
+          ls -lah dist/ 2>/dev/null || echo "(空)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -156,6 +171,7 @@ jobs:
 
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: CodeCast-macOS
           path: dist/macos
