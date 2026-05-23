@@ -1,0 +1,170 @@
+/* ===== 19. Preview Panel ===== */
+.preview-panel {
+    width: 420px;
+    min-width: 300px;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    overflow: hidden;
+}
+
+.preview-panel-header {
+    height: 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    flex-shrink: 0;
+}
+
+.preview-tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.preview-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.preview-tab:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
+}
+
+.preview-tab.active {
+    background: var(--sidebar-active);
+    color: var(--text);
+    font-weight: 500;
+}
+
+.preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.preview-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ===== 20. Browser Toolbar ===== */
+.browser-toolbar {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.browser-url-input {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 12px;
+    padding: 4px 8px;
+    outline: none;
+}
+
+.browser-url-input:focus {
+    border-color: var(--input-border-focus);
+}
+
+.browser-viewport {
+    flex: 1;
+    overflow: auto;
+    background: #0d0d0d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.browser-placeholder {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* ===== 21. Editor Preview ===== */
+.editor-file-header {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.editor-filename {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.editor-code-area {
+    flex: 1;
+    overflow: auto;
+    margin: 0;
+    padding: 12px 16px;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    background: #111;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ===== 23. Editor Dropdown ===== */
+.editor-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 180px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.editor-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    transition: background 0.1s;
+}
+
+.editor-dropdown-item:hover {
+    background: var(--sidebar-hover);
+}
+
+.editor-dropdown-item.preferred {
+    color: var(--accent);
+}
+
+.editor-dropdown-item .editor-check {
+    width: 16px;
+    text-align: center;
+}

@@ -1,0 +1,79 @@
+/* ===== 31. Slash Commands Menu ===== */
+.slash-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 4px;
+    box-shadow: var(--shadow);
+    z-index: 100;
+    display: none;
+}
+
+.slash-menu.visible {
+    display: block;
+}
+
+.slash-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    transition: background 0.1s;
+}
+
+.slash-menu-item:hover {
+    background: var(--sidebar-hover);
+}
+
+.slash-menu-item.selected {
+    background: var(--sidebar-active);
+}
+
+.slash-menu-item-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tag-bg);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.slash-menu-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.slash-menu-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.slash-menu-item-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.slash-menu-empty {
+    padding: 12px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12px;
+}

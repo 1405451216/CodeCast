@@ -1,0 +1,22 @@
+/* ===== 1. Base Reset ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    font-size: var(--font-size-base);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar:hover { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--scrollbar); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; transition: background 0.15s; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+::selection {
+    background: rgba(124, 124, 255, 0.3);
+    color: inherit;
+}

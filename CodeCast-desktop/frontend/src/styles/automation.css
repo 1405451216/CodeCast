@@ -1,0 +1,282 @@
+/* ===== 30. Automation Panel ===== */
+.atm-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+}
+
+.panel-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.atm-create-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    transition: all 0.15s;
+}
+
+.atm-create-btn:hover {
+    background: var(--sidebar-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.atm-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.15s;
+}
+
+.atm-back-btn:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
+}
+
+/* Description & Tips */
+.atm-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.atm-tips {
+    list-style: disc;
+    padding-left: 20px;
+    margin-bottom: 24px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.8;
+}
+
+/* Existing tasks section */
+.atm-existing {
+    margin-bottom: 28px;
+}
+
+.atm-existing-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+}
+
+.atm-task-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+}
+
+.atm-task-card:hover {
+    border-color: var(--accent);
+}
+
+.atm-task-card-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.atm-task-card-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+}
+
+.atm-task-card-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.atm-task-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.atm-toggle {
+    width: 32px;
+    height: 18px;
+    border-radius: 9px;
+    border: none;
+    background: var(--border);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+}
+
+.atm-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.2s;
+}
+
+.atm-toggle.active {
+    background: var(--accent);
+}
+
+.atm-toggle.active::after {
+    transform: translateX(14px);
+}
+
+.atm-action-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.atm-action-btn:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
+}
+
+.atm-action-delete:hover {
+    color: #e81123;
+}
+
+/* Templates section */
+.atm-templates-section {
+    margin-top: 8px;
+}
+
+.atm-templates-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+}
+
+.atm-templates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.atm-template-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.atm-template-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transform: translateY(-1px);
+}
+
+.atm-template-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--sidebar-hover);
+    border-radius: 8px;
+}
+
+.atm-template-text {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+}
+
+/* Create form */
+.atm-create-form {
+    max-width: 560px;
+}
+
+.atm-form-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 20px;
+}
+
+.atm-form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+
+.atm-cancel-btn {
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.15s;
+}
+
+.atm-cancel-btn:hover {
+    background: var(--sidebar-hover);
+}
+
+.atm-submit-btn {
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: var(--accent);
+    color: white;
+    transition: all 0.15s;
+}
+
+.atm-submit-btn:hover {
+    background: var(--accent-hover);
+}
+
+.form-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}

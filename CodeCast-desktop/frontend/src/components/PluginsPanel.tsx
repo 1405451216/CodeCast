@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useAppStore } from '../store';
+import { useAppStore, AppState } from '../store';
 import * as api from '../api';
 
 interface Skill {
@@ -66,8 +66,8 @@ const BUILTIN_PLUGINS: BuiltinPlugin[] = [
 ];
 
 const PluginsPanel: React.FC = () => {
-  const activePanel = useAppStore((s) => s.activePanel);
-  const setActivePanel = useAppStore((s) => s.setActivePanel);
+  const activePanel = useAppStore((s: AppState) => s.activePanel);
+  const setActivePanel = useAppStore((s: AppState) => s.setActivePanel);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [skills, setSkills] = useState<Skill[]>([]);

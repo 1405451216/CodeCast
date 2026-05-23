@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -67,6 +68,15 @@ func (s *Session) AddMessage(msg Message) {
 	s.Messages = append(s.Messages, msg)
 }
 
+func deepCopySession(src *Session) *Session {
+	cp := *src
+	cp.Messages = make([]Message, len(src.Messages))
+	for i, m := range src.Messages {
+		cp.Messages[i] = m
+	}
+	return &cp
+}
+
 // ==================== cancelEntry 存储取消函数及其创建时间 ====================
 
 type cancelEntry struct {
@@ -87,7 +97,14 @@ const (
 	criticalMapSizeThreshold = 1000
 )
 
-var httpClient = &http.Client{}
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        10,
+		MaxIdleConnsPerHost: 5,
+		IdleConnTimeout:     90 * time.Second,
+	},
+}
 
 func startCleanupGoroutine() {
 	ticker := time.NewTicker(cleanupInterval)
@@ -157,12 +174,7 @@ func (a *App) GetSessions() []*Session {
 	defer a.mu.Unlock()
 	result := make([]*Session, len(a.sessions))
 	for i, s := range a.sessions {
-		copy := *s
-		copy.Messages = make([]Message, len(s.Messages))
-		for j, m := range s.Messages {
-			copy.Messages[j] = m
-		}
-		result[i] = &copy
+		result[i] = deepCopySession(s)
 	}
 	return result
 }
@@ -173,12 +185,7 @@ func (a *App) CreateSession(name, skillID string) *Session {
 
 	session := NewSession(name, skillID)
 	a.sessions = append(a.sessions, session)
-	copy := *session
-	copy.Messages = make([]Message, len(session.Messages))
-	for i, m := range session.Messages {
-		copy.Messages[i] = m
-	}
-	return &copy
+	return deepCopySession(session)
 }
 
 func (a *App) GetSession(id string) *Session {
@@ -187,12 +194,7 @@ func (a *App) GetSession(id string) *Session {
 
 	for _, s := range a.sessions {
 		if s.ID == id {
-			copy := *s
-			copy.Messages = make([]Message, len(s.Messages))
-			for j, m := range s.Messages {
-				copy.Messages[j] = m
-			}
-			return &copy
+			return deepCopySession(s)
 		}
 	}
 	return nil
@@ -214,7 +216,7 @@ func (a *App) DeleteSession(id string) error {
 func (a *App) getSessionByID(id string) *Session {
 	for _, s := range a.sessions {
 		if s.ID == id {
-			return s
+			return deepCopySession(s)
 		}
 	}
 	return nil
@@ -252,7 +254,6 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 		apiURL      string
 		actualModel string
 		longContext bool
-		allMessages []Message
 	)
 
 	a.mu.Lock()
@@ -263,12 +264,12 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 	}
 	if apiKey == "" {
 		a.mu.Unlock()
-		return nil, fmt.Errorf("请先设置 DeepSeek API Key")
+		return nil, fmt.Errorf("请先设置 API Key")
 	}
 
-	apiURL = "https://api.deepseek.com"
+	apiURL = a.llmConfig.APIURL
 	if modelName == "" {
-		modelName = "deepseek-v4-flash"
+		modelName = a.llmConfig.Model
 	}
 	actualModel = modelName
 	longContext = a.settings.LongContext
@@ -283,6 +284,23 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 
 	session.AddMessage(Message{Role: "user", Content: input})
 
+	systemPrompt := a.buildSystemPrompt(session)
+	allMessages := a.buildMessageSequence(session, input, longContext, systemPrompt)
+
+	a.mu.Unlock()
+
+	resp, err := a.callAPIEx(allMessages, apiKey, apiURL, actualModel, longContext, thinking, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	a.saveResultToSession(sessionID, resp)
+	a.saveMemoryAsync(sessionID, input, resp.Content)
+
+	return []Message{resp}, nil
+}
+
+func (a *App) buildSystemPrompt(session *Session) string {
 	var systemPrompt string
 
 	if a.settings.WorkMode == "coding" {
@@ -290,8 +308,6 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 	} else {
 		systemPrompt = PromptDaily
 	}
-
-	// --- 拼接 system prompt（保持段落占位稳定，利于缓存命中）---
 
 	if cp := a.getCurrentProjectLocked(); cp != nil {
 		systemPrompt += fmt.Sprintf("\n\n【当前项目】\n项目名称: %s\n项目路径: %s\n所有文件操作默认基于此项目目录。", cp.Name, cp.Path)
@@ -327,9 +343,11 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 		}
 	}
 
-	// --- 构建消息序列 ---
+	return systemPrompt
+}
 
-	allMessages = []Message{
+func (a *App) buildMessageSequence(session *Session, input string, longContext bool, systemPrompt string) []Message {
+	allMessages := []Message{
 		{Role: "system", Content: systemPrompt},
 	}
 
@@ -347,8 +365,6 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 		allMessages = append(allMessages, msg)
 	}
 
-	// --- Memory context 注入到消息序列末尾（用户消息之前），不污染 system prompt ---
-
 	if a.memory != nil {
 		memoryContext, err := a.memory.RecallEpisodes(input, 5)
 		if err == nil && memoryContext != "" {
@@ -359,34 +375,32 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 		}
 	}
 
-	a.mu.Unlock()
+	return allMessages
+}
 
-	resp, err := a.callAPIEx(allMessages, apiKey, apiURL, actualModel, longContext, thinking, sessionID)
-	if err != nil {
-		return nil, err
-	}
-
+func (a *App) saveResultToSession(sessionID string, resp Message) {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	if saveSession := a.getSessionByID(sessionID); saveSession != nil {
 		saveSession.AddMessage(resp)
 	}
-	a.mu.Unlock()
+}
 
-	if a.memory != nil && resp.Content != "" {
-		go func(sid, userIn, assistContent string) {
-			if _, err := a.memory.SaveEpisode(sid, "user", userIn); err != nil {
-				fmt.Printf("[Memory] 保存用户消息失败: %v\n", err)
-			}
-			if _, err := a.memory.SaveEpisode(sid, "assistant", assistContent); err != nil {
-				fmt.Printf("[Memory] 保存AI回复失败: %v\n", err)
-			}
-			if a.settings.AutoMemory || len(userIn) > 20 {
-				a.ExtractSummaryAsync(sid, userIn, assistContent)
-			}
-		}(sessionID, input, resp.Content)
+func (a *App) saveMemoryAsync(sessionID, userIn, assistContent string) {
+	if a.memory == nil || assistContent == "" {
+		return
 	}
-
-	return []Message{resp}, nil
+	go func(sid, uIn, aContent string) {
+		if _, err := a.memory.SaveEpisode(sid, "user", uIn); err != nil {
+			fmt.Printf("[Memory] 保存用户消息失败: %v\n", err)
+		}
+		if _, err := a.memory.SaveEpisode(sid, "assistant", aContent); err != nil {
+			fmt.Printf("[Memory] 保存AI回复失败: %v\n", err)
+		}
+		if a.settings.AutoMemory || len(uIn) > 20 {
+			a.ExtractSummaryAsync(sid, uIn, aContent)
+		}
+	}(sessionID, userIn, assistContent)
 }
 
 func (a *App) callAPI(messages []Message, apiKey, apiURL, modelName string, longContext bool) (Message, error) {
@@ -774,7 +788,7 @@ func (a *App) DispatchAgents(tasksJSON string) ([]string, error) {
 	var agentIDs []string
 	for _, task := range input.Tasks {
 		agent := &SubAgent{
-			ID:         fmt.Sprintf("agent_%d", time.Now().UnixNano()),
+			ID:         uuid.New().String(),
 			SessionID:  sessionID,
 			Title:      task.Title,
 			Prompt:     task.Prompt,
@@ -787,7 +801,6 @@ func (a *App) DispatchAgents(tasksJSON string) ([]string, error) {
 
 		a.agentPool.Submit(agent)
 		agentIDs = append(agentIDs, agent.ID)
-		time.Sleep(1 * time.Millisecond)
 	}
 
 	return agentIDs, nil

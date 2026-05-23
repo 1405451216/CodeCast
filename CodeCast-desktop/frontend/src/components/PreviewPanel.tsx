@@ -1,12 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { useAppStore, PreviewTab } from '../store';
+import { useAppStore, PreviewTab, AppState } from '../store';
 import * as api from '../api';
 
-const PreviewPanel: React.FC = () => {
-  const previewPanelVisible = useAppStore((s) => s.previewPanelVisible);
-  const togglePreviewPanel = useAppStore((s) => s.togglePreviewPanel);
-  const previewTab = useAppStore((s) => s.previewTab);
-  const setPreviewTab = useAppStore((s) => s.setPreviewTab);
+const PreviewPanel: React.FC<{ style?: React.CSSProperties }> = ({ style }) => {
+  const previewPanelVisible = useAppStore((s: AppState) => s.previewPanelVisible);
+  const togglePreviewPanel = useAppStore((s: AppState) => s.togglePreviewPanel);
+  const previewTab = useAppStore((s: AppState) => s.previewTab);
+  const setPreviewTab = useAppStore((s: AppState) => s.setPreviewTab);
 
   // Browser state
   const [browserUrl, setBrowserUrl] = useState('');
@@ -111,7 +111,7 @@ const PreviewPanel: React.FC = () => {
   if (!previewPanelVisible) return null;
 
   return (
-    <div className="preview-panel" id="previewPanel">
+    <div className="preview-panel" id="previewPanel" style={style}>
       {/* Header */}
       <div className="preview-panel-header">
         <div className="preview-tabs" id="previewTabs">
@@ -174,7 +174,7 @@ const PreviewPanel: React.FC = () => {
                 ref={iframeRef}
                 src={currentUrl}
                 title="浏览器预览"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                sandbox="allow-scripts allow-forms allow-popups"
                 style={{ width: '100%', height: '100%', border: 'none' }}
               />
             ) : (
@@ -214,4 +214,4 @@ const PreviewPanel: React.FC = () => {
   );
 };
 
-export default PreviewPanel;
+export default React.memo(PreviewPanel);

@@ -30,3 +30,11 @@ CodeCast-desktop/frontend-backup/
 CodeCast-desktop/settings.json
 Design/
 AGENTS.md
+
+# Media & temp files
+*.mp4
+*.avi
+*.mov
+gen_*.py
+ref_*.txt
+ref_*.png

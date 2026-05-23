@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAppStore } from '../store';
 import type { SubAgent } from '../store/types';
+import { shallow } from 'zustand/shallow';
 
 const statusIcons: Record<SubAgent['status'], string> = {
   queued: '⏳',
@@ -11,7 +12,7 @@ const statusIcons: Record<SubAgent['status'], string> = {
 };
 
 const AgentsPanel: React.FC = () => {
-  const agents = useAppStore((s) => s.agents);
+  const agents = useAppStore((s) => s.agents, shallow);
   const currentSessionId = useAppStore((s) => s.currentSessionId);
 
   const sessionAgents = agents.filter((a) => a.sessionId === currentSessionId);
@@ -79,4 +80,4 @@ const AgentsPanel: React.FC = () => {
   );
 };
 
-export default AgentsPanel;
+export default React.memo(AgentsPanel);

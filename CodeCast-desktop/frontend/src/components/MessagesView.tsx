@@ -1,18 +1,72 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Message } from '../store';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useAppStore, Message, AppState } from '../store';
+import { shallow } from 'zustand/shallow';
 import { formatContent } from '../utils';
 
-const MessageItem: React.FC<{ message: Message }> = ({ message }) => {
-  const isUser = message.role === 'user';
-  const avatarClass = isUser ? 'user-avatar' : 'ai-avatar';
-  const avatarText = isUser ? 'U' : 'G';
-  const roleName = isUser ? '你' : 'CodeCast';
+const ReasoningBlock: React.FC<{ reasoning: string }> = ({ reasoning }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!reasoning) return null;
 
   return (
-    <div className="message">
-      <div className={`msg-avatar ${avatarClass}`}>{avatarText}</div>
+    <div className="reasoning-block">
+      <div className="reasoning-header" onClick={() => setExpanded(!expanded)}>
+        <span className="reasoning-icon">💭</span>
+        <span className="reasoning-label">思考过程</span>
+        <span className="reasoning-toggle">{expanded ? '收起' : '展开'}</span>
+      </div>
+      {expanded && (
+        <div className="reasoning-content">
+          {reasoning}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const UserIcon: React.FC = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const AIIcon: React.FC = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
+const formatTime = (timestamp?: number): string => {
+  if (!timestamp) return '';
+  const now = Date.now();
+  const diff = now - timestamp;
+  if (diff < 60000) return '刚刚';
+  const d = new Date(timestamp);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+};
+
+const MessageItem: React.FC<{ message: Message }> = React.memo(({ message }) => {
+  const isUser = message.role === 'user';
+  const messageClass = isUser ? 'message-user' : 'message-ai';
+  const avatarClass = isUser ? 'user-avatar' : 'ai-avatar';
+
+  return (
+    <div className={`message ${messageClass}`}>
+      <div className={`msg-avatar ${avatarClass}`}>
+        {isUser ? <UserIcon /> : <AIIcon />}
+      </div>
       <div className="msg-body">
-        <div className="msg-role">{roleName}</div>
+        <div className="msg-role-row">
+          <span className="msg-role">{isUser ? '你' : 'CodeCast'}</span>
+          <span className="msg-time">{formatTime(message.timestamp)}</span>
+        </div>
+        {!isUser && message.reasoning && (
+          <ReasoningBlock reasoning={message.reasoning} />
+        )}
         <div
           className="msg-content"
           dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
@@ -20,7 +74,7 @@ const MessageItem: React.FC<{ message: Message }> = ({ message }) => {
       </div>
     </div>
   );
-};
+});
 
 const TypingIndicator: React.FC = () => (
   <div className="typing-indicator">
@@ -30,16 +84,24 @@ const TypingIndicator: React.FC = () => (
   </div>
 );
 
-const MessagesView: React.FC<{ messages: Message[]; isLoading: boolean }> = ({ messages, isLoading }) => {
+const MessagesView: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
+  const messages = useAppStore((s: AppState) => s.messages, shallow);
   const containerRef = useRef<HTMLDivElement>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
 
-  // Auto-scroll only when user is near bottom
+  const virtualizer = useVirtualizer({
+    count: messages.length + (isLoading ? 1 : 0),
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
+  });
+
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (!userScrolledUp && containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    if (!userScrolledUp && messages.length > 0) {
+      virtualizer.scrollToIndex(messages.length - 1 + (isLoading ? 1 : 0), { align: 'end' });
     }
-  }, [messages, isLoading, userScrolledUp]);
+  }, [messages.length, isLoading, userScrolledUp]);
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -49,6 +111,8 @@ const MessagesView: React.FC<{ messages: Message[]; isLoading: boolean }> = ({ m
     setUserScrolledUp(!isNearBottom);
   }, []);
 
+  const items = virtualizer.getVirtualItems();
+
   return (
     <div
       id="messagesView"
@@ -56,18 +120,60 @@ const MessagesView: React.FC<{ messages: Message[]; isLoading: boolean }> = ({ m
       style={{ flex: 1, overflowY: 'auto', padding: '20px' }}
       onScroll={handleScroll}
     >
-      <div id="messagesList">
-        {messages.length === 0 ? (
+      <div
+        id="messagesList"
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+          maxWidth: '800px',
+          margin: '0 auto',
+        }}
+      >
+        {items.map((virtualRow) => {
+          if (virtualRow.index >= messages.length) {
+            // Typing indicator
+            return (
+              <div
+                key="typing"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+                ref={virtualizer.measureElement}
+                data-index={virtualRow.index}
+              >
+                <TypingIndicator />
+              </div>
+            );
+          }
+          const m = messages[virtualRow.index];
+          return (
+            <div
+              key={m.id || virtualRow.index}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+              ref={virtualizer.measureElement}
+              data-index={virtualRow.index}
+            >
+              <MessageItem message={m} />
+            </div>
+          );
+        })}
+        {messages.length === 0 && !isLoading && (
           <div className="empty-hint">还没有消息，开始输入吧</div>
-        ) : (
-          messages.map((m, i) => (
-            <MessageItem key={`${m.role}-${i}-${m.content.slice(0, 20)}`} message={m} />
-          ))
         )}
-        {isLoading && <TypingIndicator />}
       </div>
     </div>
   );
 };
 
-export default MessagesView;
+export default React.memo(MessagesView);

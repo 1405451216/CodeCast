@@ -4,7 +4,7 @@
  * ⚠️ 请勿手动编辑此文件！修改后端 Settings struct 后重新运行:
  *   node scripts/generate-settings-keys.mjs
  *
- * 生成时间: 2026-05-21T05:54:15.462Z
+ * 生成时间: 2026-05-23T05:49:56.844Z
  */
 
 export const S = {
@@ -37,6 +37,9 @@ export const S = {
   // ===== API =====
   api_key: 'api_key',
   long_context: 'long_context',
+  llm_provider: 'llm_provider',
+  llm_api_url: 'llm_api_url',
+  llm_model: 'llm_model',
 
   // ===== 个性化 / 记忆 =====
   personality: 'personality',
@@ -95,6 +98,9 @@ export const SCALAR_KEYS: readonly SettingKey[] = [
   S.font_size,
   S.api_key,
   S.long_context,
+  S.llm_provider,
+  S.llm_api_url,
+  S.llm_model,
   S.personality,
   S.custom_instructions,
   S.auto_memory,

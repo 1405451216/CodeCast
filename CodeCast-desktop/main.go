@@ -38,6 +38,7 @@ type App struct {
 	memoryCleanupStop chan struct{}
 	taskSchedulerStop  chan struct{}
 	agentPool     *AgentPool
+	llmConfig     LLMProviderConfig
 	mu            sync.Mutex
 }
 
@@ -46,11 +47,12 @@ func NewApp() *App {
 	loadEnv(&cfg)
 
 	app := &App{
-		config:   &cfg,
-		sessions: []*Session{},
-		tasks:    []*Task{},
-		skills:   []*Skill{},
-		projects: []Project{},
+		config:    &cfg,
+		sessions:  []*Session{},
+		tasks:     []*Task{},
+		skills:    []*Skill{},
+		projects:  []Project{},
+		llmConfig: DefaultLLMProviderConfig(),
 	}
 
 	app.initSettings()

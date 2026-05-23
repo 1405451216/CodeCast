@@ -390,7 +390,7 @@ func (pool *AgentPool) callLLM(ctx context.Context, agent *SubAgent, apiKey stri
 
 	// Build request body
 	reqBody := map[string]interface{}{
-		"model":      "deepseek-v4-flash",
+		"model":      pool.app.llmConfig.Model,
 		"messages":   apiMessages,
 		"tools":      agentToolDefinitions(),
 		"max_tokens": 4096,
@@ -402,7 +402,7 @@ func (pool *AgentPool) callLLM(ctx context.Context, agent *SubAgent, apiKey stri
 	}
 
 	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", "https://api.deepseek.com/chat/completions", bytes.NewReader(bodyBytes))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", pool.app.llmConfig.APIURL+"/chat/completions", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}

@@ -40,21 +40,21 @@ export function CreateSkill(arg1:string,arg2:string,arg3:string):Promise<main.Sk
 
 export function CreateTask(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.Task>;
 
-export function DispatchAgents(arg1:string):Promise<Array<string>>;
-
 export function DeleteSession(arg1:string):Promise<void>;
 
 export function DeleteSkill(arg1:string):Promise<void>;
 
 export function DeleteTask(arg1:string):Promise<void>;
 
+export function DispatchAgents(arg1:string):Promise<Array<string>>;
+
 export function ExecuteCommand(arg1:string,arg2:number):Promise<string>;
 
 export function ExtractSummaryAsync(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function GetAgentDetail(arg1:string):Promise<any>;
+export function GetAgentDetail(arg1:string):Promise<main.SubAgent>;
 
-export function GetAgents(arg1:string):Promise<Array<any>>;
+export function GetAgents(arg1:string):Promise<Array<main.SubAgent>>;
 
 export function GetArchivedSessions():Promise<Array<main.Session>>;
 

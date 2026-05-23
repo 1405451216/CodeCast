@@ -1,0 +1,50 @@
+/* ===== Reasoning Block (思考过程) ===== */
+.reasoning-block {
+    margin-bottom: 8px;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--sidebar-bg, #f8f9fa);
+}
+
+.reasoning-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    color: var(--text-muted, #666);
+    transition: background 0.15s;
+}
+
+.reasoning-header:hover {
+    background: var(--sidebar-hover, rgba(0,0,0,0.04));
+}
+
+.reasoning-icon {
+    font-size: 14px;
+}
+
+.reasoning-label {
+    font-weight: 500;
+}
+
+.reasoning-toggle {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--accent, #4a9eff);
+}
+
+.reasoning-content {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border, #e0e0e0);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-muted, #666);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}

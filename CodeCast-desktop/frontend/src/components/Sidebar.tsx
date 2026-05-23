@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore, AppState, Session } from '../store';
+import { shallow } from 'zustand/shallow';
 
 interface SidebarProps {
   onNewSession: () => void;
@@ -9,7 +10,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession, onDeleteSession, style }) => {
-  const sessions = useAppStore((s: AppState) => s.sessions);
+  const sessions = useAppStore((s: AppState) => s.sessions, shallow);
   const currentSessionId = useAppStore((s: AppState) => s.currentSessionId);
   const sidebarVisible = useAppStore((s: AppState) => s.sidebarVisible);
   const activePanel = useAppStore((s: AppState) => s.activePanel);
@@ -152,4 +153,4 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession, onDele
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

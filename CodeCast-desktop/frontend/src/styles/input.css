@@ -1,0 +1,200 @@
+/* ===== 12. Input Area ===== */
+.input-area {
+    padding: 16px 20px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    backdrop-filter: var(--blur-sm);
+}
+
+.input-area.centered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px 20px;
+    border-top: none;
+    background: transparent;
+}
+
+.input-container {
+    max-width: 780px;
+    width: 100%;
+    margin: 0 auto;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 16px;
+    transition: border-color 0.15s;
+    overflow: visible;
+}
+
+.input-container:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124, 124, 255, 0.15);
+}
+
+.input-row {
+    display: flex;
+    align-items: flex-end;
+    padding: 8px 12px;
+    position: relative;
+}
+
+.main-input {
+    flex: 1;
+    min-height: 24px;
+    max-height: 200px;
+    padding: 4px 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+}
+
+.main-input::placeholder {
+    color: var(--text-muted);
+}
+
+.chat-input-wrap {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.chat-input {
+    width: 100%;
+    min-height: 44px;
+    max-height: 200px;
+    padding: 10px 80px 10px 14px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+}
+
+.chat-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124, 124, 255, 0.15);
+}
+
+.chat-input::placeholder {
+    color: var(--text-muted);
+}
+
+.input-actions {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    display: flex;
+    gap: 4px;
+}
+
+.input-action-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.input-action-btn:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
+}
+
+/* ===== 13. Send Button ===== */
+.send-btn-round {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+}
+
+.send-btn-round:hover {
+    background: var(--accent-hover);
+}
+
+.send-btn-round:active {
+    transform: scale(0.95);
+}
+
+.send-btn-round.streaming {
+    background: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.send-btn-round.stop-btn {
+    background: #e53935;
+}
+
+.send-btn-round.stop-btn:hover {
+    background: #c62828;
+}
+
+.send-btn-round:not(.streaming):not(.stop-btn):not(:hover) {
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(124, 124, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(124, 124, 255, 0);
+    }
+}
+
+.send-btn-round.stop-btn {
+    animation: pulse-stop 1s ease-in-out infinite;
+}
+
+@keyframes pulse-stop {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(229, 57, 53, 0); }
+}
+
+.send-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.send-btn:hover {
+    background: var(--accent-hover);
+}
+
+.send-btn:disabled {
+    background: var(--text-muted);
+    cursor: not-allowed;
+}

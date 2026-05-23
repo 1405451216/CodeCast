@@ -1,5 +1,6 @@
 import React from 'react';
-import { useAppStore, TodoItem, ChangedFile } from '../store';
+import { useAppStore, TodoItem, ChangedFile, AppState } from '../store';
+import { shallow } from 'zustand/shallow';
 
 // ─── Status helpers ─────────────────────────────────────────────
 
@@ -47,11 +48,11 @@ const fileStatusClass = (status: ChangedFile['status']): string => {
 
 // ─── Component ─────────────────────────────────────────────────
 
-const FilesPanel: React.FC = () => {
-  const filesPanelVisible = useAppStore((s) => s.filesPanelVisible);
-  const todoItems = useAppStore((s) => s.todoItems);
-  const contextCompression = useAppStore((s) => s.contextCompression);
-  const changedFiles = useAppStore((s) => s.changedFiles);
+const FilesPanel: React.FC<{ style?: React.CSSProperties }> = ({ style }) => {
+  const filesPanelVisible = useAppStore((s: AppState) => s.filesPanelVisible);
+  const todoItems = useAppStore((s: AppState) => s.todoItems, shallow);
+  const contextCompression = useAppStore((s: AppState) => s.contextCompression);
+  const changedFiles = useAppStore((s: AppState) => s.changedFiles, shallow);
 
   if (!filesPanelVisible) {
     return null;
@@ -59,11 +60,11 @@ const FilesPanel: React.FC = () => {
 
   // Calculate TODO progress
   const totalTodos = todoItems.length;
-  const completedTodos = todoItems.filter((t) => t.status === 'completed').length;
+  const completedTodos = todoItems.filter((t: TodoItem) => t.status === 'completed').length;
   const progressPercent = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
 
   return (
-    <div className="files-panel" id="filesPanel">
+    <div className="files-panel" id="filesPanel" style={style}>
       {/* ─── Section 1: TODO Progress ─── */}
       <div className="fp-section fp-section-todo">
         <div className="fp-section-header">
@@ -88,7 +89,7 @@ const FilesPanel: React.FC = () => {
 
               {/* Task list */}
               <div className="fp-todo-list">
-                {todoItems.map((item) => (
+                {todoItems.map((item: TodoItem) => (
                   <div key={item.id} className={`fp-todo-item ${item.status}`}>
                     {statusIcon(item.status)}
                     <span className="fp-todo-text">{item.content}</span>
@@ -137,7 +138,7 @@ const FilesPanel: React.FC = () => {
           {changedFiles.length === 0 ? (
             <div className="fp-empty">暂无更改</div>
           ) : (
-            changedFiles.map((file, index) => (
+            changedFiles.map((file: ChangedFile, index: number) => (
               <div key={`${file.name}-${index}`} className="fp-file-item" title={file.name}>
                 <span className={`fp-file-status ${fileStatusClass(file.status)}`}>
                   {fileStatusLabel(file.status)}
@@ -152,4 +153,4 @@ const FilesPanel: React.FC = () => {
   );
 };
 
-export default FilesPanel;
+export default React.memo(FilesPanel);

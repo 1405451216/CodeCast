@@ -106,7 +106,7 @@ func (m *MemoryStore) RecallEpisodes(query string, limit int) (string, error) {
 		return "", nil
 	}
 
-	searchQuery := strings.TrimSpace(query)
+	searchQuery := `"` + strings.ReplaceAll(strings.TrimSpace(query), `"`, `""`) + `"`
 	rows, err := m.db.Query(`
 		SELECT e.timestamp, e.summary, e.content, e.topics, rank
 		FROM episodes e
@@ -316,7 +316,7 @@ AI回复：%s
 			flashModel = "gpt-4o-mini"
 		}
 
-		resp, err := a.callAPIEx(messages, apiKey, apiURL, flashModel, false, false, sessionID)
+		resp, err := a.callAPIEx(messages, apiKey, apiURL, flashModel, false, false, sessionID+"_summary")
 		if err != nil {
 			fmt.Printf("[Memory] 摘要提取API调用失败: %v\n", err)
 			return

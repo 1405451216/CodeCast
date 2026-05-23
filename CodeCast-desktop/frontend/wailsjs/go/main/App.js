@@ -78,10 +78,6 @@ export function CreateTask(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateTask'](arg1, arg2, arg3, arg4);
 }
 
-export function DispatchAgents(arg1) {
-  return window['go']['main']['App']['DispatchAgents'](arg1);
-}
-
 export function DeleteSession(arg1) {
   return window['go']['main']['App']['DeleteSession'](arg1);
 }
@@ -92,6 +88,10 @@ export function DeleteSkill(arg1) {
 
 export function DeleteTask(arg1) {
   return window['go']['main']['App']['DeleteTask'](arg1);
+}
+
+export function DispatchAgents(arg1) {
+  return window['go']['main']['App']['DispatchAgents'](arg1);
 }
 
 export function ExecuteCommand(arg1, arg2) {

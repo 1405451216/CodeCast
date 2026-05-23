@@ -1,0 +1,62 @@
+/* ===== 27. Status Bar, Empty Hint, Skill Chip ===== */
+.status-bar {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    background: var(--sidebar-bg);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.empty-hint {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.skill-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--tag-bg);
+    border: 1px solid var(--tag-border);
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.skill-chip:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
+}
+
+.skill-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+/* ===== 24. Popout Mode ===== */
+.app.popout-mode .sidebar {
+    display: none;
+}
+
+.app.popout-mode .preview-panel {
+    display: none !important;
+}
+
+.app.popout-mode .files-panel {
+    display: none !important;
+}
+
+.icon-btn-sm {
+    padding: 4px;
+}

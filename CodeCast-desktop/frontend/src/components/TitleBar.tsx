@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useAppStore, ActiveMenu } from '../store';
+import { useAppStore, ActiveMenu, AppState, Project } from '../store';
 import * as api from '../api';
 
 const modKey = () => (useAppStore.getState().platform === 'darwin' ? '⌘' : 'Ctrl');
@@ -11,21 +11,21 @@ interface EditorInfo {
 }
 
 const TitleBar: React.FC = () => {
-  const activeMenu = useAppStore((s) => s.activeMenu);
-  const setActiveMenu = useAppStore((s) => s.setActiveMenu);
-  const closeMenus = useAppStore((s) => s.closeMenus);
-  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
-  const toggleSettings = useAppStore((s) => s.toggleSettings);
-  const settingsOpen = useAppStore((s) => s.settingsOpen);
-  const popoutMode = useAppStore((s) => s.popoutMode);
-  const togglePopout = useAppStore((s) => s.togglePopout);
-  const previewPanelVisible = useAppStore((s) => s.previewPanelVisible);
-  const togglePreviewPanel = useAppStore((s) => s.togglePreviewPanel);
-  const filesPanelVisible = useAppStore((s) => s.filesPanelVisible);
-  const toggleFilesPanel = useAppStore((s) => s.toggleFilesPanel);
-  const currentProject = useAppStore((s) => s.currentProject);
-  const projects = useAppStore((s) => s.projects);
-  const platform = useAppStore((s) => s.platform);
+  const activeMenu = useAppStore((s: AppState) => s.activeMenu);
+  const setActiveMenu = useAppStore((s: AppState) => s.setActiveMenu);
+  const closeMenus = useAppStore((s: AppState) => s.closeMenus);
+  const toggleSidebar = useAppStore((s: AppState) => s.toggleSidebar);
+  const toggleSettings = useAppStore((s: AppState) => s.toggleSettings);
+  const settingsOpen = useAppStore((s: AppState) => s.settingsOpen);
+  const popoutMode = useAppStore((s: AppState) => s.popoutMode);
+  const togglePopout = useAppStore((s: AppState) => s.togglePopout);
+  const previewPanelVisible = useAppStore((s: AppState) => s.previewPanelVisible);
+  const togglePreviewPanel = useAppStore((s: AppState) => s.togglePreviewPanel);
+  const filesPanelVisible = useAppStore((s: AppState) => s.filesPanelVisible);
+  const toggleFilesPanel = useAppStore((s: AppState) => s.toggleFilesPanel);
+  const currentProject = useAppStore((s: AppState) => s.currentProject);
+  const projects = useAppStore((s: AppState) => s.projects);
+  const platform = useAppStore((s: AppState) => s.platform);
   const isDarwin = platform === 'darwin';
 
   const titlebarRef = useRef<HTMLDivElement>(null);
@@ -33,7 +33,7 @@ const TitleBar: React.FC = () => {
   const [editorDropdownOpen, setEditorDropdownOpen] = useState(false);
   const [editors, setEditors] = useState<EditorInfo[]>([]);
 
-  const projectPath = projects.find((p) => p.id === currentProject)?.path ?? currentProject ?? '';
+  const projectPath = projects.find((p: Project) => p.id === currentProject)?.path ?? currentProject ?? '';
 
   // Load available editors
   useEffect(() => {
@@ -282,4 +282,4 @@ const TitleBar: React.FC = () => {
   );
 };
 
-export default TitleBar;
+export default React.memo(TitleBar);

@@ -1,0 +1,216 @@
+name: Build Windows & Publish to Gitee
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      gitee_sync:
+        description: '同步到 Gitee'
+        required: false
+        default: 'true'
+        type: boolean
+      version:
+        description: '版本号 (如 v1.0.0)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  GITEE_REPO: ${{ vars.GITEE_REPO || '1405451216/CodeCast' }}
+  GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    name: Build Windows (amd64)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+          cache-dependency-path: CodeCast-desktop/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: CodeCast-desktop/frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install frontend dependencies
+        working-directory: CodeCast-desktop/frontend
+        run: npm ci
+
+      - name: Build for Windows (NSIS Installer)
+        working-directory: CodeCast-desktop
+        run: wails build -nsis
+
+      - name: Package portable zip
+        shell: pwsh
+        working-directory: CodeCast-desktop/build/bin
+        run: |
+          Compress-Archive -Path "CodeCast.exe" -DestinationPath "CodeCast-Windows-portable.zip"
+
+      - name: List build output
+        shell: pwsh
+        working-directory: CodeCast-desktop/build/bin
+        run: Get-ChildItem -Recurse | Select-Object FullName, Length
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeCast-Windows
+          path: |
+            CodeCast-desktop/build/bin/CodeCast.exe
+            CodeCast-desktop/build/bin/CodeCast-Windows-portable.zip
+            CodeCast-desktop/build/bin/*.exe
+          retention-days: 30
+          if-no-files-found: warn
+
+  publish-github-release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: CodeCast-Windows
+          path: dist
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: dist/*
+
+  publish-gitee-release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: |
+      (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.gitee_sync == 'true')
+      && env.GITEE_TOKEN != ''
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: CodeCast-Windows
+          path: dist
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+
+      - name: Determine version tag
+        id: version
+        run: |
+          if [ "${{ github.ref }}" = "refs/tags/"* ]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "tag=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync to Gitee and create Release
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_OWNER: ${{ vars.GITEE_OWNER || '1405451216' }}
+          GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'CodeCast' }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          # 1. 同步代码到 Gitee（强制推送）
+          echo "🔄 同步代码到 Gitee..."
+          git clone --bare https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git repo.git
+          cd repo.git
+          git push --mirror https://${GITEE_OWNER}:${GITEE_TOKEN}@gitee.com/${GITEE_OWNER}/${GITEE_REPO_NAME}.git || echo "⚠️ Gitee push failed (可能仓库不存在或 token 无效)"
+          cd ..
+          rm -rf repo.git
+
+          # 2. 通过 Gitee API 创建 Release 并上传文件
+          echo "📦 创建 Gitee Release..."
+          
+          # 获取 Gitee 上的 tag（如果不存在则创建）
+          TAG_EXISTS=$(curl -sS \
+            -H "Content-Type: application/json" \
+            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/tags/${TAG}" \
+            -w "%{http_code}" -o /dev/null) || true
+          
+          if [ "$TAG_EXISTS" != "200" ]; then
+            echo "  创建 tag ${TAG}..."
+            curl -sS -X POST \
+              "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/tags" \
+              -H "Content-Type: application/json" \
+              -d "{\"access_token\":\"${GITEE_TOKEN}\",\"message\":\"Release ${TAG}\",\"tag_name\":\"${TAG}\"}" \
+              || echo "  ⚠️ Tag 创建失败（可能已存在）"
+          fi
+
+          # 创建 Release
+          RELEASE_RESP=$(curl -sS -X POST \
+            "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"access_token\": \"${GITEE_TOKEN}\",
+              \"tag_name\": \"${TAG}\",
+              \"name\": \"CodeCast ${TAG}\",
+              \"body\": \"## CodeCast ${TAG}\\n\\n🚀 Windows 版本\\n\\n从 GitHub Actions 自动构建并同步发布\\n\\n### 文件列表\\n$(ls -la dist/ | awk '{print \"- **\" $NF \"** (\" $5 \" bytes)\"}')\",
+              \"prerelease\": false
+            }")
+          
+          RELEASE_ID=$(echo "$RELEASE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+          
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "⚠️ Release 创建失败或已存在，尝试获取已有的..."
+            RELEASE_ID=$(curl -sS \
+              "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+          fi
+          
+          if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
+            echo "✅ Release ID: ${RELEASE_ID}，开始上传文件..."
+            
+            # 上传所有构建产物
+            for file in dist/*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                echo "  📤 上传: ${filename}"
+                curl -sS -X POST \
+                  "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases/${RELEASE_ID}/assets" \
+                  -H "Content-Type: multipart/form-data" \
+                  -F "access_token=${GITEE_TOKEN}" \
+                  -F "file=@${file};filename=${filename}" \
+                  || echo "  ⚠️ ${filename} 上传失败"
+              done
+            
+            echo ""
+            echo "========================================="
+            echo "✅ Gitee 发布完成！"
+            echo "🔗 下载地址:"
+            echo "   https://gitee.com/${GITEE_OWNER}/${GITEE_REPO_NAME}/releases/tag/${TAG}"
+            echo "========================================="
+          else
+            echo "❌ 无法获取 Release ID，跳过文件上传"
+            echo "   请确认 Gitee 仓库已创建且 Token 有权限"
+          fi

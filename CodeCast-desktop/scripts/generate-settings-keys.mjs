@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
-const srcPath = join(rootDir, 'main.go');
+const srcPath = join(rootDir, 'config.go');
 const outPath = join(rootDir, 'frontend', 'src', 'settingsKeys.ts');
 
 const src = readFileSync(srcPath, 'utf-8');
@@ -51,7 +51,7 @@ for (const k of keys) {
   if (/work_mode|default_perm|auto_review|full_access|shell|open_target|language|hotkey|ctrl_enter|followup|review_mode/.test(k)) cat = 'work';
   else if (/notify|notification/.test(k)) cat = 'notify';
   else if (/theme|font_size/.test(k)) cat = 'ui';
-  else if (/api_key|long_context/.test(k)) cat = 'api';
+  else if (/api_key|long_context|llm_/.test(k)) cat = 'api';
   else if (/personality|custom_instructions|auto_memory|tool_memory|message_history/.test(k)) cat = 'memory';
   else if (/commit|worktree/.test(k)) cat = 'git';
   else if (/browser|domain|selenium|allow_browser/.test(k)) cat = 'browser';

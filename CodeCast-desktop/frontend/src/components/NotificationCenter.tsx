@@ -24,6 +24,24 @@ interface PopoutData {
   timestamp: number;
 }
 
+const TYPE_ICONS: Record<string, string> = {
+  success: '✓',
+  error: '✗',
+  warning: '⚠',
+  info: 'ℹ',
+  permission: '🔐',
+  question: '?',
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  success: '#4ade80',
+  error: '#f87171',
+  warning: '#fbbf24',
+  info: '#7c7cff',
+  permission: '#f472b6',
+  question: '#60a5fa',
+};
+
 const NotificationCenter: React.FC = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [confirm, setConfirm] = useState<ConfirmDialog>({
@@ -102,31 +120,13 @@ const NotificationCenter: React.FC = () => {
     return () => unsubs.forEach((unsub) => unsub());
   }, [addToast]);
 
-  const typeIcon: Record<string, string> = {
-    success: '✓',
-    error: '✗',
-    warning: '⚠',
-    info: 'ℹ',
-    permission: '🔐',
-    question: '?',
-  };
-
-  const typeColor: Record<string, string> = {
-    success: '#4ade80',
-    error: '#f87171',
-    warning: '#fbbf24',
-    info: '#7c7cff',
-    permission: '#f472b6',
-    question: '#60a5fa',
-  };
-
   return (
     <>
       {/* Toast Container */}
       <div className="notification-container">
         {toasts.map((t) => (
           <div key={t.id} className={`notification-toast notification-${t.type}`} onClick={() => removeToast(t.id)}>
-            <span className="notification-icon">{typeIcon[t.type] || 'ℹ'}</span>
+            <span className="notification-icon">{TYPE_ICONS[t.type] || 'ℹ'}</span>
             <div className="notification-content">
               <div className="notification-title">{t.title}</div>
               <div className="notification-body">{t.body}</div>

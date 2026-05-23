@@ -1,0 +1,17 @@
+/* ===== 4. App Container ===== */
+.app {
+    display: flex;
+    height: calc(100vh - 36px);
+}
+
+.app-container {
+    display: flex;
+    height: calc(100vh - 36px);
+    overflow: hidden;
+}
+
+.divider-gradient {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 8px 0;
+}

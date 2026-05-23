@@ -3,6 +3,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   reasoning?: string;
+  timestamp?: number;
 }
 
 export interface Session {

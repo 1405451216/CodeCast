@@ -1,48 +1,38 @@
-export function escHtml(str: string | null | undefined): string {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
-export function formatContent(text: string | null | undefined): string {
-  if (!text) return '';
+// Configure marked for safe rendering
+marked.setOptions({
+  breaks: true,       // Convert \n to <br>
+  gfm: true,         // GitHub Flavored Markdown
+});
 
-  // 1. Extract code blocks BEFORE any escaping
-  const codeBlocks: string[] = [];
-  let processed = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (_match, lang, code) => {
-    const idx = codeBlocks.length;
-    codeBlocks.push(`<pre><code class="language-${lang || ''}">${escHtml(code)}</code></pre>`);
-    return `\x00CODEBLOCK_${idx}\x00`;
+/**
+ * Convert markdown content to safe HTML.
+ * Security model: marked converts markdown → HTML, then DOMPurify sanitizes
+ * to remove any XSS vectors. This is the industry-standard approach.
+ */
+export function formatContent(content: string): string {
+  if (!content) return '';
+
+  // marked.parse can return string | Promise<string> in v12+
+  // Use marked.parse synchronously
+  const rawHtml = marked.parse(content, { async: false }) as string;
+
+  // Sanitize with DOMPurify - allow safe HTML only
+  const cleanHtml = DOMPurify.sanitize(rawHtml, {
+    ALLOWED_TAGS: [
+      'p', 'br', 'strong', 'em', 'code', 'pre', 'blockquote',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'ul', 'ol', 'li', 'a', 'img', 'table', 'thead', 'tbody',
+      'tr', 'th', 'td', 'hr', 'del', 'sup', 'sub', 'span', 'div',
+    ],
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'rel'],
+    // Force links to open in new tab
+    ADD_ATTR: ['target'],
   });
 
-  // 2. Extract inline code
-  const inlineCodes: string[] = [];
-  processed = processed.replace(/`([^`]+)`/g, (_match, code) => {
-    const idx = inlineCodes.length;
-    inlineCodes.push(`<code>${escHtml(code)}</code>`);
-    return `\x00INLINE_${idx}\x00`;
-  });
-
-  // 3. Escape remaining HTML
-  let result = escHtml(processed);
-
-  // 4. Apply paragraph/line breaks
-  result = result.replace(/\n\n/g, '</p><p>');
-  result = result.replace(/\n/g, '<br>');
-
-  // 5. Apply inline formatting
-  result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-  // 6. Restore code blocks and inline codes
-  result = result.replace(/\x00CODEBLOCK_(\d+)\x00/g, (_m, idx) => codeBlocks[parseInt(idx)]);
-  result = result.replace(/\x00INLINE_(\d+)\x00/g, (_m, idx) => inlineCodes[parseInt(idx)]);
-
-  return '<p>' + result + '</p>';
+  return cleanHtml;
 }
 
 export function formatFileSize(bytes: number): string {

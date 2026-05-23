@@ -1055,11 +1055,7 @@ func TestStartupInitiatesCleanup(t *testing.T) {
 	// 这里我们无法直接验证，但可以确保不会 panic
 
 	// 停止清理 goroutine 以避免影响其他测试
-	select {
-	case <-cleanupStopCh:
-	default:
-		close(cleanupStopCh)
-	}
+	cleanupOnce.Do(func() { close(cleanupStopCh) })
 }
 
 func TestShutdownCleansAllResources(t *testing.T) {

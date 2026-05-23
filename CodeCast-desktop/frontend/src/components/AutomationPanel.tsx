@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useAppStore } from '../store';
+import { useAppStore, AppState } from '../store';
 import * as api from '../api';
 
 // ─── Task Templates ─────────────────────────────────────────────
@@ -133,8 +133,8 @@ type PanelView = 'list' | 'create';
 // ─── Component ──────────────────────────────────────────────────
 
 const AutomationPanel: React.FC = () => {
-  const activePanel = useAppStore((s) => s.activePanel);
-  const setActivePanel = useAppStore((s) => s.setActivePanel);
+  const activePanel = useAppStore((s: AppState) => s.activePanel);
+  const setActivePanel = useAppStore((s: AppState) => s.setActivePanel);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);

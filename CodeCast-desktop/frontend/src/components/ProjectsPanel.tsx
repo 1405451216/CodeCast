@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
-import { useAppStore } from '../store';
+import { useAppStore, AppState, Project } from '../store';
 import * as api from '../api';
 
 const ProjectsPanel: React.FC = () => {
-  const activePanel = useAppStore((s) => s.activePanel);
-  const setActivePanel = useAppStore((s) => s.setActivePanel);
-  const projects = useAppStore((s) => s.projects);
-  const setProjects = useAppStore((s) => s.setProjects);
-  const currentProject = useAppStore((s) => s.currentProject);
-  const setCurrentProject = useAppStore((s) => s.setCurrentProject);
+  const activePanel = useAppStore((s: AppState) => s.activePanel);
+  const setActivePanel = useAppStore((s: AppState) => s.setActivePanel);
+  const projects = useAppStore((s: AppState) => s.projects);
+  const setProjects = useAppStore((s: AppState) => s.setProjects);
+  const currentProject = useAppStore((s: AppState) => s.currentProject);
+  const setCurrentProject = useAppStore((s: AppState) => s.setCurrentProject);
 
   useEffect(() => {
     if (activePanel !== 'projects') return;
@@ -35,11 +35,11 @@ const ProjectsPanel: React.FC = () => {
   const handleDelete = async (path: string) => {
     try {
       await api.removeProject(path);
-      // Use store.getState() to avoid stale closure over projects
       const current = useAppStore.getState().projects;
-      setProjects(current.filter((p) => p.path !== path));
-      if (currentProject === path) {
+      setProjects(current.filter((p: Project) => p.path !== path));
+      if (useAppStore.getState().currentProject === path || current.some((p: Project) => p.path === path && p.id === useAppStore.getState().currentProject)) {
         setCurrentProject(null);
+        try { await api.setCurrentProject(''); } catch (_) { /* ignore */ }
       }
     } catch (e) {
       console.error('Delete project failed:', e);
@@ -81,7 +81,7 @@ const ProjectsPanel: React.FC = () => {
         {projects.length === 0 ? (
           <div className="empty-hint">暂无项目</div>
         ) : (
-          projects.map((project) => (
+          projects.map((project: Project) => (
             <div className="plugin-item" key={project.id || project.path}>
               <div className="plugin-info">
                 {/* Folder icon */}

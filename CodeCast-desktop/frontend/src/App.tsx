@@ -21,10 +21,6 @@ import NotificationCenter from './components/NotificationCenter';
 import PanelResizer from './components/PanelResizer';
 
 const App: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [title, setTitle] = useState('CodeCast');
-  const [view, setView] = useState<'welcome' | 'chat'>('welcome');
-
   // Panel widths
   const [sidebarWidth, setSidebarWidth] = useState(260);
   const [previewWidth, setPreviewWidth] = useState(420);
@@ -34,18 +30,15 @@ const App: React.FC = () => {
   const previewPanelVisible = useAppStore((s: AppState) => s.previewPanelVisible);
   const filesPanelVisible = useAppStore((s: AppState) => s.filesPanelVisible);
   const activePanel = useAppStore((s: AppState) => s.activePanel);
+  const view = useAppStore((s: AppState) => s.view);
+  const isLoading = useAppStore((s: AppState) => s.isLoading);
 
   useAppInit();
 
   const { handleNewSession, handleSelectSession, handleDeleteSession, handleClearSession } =
-    useSessionActions(setTitle, setView);
+    useSessionActions();
 
-  const { handleSendMessage } = useChatSender({
-    isLoading,
-    setIsLoading,
-    setView,
-    setTitle,
-  });
+  const { handleSendMessage } = useChatSender();
 
   const handleStop = useCallback(async () => {
     try {
@@ -53,7 +46,7 @@ const App: React.FC = () => {
     } catch (e) {
       console.error('Cancel request failed:', e);
     }
-    setIsLoading(false);
+    useAppStore.getState().setIsLoading(false);
   }, []);
 
   useEffect(() => {

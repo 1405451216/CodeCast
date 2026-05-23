@@ -1,5 +1,73 @@
 export namespace main {
 	
+	export class ToolResult {
+	    tool_call_id: string;
+	    content: string;
+	    is_error: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ToolResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tool_call_id = source["tool_call_id"];
+	        this.content = source["content"];
+	        this.is_error = source["is_error"];
+	    }
+	}
+	export class ToolCall {
+	    id: string;
+	    name: string;
+	    args: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ToolCall(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.args = source["args"];
+	    }
+	}
+	export class AgentMessage {
+	    role: string;
+	    content: string;
+	    tool_calls?: ToolCall[];
+	    tool_result?: ToolResult;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.role = source["role"];
+	        this.content = source["content"];
+	        this.tool_calls = this.convertValues(source["tool_calls"], ToolCall);
+	        this.tool_result = this.convertValues(source["tool_result"], ToolResult);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class EditorInfo {
 	    id: string;
 	    name: string;
@@ -79,6 +147,7 @@ export namespace main {
 	export class Message {
 	    role: string;
 	    content: string;
+	    reasoning?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Message(source);
@@ -88,6 +157,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.role = source["role"];
 	        this.content = source["content"];
+	        this.reasoning = source["reasoning"];
 	    }
 	}
 	export class Project {
@@ -185,6 +255,9 @@ export namespace main {
 	    font_size: string;
 	    api_key: string;
 	    long_context: boolean;
+	    llm_provider: string;
+	    llm_api_url: string;
+	    llm_model: string;
 	    personality: string;
 	    custom_instructions: string;
 	    auto_memory: boolean;
@@ -234,6 +307,9 @@ export namespace main {
 	        this.font_size = source["font_size"];
 	        this.api_key = source["api_key"];
 	        this.long_context = source["long_context"];
+	        this.llm_provider = source["llm_provider"];
+	        this.llm_api_url = source["llm_api_url"];
+	        this.llm_model = source["llm_model"];
 	        this.personality = source["personality"];
 	        this.custom_instructions = source["custom_instructions"];
 	        this.auto_memory = source["auto_memory"];
@@ -298,6 +374,66 @@ export namespace main {
 	    }
 	}
 	
+	export class SubAgent {
+	    id: string;
+	    session_id: string;
+	    parent_msg_id: string;
+	    title: string;
+	    prompt: string;
+	    files_scope: string[];
+	    status: string;
+	    messages: AgentMessage[];
+	    result: string;
+	    error?: string;
+	    turn_count: number;
+	    max_turns: number;
+	    // Go type: time
+	    created_at: any;
+	    // Go type: time
+	    updated_at: any;
+	    mode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SubAgent(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.session_id = source["session_id"];
+	        this.parent_msg_id = source["parent_msg_id"];
+	        this.title = source["title"];
+	        this.prompt = source["prompt"];
+	        this.files_scope = source["files_scope"];
+	        this.status = source["status"];
+	        this.messages = this.convertValues(source["messages"], AgentMessage);
+	        this.result = source["result"];
+	        this.error = source["error"];
+	        this.turn_count = source["turn_count"];
+	        this.max_turns = source["max_turns"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.updated_at = this.convertValues(source["updated_at"], null);
+	        this.mode = source["mode"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Task {
 	    id: string;
 	    name: string;
@@ -328,6 +464,7 @@ export namespace main {
 	        this.last_error = source["last_error"];
 	    }
 	}
+	
 
 }
 

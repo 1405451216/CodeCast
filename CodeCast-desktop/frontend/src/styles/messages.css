@@ -1,0 +1,241 @@
+/* ===== 10. Messages View ===== */
+.messages-view {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#messagesView {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+#messagesList {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.message {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    animation: fadeInUp 0.3s ease-out both;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.msg-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+}
+
+.user-avatar {
+    background: var(--accent);
+    color: white;
+}
+
+.ai-avatar {
+    background: var(--bg2);
+    color: var(--accent);
+    border: 1px solid var(--border);
+}
+
+.msg-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.msg-role-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.msg-role {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+.msg-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.message-user .msg-body {
+    background: var(--gradient-user-bubble);
+    border-radius: var(--radius-lg);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+}
+
+.message-ai .msg-body {
+    background: var(--gradient-ai-bubble);
+    border-radius: var(--radius-lg);
+    padding: 12px 16px;
+    border: 1px solid var(--glass-border);
+}
+
+.msg-content {
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.msg-content p {
+    margin-bottom: 8px;
+}
+
+.msg-content p:last-child {
+    margin-bottom: 0;
+}
+
+.msg-content pre {
+    position: relative;
+    background: var(--code-bg);
+    padding: 36px 12px 12px;
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    margin: 12px 0;
+    border: 1px solid var(--border);
+}
+
+.msg-content pre::before {
+    content: attr(data-lang);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.2);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.code-copy-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.msg-content pre:hover .code-copy-btn {
+    opacity: 1;
+}
+
+.code-copy-btn:hover {
+    color: var(--text);
+    background: var(--sidebar-hover);
+}
+
+.msg-content pre code {
+    background: transparent;
+    padding: 0;
+}
+
+.msg-content code {
+    background: var(--code-bg);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+}
+
+.msg-content ul {
+    list-style: disc;
+    padding-left: 24px;
+    margin: 8px 0;
+}
+
+.msg-content ol {
+    list-style: decimal;
+    padding-left: 24px;
+    margin: 8px 0;
+}
+
+.msg-content li {
+    margin-bottom: 4px;
+    line-height: 1.5;
+}
+
+.msg-content strong {
+    font-weight: 600;
+}
+
+.msg-content em {
+    font-style: italic;
+}
+
+/* ===== 11. Typing Cursor ===== */
+.typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 16px;
+    background: var(--accent);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+.typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 8px 0;
+}
+
+.typing-indicator span {
+    width: 6px;
+    height: 6px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
