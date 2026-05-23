@@ -295,7 +295,7 @@
             <div style="display:flex;align-items:flex-start;justify-content:center;gap:36px;margin-bottom:28px">
                 <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;margin-top:24px">
                     <img src="assets/logo.png" alt="CodeCast" style="width:100px;height:100px;border-radius:22px;box-shadow:0 8px 32px rgba(139,92,246,0.3),0 0 0 1px rgba(255,255,255,0.08)">
-                    <div class="hero-badge" style="margin-top:16px;margin-bottom:0"><span class="hero-badge-dot"></span> 全新发布 v1.0</div>
+                    <div class="hero-badge" style="margin-top:16px;margin-bottom:0"><span class="hero-badge-dot"></span> 全新发布 v0.2</div>
                 </div>
                 <h1 style="text-align:left">智能无限，<br><span class="gradient">协作无间</span></h1>
             </div>
@@ -496,18 +496,18 @@
         <div class="section-label"><span>立即体验</span></div>
         <h2>CodeCast<br>先一步体验未来</h2>
         <p class="section-desc">下载 CodeCast，开启 AI 驱动的全新编程与协作方式</p>
-        <div class="download-platforms">
-            <a href="https://github.com/1405451216/CodeCast/releases/download/v1.0.0/CodeCast.exe" class="platform-card">
+        <div class="download-platforms" id="download-platforms">
+            <a data-github="https://github.com/1405451216/CodeCast/releases/download/v0.2.0/CodeCast.exe" data-gitee="https://gitee.com/CodeCast/code-cast/attach_files/CodeCast.exe" class="platform-card">
                 <div class="platform-icon">&#x1FA9F;</div>
                 <div class="platform-name">Windows</div>
                 <div class="platform-detail">Windows 10+ x64</div>
             </a>
-            <a href="https://github.com/1405451216/CodeCast/releases/download/v1.0.0/CodeCast-macOS-arm64.dmg" class="platform-card">
+            <a data-github="https://github.com/1405451216/CodeCast/releases/download/v0.2.0/CodeCast-macOS-universal.dmg" data-gitee="https://gitee.com/CodeCast/code-cast/attach_files/CodeCast-macOS-universal.dmg" class="platform-card">
                 <div class="platform-icon">&#x1F34E;</div>
                 <div class="platform-name">macOS</div>
                 <div class="platform-detail">Apple Silicon (M系列)</div>
             </a>
-            <a href="https://github.com/1405451216/CodeCast/releases/download/v1.0.0/CodeCast-macOS-amd64.dmg" class="platform-card">
+            <a data-github="https://github.com/1405451216/CodeCast/releases/download/v0.2.0/CodeCast-macOS-amd64.dmg" data-gitee="https://gitee.com/CodeCast/code-cast/attach_files/CodeCast-macOS-amd64.dmg" class="platform-card">
                 <div class="platform-icon">&#x1F34E;</div>
                 <div class="platform-name">macOS</div>
                 <div class="platform-detail">Intel 芯片</div>
@@ -518,7 +518,7 @@
                 <div class="platform-detail">即将推出</div>
             </a>
         </div>
-        <p class="download-version">当前版本: v1.0.0 &middot; 开源免费</p>
+        <p class="download-version">当前版本: v0.2.0 &middot; 开源免费</p>
     </section>
 
     <!-- Footer -->
@@ -609,6 +609,24 @@
     document.querySelectorAll('a[href^="#"]').forEach(function(a){
         a.addEventListener('click',function(e){e.preventDefault();var t=document.querySelector(this.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth'})})
     });
-    </script>
+
+    // Smart download routing: CN users → Gitee, others → GitHub
+    (function(){
+        var isCN = (function(){
+            var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (tz === 'Asia/Shanghai' || tz === 'Asia/Hong_Kong' || tz === 'Asia/Taipei') return true;
+            var lang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+            if (lang.indexOf('zh') >= 0) return true;
+            var offset = -new Date().getTimezoneOffset() / 60;
+            if (offset >= 7 && offset <= 9) return true;
+            return false;
+        })();
+        var cards = document.querySelectorAll('#download-platforms .platform-card[data-github]');
+        cards.forEach(function(card){
+            var url = isCN ? card.getAttribute('data-gitee') : card.getAttribute('data-github');
+            card.setAttribute('href', url);
+        });
+    })();
+</script>
 </body>
 </html>
