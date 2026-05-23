@@ -19,7 +19,7 @@ permissions:
   contents: write
 
 env:
-  GITEE_REPO: ${{ vars.GITEE_REPO || '1405451216/CodeCast' }}
+  GITEE_REPO: ${{ vars.GITEE_REPO || 'CodeCast/code-cast' }}
   GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
 
 jobs:
@@ -136,8 +136,8 @@ jobs:
       - name: Sync to Gitee and create Release
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          GITEE_OWNER: ${{ vars.GITEE_OWNER || '1405451216' }}
-          GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'CodeCast' }}
+          GITEE_OWNER: ${{ vars.GITEE_OWNER || 'CodeCast' }}
+          GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'code-cast' }}
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           # 1. 同步代码到 Gitee（强制推送）
