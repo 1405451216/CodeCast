@@ -47,6 +47,7 @@ async function getOrCreateRelease() {
     access_token: GITEE_TOKEN,
     tag_name: TAG,
     name: `CodeCast ${TAG}`,
+    target_commitish: 'master',
     body: [
       `## CodeCast ${TAG}`,
       '',

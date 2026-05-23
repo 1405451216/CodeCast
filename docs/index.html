@@ -295,7 +295,7 @@
             <div style="display:flex;align-items:flex-start;justify-content:center;gap:36px;margin-bottom:28px">
                 <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;margin-top:24px">
                     <img src="assets/logo.png" alt="CodeCast" style="width:100px;height:100px;border-radius:22px;box-shadow:0 8px 32px rgba(139,92,246,0.3),0 0 0 1px rgba(255,255,255,0.08)">
-                    <div class="hero-badge" style="margin-top:16px;margin-bottom:0"><span class="hero-badge-dot"></span> 全新发布 v0.2</div>
+                    <div class="hero-badge" style="margin-top:16px;margin-bottom:0"><span class="hero-badge-dot"></span> 全新发布 v1.0</div>
                 </div>
                 <h1 style="text-align:left">智能无限，<br><span class="gradient">协作无间</span></h1>
             </div>
@@ -497,17 +497,17 @@
         <h2>CodeCast<br>先一步体验未来</h2>
         <p class="section-desc">下载 CodeCast，开启 AI 驱动的全新编程与协作方式</p>
         <div class="download-platforms" id="download-platforms">
-            <a data-github="https://github.com/1405451216/CodeCast/releases/download/v0.2.0/CodeCast.exe" data-gitee="https://gitee.com/CodeCast/code-cast/releases/download/v0.2.0/CodeCast.exe" class="platform-card">
+            <a href="https://gitee.com/CodeCast/code-cast/releases/download/v1.0.0/CodeCast.exe" class="platform-card">
                 <div class="platform-icon">&#x1FA9F;</div>
                 <div class="platform-name">Windows</div>
                 <div class="platform-detail">Windows 10+ x64</div>
             </a>
-            <a data-github="https://github.com/1405451216/CodeCast/releases/download/v0.2.0/CodeCast-macOS-universal.dmg" data-gitee="https://gitee.com/CodeCast/code-cast/releases/download/v0.2.0/CodeCast-macOS-universal.dmg" class="platform-card">
+            <a href="https://gitee.com/CodeCast/code-cast/releases/download/v1.0.0/CodeCast-macOS-arm64.dmg" class="platform-card">
                 <div class="platform-icon">&#x1F34E;</div>
                 <div class="platform-name">macOS</div>
                 <div class="platform-detail">Apple Silicon (M系列)</div>
             </a>
-            <a data-github="https://github.com/1405451216/CodeCast/releases/download/v0.2.0/CodeCast-macOS-amd64.dmg" data-gitee="https://gitee.com/CodeCast/code-cast/releases/download/v0.2.0/CodeCast-macOS-amd64.dmg" class="platform-card">
+            <a href="https://gitee.com/CodeCast/code-cast/releases/download/v1.0.0/CodeCast-macOS-amd64.dmg" class="platform-card">
                 <div class="platform-icon">&#x1F34E;</div>
                 <div class="platform-name">macOS</div>
                 <div class="platform-detail">Intel 芯片</div>
@@ -518,7 +518,7 @@
                 <div class="platform-detail">即将推出</div>
             </a>
         </div>
-        <p class="download-version">当前版本: v0.2.0 &middot; 开源免费</p>
+        <p class="download-version">当前版本: v1.0.0 &middot; 开源免费</p>
     </section>
 
     <!-- Footer -->
@@ -610,31 +610,7 @@
         a.addEventListener('click',function(e){e.preventDefault();var t=document.querySelector(this.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth'})})
     });
 
-    // Smart download routing: CN users → Gitee (with GitHub fallback), others → GitHub
-    (function(){
-        var isCN = (function(){
-            var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            if (tz === 'Asia/Shanghai' || tz === 'Asia/Hong_Kong' || tz === 'Asia/Taipei') return true;
-            var lang = (navigator.language || navigator.userLanguage || '').toLowerCase();
-            if (lang.indexOf('zh') >= 0) return true;
-            var offset = -new Date().getTimezoneOffset() / 60;
-            if (offset >= 7 && offset <= 9) return true;
-            return false;
-        })();
-        var cards = document.querySelectorAll('#download-platforms .platform-card[data-github]');
-        cards.forEach(function(card){
-            var githubUrl = card.getAttribute('data-github');
-            var giteeUrl = card.getAttribute('data-gitee');
-            if (!isCN) { card.setAttribute('href', githubUrl); return; }
-            card.addEventListener('click', function(e){
-                e.preventDefault();
-                var overlay = document.createElement('div');
-                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:99999';
-                overlay.innerHTML = '<div style="background:#1a1a2e;color:#fff;padding:36px 40px;border-radius:16px;text-align:center;max-width:420px;font-family:-apple-system,BlinkMacSystemFont,sans-serif"><p style="margin:0 0 6px;font-size:18px;font-weight:600">选择下载源</p><p style="margin:0 0 24px;font-size:13px;color:#888">推荐使用 Gitee 获得更快的下载速度</p><div style="display:flex;flex-direction:column;gap:12px"><a href="'+giteeUrl+'" style="display:block;padding:14px 24px;background:linear-gradient(135deg,#7c7cff,#a78bfa);color:#fff;border-radius:10px;text-decoration:none;font-size:15px;font-weight:500">Gitee 下载（推荐，国内快速）</a><a href="'+githubUrl+'" style="display:block;padding:14px 24px;background:transparent;color:#ccc;border:1px solid #444;border-radius:10px;text-decoration:none;font-size:14px">GitHub 下载（备用）</a></div><span onclick="this.closest(\'div\').parentElement.remove()" style="display:inline-block;margin-top:20px;padding:8px 16px;color:#666;cursor:pointer;font-size:13px">取消</span></div>';
-                document.body.appendChild(overlay);
-                overlay.addEventListener('click', function(ev){ if(ev.target===overlay) overlay.remove(); });
-            });
-        });
+    // Download cards are now direct Gitee links — no routing needed
     })();
 </script>
 </body>
