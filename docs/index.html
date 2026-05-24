@@ -1,612 +1,1223 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-mode="coding">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CodeCast - AI 驱动的智能编程与协作平台</title>
-    <meta name="description" content="CodeCast 是一款 AI 驱动的智能编程助手与代码协作平台，智能补全、实时协作、AI 对话，让编程效率提升 10 倍。">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
-    <link rel="icon" href="assets/logo.png" type="image/png">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>CodeCast — AI 智能助手</title>
+    <link rel="icon" href="../docs/favicon.ico" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
         :root{
-            --bg:#09090B;--bg2:#111113;--bg3:#18181B;
-            --card:rgba(255,255,255,0.02);
-            --t1:#FAFAFA;--t2:#A1A1AA;--t3:#71717A;
-            --accent:#8B5CF6;--accent-l:#A78BFA;--accent-d:#6D28D9;
-            --cyan:#06B6D4;--green:#10B981;--amber:#F59E0B;
-            --border:rgba(255,255,255,0.06);--border-h:rgba(139,92,246,0.3);
-            --glow:rgba(139,92,246,0.15)
+            --bg:#07070d;--bg2:#0e0e17;--bg3:#161622;
+            --t1:#f0f0f5;--t2:#8888a0;--t3:#55556a;
+            --accent-1:#a855f7;--accent-2:#ec4899;--accent-3:#06b6d4;
+            --glow-purple:rgba(168,85,247,.25);--glow-pink:rgba(236,72,153,.2);--glow-cyan:rgba(6,182,212,.2);
+            --border:rgba(255,255,255,.06);--border-h:rgba(168,85,247,.35);
+            --font-display:'Space Grotesk',sans-serif;--font-mono:'JetBrains Mono',monospace;
+            --nav-bg:rgba(7,7,13,.75);
+            --card-bg:var(--bg2);
+            --transition-speed:.5s;
         }
+
+        html[data-mode="daily"]{
+            --bg:#fdfbf7;--bg2:#f7f3ec;--bg3:#efe8dc;
+            --t1:#1a1a2e;--t2:#5a5a6e;--t3:#9a9aa8;
+            --accent-1:#f97316;--accent-2:#14b8a6;--accent-3:#f43f5e;
+            --glow-orange:rgba(249,115,22,.15);--glow-teal:rgba(20,184,166,.12);--glow-rose:rgba(244,63,94,.12);
+            --border:rgba(0,0,0,.07);--border-h:rgba(249,115,22,.4);
+            --nav-bg:rgba(253,251,247,.82);
+            --card-bg:var(--bg2);
+        }
+
         html{scroll-behavior:smooth}
-        body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--t1);line-height:1.6;overflow-x:hidden}
+        body{font-family:var(--font-display);background:var(--bg);color:var(--t1);line-height:1.6;overflow-x:hidden;transition:background var(--transition-speed),color var(--transition-speed)}
 
-        /* NAV */
-        .nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:0 48px;height:64px;display:flex;align-items:center;justify-content:space-between;background:rgba(9,9,11,0.85);backdrop-filter:blur(24px) saturate(180%);border-bottom:1px solid var(--border)}
-        .nav-logo{font-size:20px;font-weight:700;letter-spacing:.5px;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        /* ===== MODE TOGGLE ===== */
+        .mode-switch{display:flex;flex-direction:row;gap:4px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:5px;margin-left:auto;backdrop-filter:blur(16px)saturate(180%);box-shadow:none;transition:all var(--transition-speed)}
+        .mode-btn{width:auto;height:32px;padding:0 14px;border-radius:10px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;letter-spacing:.04em;transition:all .3s;position:relative;background:transparent;color:var(--t2)}
+        .mode-btn.active{background:linear-gradient(135deg,var(--accent-1),var(--accent-2));box-shadow:0 4px 16px rgba(0,0,0,.15)}
+        .mode-btn.active span{filter:brightness(10)}
+        .mode-btn:not(.active):hover{background:rgba(128,128,128,.1)}
+        .mode-btn span{pointer-events:none;transition:filter .3s}
+        .mode-label{font-size:9px;font-weight:600;text-align:center;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+
+        /* ===== CODING MODE DECORATIONS ===== */
+        html[data-mode="coding"] body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");opacity:.7}
+        .ambient-orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0}
+        .ambient-orb-1{width:800px;height:800px;background:radial-gradient(circle,rgba(168,85,247,.18) 0%,rgba(168,85,247,.06) 30%,transparent 60%);top:-30%;left:-15%;filter:blur(60px);animation:orbFloat 16s ease-in-out infinite}
+        .ambient-orb-2{width:650px;height:650px;background:radial-gradient(circle,rgba(6,182,212,.15) 0%,rgba(6,182,212,.04) 30%,transparent 60%);bottom:-15%;right:-10%;filter:blur(50px);animation:orbFloat 20s ease-in-out infinite reverse}
+        .ambient-orb-3{width:500px;height:500px;background:radial-gradient(circle,rgba(236,72,153,.12) 0%,rgba(236,72,153,.03) 30%,transparent 60%);top:40%;left:40%;filter:blur(45px);animation:orbFloat 18s ease-in-out infinite 6s}
+        @keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,-40px) scale(1.15)}66%{transform:translate(-40px,50px) scale(.88)}}
+
+        .particles-container{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+        .particle{position:absolute;border-radius:50%;animation:particleDrift linear infinite}
+        .particle-dot{width:4px;height:4px;background:rgba(168,85,247,.7);box-shadow:0 0 8px 4px rgba(168,85,247,.3)}
+        .particle-glow{width:6px;height:6px;background:rgba(6,182,212,.6);box-shadow:0 0 14px 6px rgba(6,182,212,.25)}
+        .particle-line{width:80px;height:1.5px;background:linear-gradient(90deg,rgba(168,85,247,.4),rgba(236,72,153,.2),transparent);border-radius:1px}
+        @keyframes particleDrift{0%{transform:translateY(130vh) rotate(0deg) scale(.5);opacity:0}8%{opacity:1}92%{opacity:1}100%{transform:translateY(-30vh) rotate(540deg) scale(1);opacity:0}}
+
+        .glow-ring{position:absolute;border-radius:50%;pointer-events:none}
+        .glow-ring-1{width:600px;height:600px;border:2px solid rgba(168,85,247,.15);box-shadow:0 0 60px 10px rgba(168,85,247,.08),inset 0 0 60px 10px rgba(168,85,247,.04);top:25%;left:50%;transform:translate(-50%,-50%) rotateX(60deg);animation:ringRotate 25s linear infinite}
+        .glow-ring-2{width:900px;height:900px;border:2px solid rgba(6,182,212,.1);box-shadow:0 0 80px 15px rgba(6,182,212,.06),inset 0 0 80px 15px rgba(6,182,212,.03);top:65%;left:15%;transform:translate(-50%,-50%) rotateX(55deg) rotateY(20deg);animation:ringRotate 35s linear infinite reverse}
+        @keyframes ringRotate{from{transform:translate(-50%,-50%) rotateX(60deg) rotateZ(0deg)}to{transform:translate(-50%,-50%) rotateX(60deg) rotateZ(360deg)}}
+
+        .scan-line{position:fixed;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(168,85,247,.15),rgba(6,182,212,.1),transparent);pointer-events:none;z-index:0;animation:scanDown 8s linear infinite}
+        @keyframes scanDown{0%{top:-1px;opacity:.3}50%{opacity:.8}100%{top:100vh;opacity:.3}}
+
+        /* ===== DAILY MODE DECORATIONS ===== */
+        html[data-mode="daily"] .ambient-orb,
+        html[data-mode="daily"] .particles-container,
+        html[data-mode="daily"] .glow-ring,
+        html[data-mode="daily"] .scan-line{display:none}
+        html[data-mode="daily"] body::before{display:none}
+
+        .daily-decor{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;display:none}
+        html[data-mode="daily"] .daily-decor{display:block}
+
+        .rainbow-aurora{position:absolute;border-radius:50%;filter:blur(100px);mix-blend-mode:screen}
+        .rainbow-aurora-1{width:900px;height:900px;background:conic-gradient(from 0deg at 50% 50%,rgba(255,100,100,.2),rgba(255,200,50,.18),rgba(100,255,120,.18),rgba(80,180,255,.2),rgba(180,100,255,.2),rgba(255,100,150,.2),rgba(255,100,100,.2));top:-35%;right:-15%;animation:auroraFloat1 20s ease-in-out infinite}
+        .rainbow-aurora-2{width:750px;height:750px;background:conic-gradient(from 120deg at 50% 50%,rgba(100,220,255,.18),rgba(150,100,255,.16),rgba(255,100,180,.17),rgba(255,180,80,.16),rgba(100,255,160,.18),rgba(80,150,255,.17),rgba(100,220,255,.18));bottom:-25%;left:-12%;animation:auroraFloat2 24s ease-in-out infinite reverse}
+        .rainbow-aurora-3{width:550px;height:550px;background:conic-gradient(from 240deg at 50% 50%,rgba(255,120,80,.15),rgba(120,255,180,.14),rgba(140,120,255,.15),rgba(255,100,200,.14),rgba(80,200,255,.15),rgba(255,220,100,.14),rgba(255,120,80,.15));top:40%;left:45%;animation:auroraFloat3 22s ease-in-out infinite 5s}
+        @keyframes auroraFloat1{0%,100%{transform:translate(0,0) scale(1) rotate(0deg)}33%{transform:translate(-60px,40px) scale(1.12) rotate(30deg)}66%{transform:translate(40px,-30px) scale(.92) rotate(-20deg)}}
+        @keyframes auroraFloat2{0%,100%{transform:translate(0,0) scale(1) rotate(0deg)}33%{transform:translate(50px,-40px) scale(1.08) rotate(-25deg)}66%{transform:translate(-40px,50px) scale(.94) rotate(15deg)}}
+        @keyframes auroraFloat3{0%,100%{transform:translate(0,0) scale(1) rotate(0deg)}50%{transform:translate(-30px,30px) scale(1.15) rotate(40deg)}}
+
+        .rainbow-shimmer{position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:repeating-conic-gradient(from 0deg at 50% 50%,transparent 0deg,transparent 8deg,rgba(255,100,150,.03) 10deg,rgba(100,180,255,.03) 20deg,rgba(255,220,80,.03) 30deg,rgba(150,255,130,.03) 40deg,rgba(200,120,255,.03) 50deg,transparent 58deg);animation:shimmerRotate 30s linear infinite}
+        @keyframes shimmerRotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+        .daily-grid{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(249,115,22,.035) 1px,transparent 1px);background-size:36px 36px}
+
+        .rainbow-particle{position:absolute;border-radius:50%;animation:rbFloat linear infinite}
+        .rp-1{width:6px;height:6px;background:#f97316;box-shadow:0 0 12px 4px rgba(249,115,22,.3);left:5%;animation-duration:18s;animation-delay:0s}
+        .rp-2{width:8px;height:8px;background:#14b8a6;box-shadow:0 0 14px 5px rgba(20,184,166,.28);left:18%;animation-duration:24s;animation-delay:3s}
+        .rp-3{width:5px;height:5px;background:#f43f5e;box-shadow:0 0 10px 3px rgba(244,63,94,.3);left:32%;animation-duration:20s;animation-delay:7s}
+        .rp-4{width:10px;height:10px;background:#a855f7;box-shadow:0 0 16px 6px rgba(168,85,247,.25);left:48%;animation-duration:26s;animation-delay:2s}
+        .rp-5{width:7px;height:7px;background:#06b6d4;box-shadow:0 0 13px 4px rgba(6,182,212,.28);left:62%;animation-duration:22s;animation-delay:9s}
+        .rp-6{width:5px;height:5px;background:#eab308;box-shadow:0 0 11px 4px rgba(234,179,8,.3);left:75%;animation-duration:19s;animation-delay:5s}
+        .rp-7{width:9px;height:9px;background:#ec4899;box-shadow:0 0 15px 5px rgba(236,72,153,.26);left:88%;animation-duration:28s;animation-delay:1s}
+        .rp-8{width:6px;height:6px;background:#22c55e;box-shadow:0 0 12px 4px rgba(34,197,94,.28);left:95%;animation-duration:21s;animation-delay:11s}
+        @keyframes rbFloat{0%{bottom:-8%;transform:scale(.3) rotate(0deg);opacity:0}12%{opacity:.7}88%{opacity:.7}100%{bottom:108%;transform:scale(1.6) rotate(360deg);opacity:0}}
+
+        .rainbow-ring{position:absolute;border-radius:50%;border-style:solid;pointer-events:none}
+        .rainbow-ring-1{width:800px;height:800px;border-width:2px;border-color:transparent;
+            background:linear-gradient(135deg,rgba(249,115,22,.12),rgba(20,184,166,.1),rgba(244,63,94,.08),rgba(168,85,247,.1)) border-box;
+            -webkit-mask:linear-gradient(#fff 0 0) padding-box, linear-gradient(135deg,#f97316,#14b8a6,#f43f5e,#a855f7);
+            -webkit-mask-composite:xor;mask-composite:exclude;
+            top:20%;left:50%;transform:translate(-50%,-50%) rotateX(60deg);
+            animation:rRingSpin 28s linear infinite}
+        .rainbow-ring-2{width:1100px;height:1100px;border-width:1.5px;border-color:transparent;
+            background:linear-gradient(45deg,rgba(234,179,8,.08),rgba(34,197,94,.08),rgba(6,182,212,.08),rgba(168,85,247,.08),rgba(236,72,153,.08)) border-box;
+            -webkit-mask:linear-gradient(#fff 0 0) padding-box, linear-gradient(45deg,#eab308,#22c55e,#06b6d4,#a855f7,#ec4899);
+            -webkit-mask-composite:xor;mask-composite:exclude;
+            top:70%;left:20%;transform:translate(-50%,-50%) rotateX(55deg) rotateY(15deg);
+            animation:rRingSpin 38s linear infinite reverse}
+        @keyframes rRingSpin{from{transform:translate(-50%,-50%) rotateX(60deg) rotateZ(0deg)}to{transform:translate(-50%,-50%) rotateX(60deg) rotateZ(360deg)}}
+
+        .rainbow-bar{position:absolute;left:0;right:0;height:2px;pointer-events:none}
+        .rainbow-bar-1{top:15%;background:linear-gradient(90deg,transparent 0%,rgba(249,115,22,.15) 15%,rgba(234,179,8,.12) 30%,rgba(34,197,94,.12) 45%,rgba(20,184,166,.15) 55%,rgba(6,182,212,.12) 70%,rgba(168,85,247,.15) 85%,transparent 100%);animation:barSlide1 12s ease-in-out infinite}
+        .rainbow-bar-2{top:75%;background:linear-gradient(90deg,transparent 0%,rgba(236,72,153,.12) 15%,rgba(168,85,247,.15) 30%,rgba(6,182,212,.12) 45%,rgba(34,197,94,.12) 55%,rgba(234,179,8,.15) 70%,rgba(249,115,22,.12) 85%,transparent 100%);animation:barSlide2 15s ease-in-out infinite reverse}
+        @keyframes barSlide1{0%,100%{opacity:.4;transform:scaleX(.8)}50%{opacity:.8;transform:scaleX(1)}}
+        @keyframes barSlide2{0%,100%{opacity:.3;transform:scaleX(.7)}50%{opacity:.7;transform:scaleX(1)}}
+
+        /* ===== NAV ===== */
+        .nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;background:var(--nav-bg);backdrop-filter:blur(20px)saturate(180%);border-bottom:1px solid var(--border);transition:all var(--transition-speed)}
+        .nav-logo{font-size:22px;font-weight:700;letter-spacing:-.5px;background:linear-gradient(135deg,var(--accent-1),var(--accent-2),var(--accent-3));background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gradientShift 4s ease infinite}
         .nav-links{display:flex;gap:32px;list-style:none}
-        .nav-links a{color:var(--t2);text-decoration:none;font-size:14px;font-weight:500;transition:color .2s}
+        .nav-links a{color:var(--t2);text-decoration:none;font-size:14px;font-weight:500;transition:color .25s;letter-spacing:.02em}
         .nav-links a:hover{color:var(--t1)}
-        .nav-cta{padding:8px 20px;background:var(--accent);border-radius:8px;color:#fff;font-size:14px;font-weight:500;text-decoration:none;transition:all .2s}
-        .nav-cta:hover{background:var(--accent-l);box-shadow:0 4px 16px var(--glow);transform:translateY(-1px)}
 
-        /* HERO */
-        .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:140px 24px 100px;position:relative}
-        .hero-bg{position:absolute;inset:0;overflow:hidden;z-index:0}
-        .hero-bg::before{content:'';position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,var(--glow) 0%,transparent 70%);animation:pulse 8s ease-in-out infinite}
-        .hero-bg::after{content:'';position:absolute;bottom:0;left:0;right:0;height:200px;background:linear-gradient(to top,var(--bg),transparent)}
-        .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(139,92,246,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.03) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse at center,black 30%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse at center,black 30%,transparent 70%)}
-        @keyframes pulse{0%,100%{opacity:.6;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.1)}}
+        /* ===== HERO ===== */
+        .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px 100px;position:relative;overflow:hidden;transition:all var(--transition-speed)}
+
+        html[data-mode="coding"] .hero-bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+        .hero-blob-1{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,var(--glow-purple) 0%,transparent 70%);top:-15%;left:-10%;filter:blur(80px);animation:blobFloat 12s ease-in-out infinite}
+        .hero-blob-2{position:absolute;width:550px;height:550px;border-radius:50%;background:radial-gradient(circle,var(--glow-pink) 0%,transparent 70%);bottom:-10%;right:-5%;filter:blur(70px);animation:blobFloat 15s ease-in-out infinite reverse}
+        .hero-blob-3{position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,var(--glow-cyan) 0%,transparent 70%);top:50%;right:20%;filter:blur(60px);animation:blobFloat 18s ease-in-out infinite 5s}
+        .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(168,85,247,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(168,85,247,.04) 1px,transparent 1px);background-size:80px 80px;mask-image:radial-gradient(ellipse at center,black 20%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse at center,black 20%,transparent 70%)}
+        @keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-20px) scale(1.05)}66%{transform:translate(-20px,30px) scale(.95)}}
+
         .hero-content{position:relative;z-index:2;max-width:900px}
-        .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:100px;font-size:13px;font-weight:500;color:var(--accent-l);margin-bottom:40px}
-        .hero-badge-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;animation:dot 2s infinite}
-        @keyframes dot{0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,0.4)}50%{box-shadow:0 0 0 6px rgba(139,92,246,0)}}
-        .hero h1{font-size:clamp(44px,7vw,80px);font-weight:800;line-height:1.05;margin-bottom:28px;letter-spacing:-2px}
-        .hero h1 .gradient{background:linear-gradient(135deg,var(--accent-l),var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-        .hero-desc{font-size:18px;color:var(--t2);max-width:600px;margin:0 auto 48px;line-height:1.8}
+        .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 16px 7px 12px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);border-radius:100px;font-size:13px;font-weight:600;color:var(--accent-1);margin-bottom:36px;backdrop-filter:blur(8px);letter-spacing:.03em;text-transform:uppercase;transition:all var(--transition-speed)}
+        html[data-mode="daily"] .hero-badge{background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.2);color:var(--accent-1)}
+        .hero-badge-dot{width:8px;height:8px;background:var(--accent-1);border-radius:50%;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(168,85,247,.5)}50%{box-shadow:0 0 0 8px rgba(168,85,247,0)}}
+
+        .hero h1{font-size:clamp(42px,7vw,96px);font-weight:700;line-height:1.02;margin-bottom:28px;letter-spacing:-3.5px;transition:all var(--transition-speed)}
+        html[data-mode="coding"] .hero h1{background:linear-gradient(135deg,#fff 0%,var(--accent-1) 40%,var(--accent-2) 70%,var(--accent-3) 100%);background-size:300% 300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gradientShift 6s ease infinite}
+        html[data-mode="daily"] .hero h1{background:linear-gradient(135deg,#1a1a2e 0%,var(--accent-1) 40%,var(--accent-2) 70%,var(--accent-3) 100%);background-size:300% 300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gradientShift 6s ease infinite}
+        @keyframes gradientShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+        .hero-desc{font-size:19px;color:var(--t2);max-width:560px;margin:0 auto 44px;line-height:1.8;font-weight:400;letter-spacing:.01em;transition:color var(--transition-speed)}
         .hero-buttons{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
-        .btn-primary{display:inline-flex;align-items:center;gap:10px;padding:16px 36px;background:linear-gradient(135deg,var(--accent),var(--accent-d));border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:600;text-decoration:none;transition:all .3s;position:relative;overflow:hidden}
-        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 32px var(--glow),0 0 0 1px rgba(139,92,246,0.3)}
-        .btn-ghost{display:inline-flex;align-items:center;gap:10px;padding:16px 36px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;color:var(--t1);font-size:16px;font-weight:500;text-decoration:none;transition:all .3s}
-        .btn-ghost:hover{border-color:var(--border-h);background:rgba(139,92,246,0.05);transform:translateY(-2px)}
-        .hero-stats{display:flex;gap:48px;justify-content:center}
+        .btn-primary{display:inline-flex;align-items:center;gap:10px;padding:18px 40px;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:600;text-decoration:none;transition:all .35s;position:relative;overflow:hidden;letter-spacing:.01em}
+        .btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--accent-2),var(--accent-3));opacity:0;transition:opacity .35s}
+        .btn-primary:hover::before{opacity:1}
+        .btn-primary span{position:relative;z-index:1}
+        .btn-primary:hover{transform:translateY(-3px);box-shadow:0 16px 48px var(--glow-purple),0 0 0 1px rgba(168,85,247,.3)}
+        html[data-mode="daily"] .btn-primary:hover{box-shadow:0 16px 48px var(--glow-orange),0 0 0 1px rgba(249,115,22,.3)}
+        .btn-ghost{display:inline-flex;align-items:center;gap:10px;padding:18px 40px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:14px;color:var(--t1);font-size:16px;font-weight:500;text-decoration:none;transition:all .35s;letter-spacing:.01em}
+        html[data-mode="daily"] .btn-ghost{background:rgba(0,0,0,.03)}
+        .btn-ghost:hover{border-color:var(--border-h);background:rgba(168,85,247,.05);transform:translateY(-3px)}
+        html[data-mode="daily"] .btn-ghost:hover{background:rgba(249,115,22,.05)}
+        .hero-stats{display:flex;gap:56px;justify-content:center}
         .stat-item{text-align:center}
-        .stat-value{font-size:28px;font-weight:700;color:var(--t1)}
-        .stat-label{font-size:13px;color:var(--t3);margin-top:4px}
+        .stat-value{font-size:32px;font-weight:700;background:linear-gradient(135deg,var(--accent-1),var(--accent-3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .stat-label{font-size:13px;color:var(--t3);margin-top:4px;letter-spacing:.05em;text-transform:uppercase}
 
-        /* SHOWCASE */
-        .showcase{padding:40px 24px 120px;max-width:1100px;margin:0 auto;text-align:center;position:relative;z-index:2}
-        .section-label{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--accent-l);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px}
-        .section-label::before{content:'';width:20px;height:2px;background:var(--accent)}
-        .showcase-title{font-size:clamp(28px,4vw,42px);font-weight:800;line-height:1.2;margin-bottom:40px;letter-spacing:-1px}
-        .showcase-tabs{display:flex;gap:4px;margin:0 auto 32px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:4px;width:fit-content}
-        .tab-btn{padding:10px 24px;border-radius:8px;font-size:14px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .2s;border:none;background:none}
-        .tab-btn.active{background:var(--accent);color:#fff;box-shadow:0 4px 12px var(--glow)}
-        .tab-btn:hover:not(.active){color:var(--t1);background:rgba(255,255,255,0.03)}
-        .showcase-window{border-radius:16px;border:1px solid var(--border);overflow:hidden;box-shadow:0 32px 100px rgba(0,0,0,0.5);background:#111113;text-align:left;position:relative;z-index:3}
-        .window-titlebar{display:flex;align-items:center;padding:14px 20px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);gap:8px}
-        .window-dot{width:12px;height:12px;border-radius:50%}
-        .window-dot.red{background:#FF5F57}.window-dot.yellow{background:#FEBC2E}.window-dot.green{background:#28C840}
-        .window-title{flex:1;text-align:center;font-size:12px;color:var(--t3)}
-        .window-body{min-height:420px;position:relative}
-        .tab-content{display:none;padding:0}
-        .tab-content.active{display:block;animation:fadeIn .4s ease}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        /* ===== SECTION SHARED ===== */
+        .section-label{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:700;color:var(--accent-1);text-transform:uppercase;letter-spacing:2.5px;margin-bottom:20px;transition:color var(--transition-speed)}
+        .section-label::before{content:'';width:28px;height:2px;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));transition:background var(--transition-speed)}
 
-        /* Code Demo */
-        .code-demo{display:grid;grid-template-columns:180px 1fr 240px;min-height:420px}
-        .demo-sidebar{padding:16px;border-right:1px solid var(--border);background:rgba(0,0,0,0.2)}
-        .sidebar-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:12px;color:var(--t2);margin-bottom:2px}
-        .sidebar-item.active{background:rgba(139,92,246,0.1);color:var(--accent-l)}
-        .demo-editor{padding:20px;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:12px;line-height:2;overflow:hidden;border-right:1px solid var(--border)}
-        .editor-line{white-space:nowrap}
-        .line-num{color:var(--t3);display:inline-block;width:24px;text-align:right;margin-right:16px;opacity:.5;user-select:none}
-        .keyword{color:#C586C0}.func{color:#DCDCAA}.str{color:#CE9178}.comment{color:#6A9955}
-        .ai-line{background:rgba(139,92,246,0.06);border-left:2px solid var(--accent);margin:0 -20px;padding:0 20px}
-        .ai-suggest{color:rgba(139,92,246,0.6);font-style:italic}
-        .demo-chat{padding:16px;background:rgba(0,0,0,0.15);display:flex;flex-direction:column;gap:10px}
-        .chat-header{font-size:11px;font-weight:600;color:var(--t2);padding-bottom:10px;border-bottom:1px solid var(--border)}
-        .chat-msg{padding:8px 10px;border-radius:8px;font-size:11px;line-height:1.5}
-        .chat-msg.bot{background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--t2)}
-        .chat-msg.user{background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--accent-l);align-self:flex-end}
-        .chat-msg.typing::after{content:'...';animation:typing 1s infinite}
+        /* ===== DEMO - CODING MODE ===== */
+        .demo-section{padding:120px 24px;max-width:1280px;margin:0 auto;position:relative;z-index:2}
+        .demo-title{font-size:clamp(32px,5vw,56px);font-weight:700;line-height:1.08;margin-bottom:60px;letter-spacing:-1.5px;transition:all var(--transition-speed)}
+        .demo-title .gradient-text{background:linear-gradient(135deg,var(--accent-1),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+        .demo-window{border-radius:20px;border:1px solid var(--border);overflow:hidden;background:var(--bg2);box-shadow:0 48px 120px rgba(0,0,0,.5),0 0 80px -20px var(--glow-purple);position:relative;transition:all var(--transition-speed)}
+        html[data-mode="daily"] .demo-window{box-shadow:0 48px 120px rgba(0,0,0,.08),0 0 80px -20px var(--glow-orange)}
+        .window-titlebar{display:flex;align-items:center;padding:16px 24px;background:rgba(0,0,0,.45);border-bottom:1px solid var(--border);gap:10px;transition:all var(--transition-speed)}
+        html[data-mode="daily"] .window-titlebar{background:rgba(0,0,0,.04)}
+        .window-dot{width:14px;height:14px;border-radius:50%}
+        .window-dot.red{background:#ff5f57}.window-dot.yellow{background:#febc2e}.window-dot.green{#28c840}
+        .window-title{flex:1;text-align:center;font-size:13px;color:var(--t3);font-family:var(--font-mono)}
+        .demo-body{padding:0;height:480px;position:relative;overflow:hidden}
+        .demo-scene{position:absolute;inset:0;opacity:0;transition:opacity .6s ease,padding .4s ease}
+        .demo-scene.active{opacity:1}
+
+        .scene-ai{display:grid;grid-template-columns:160px 1fr 220px;min-height:480px;padding:24px;gap:0}
+        .scene-sidebar{padding-right:16px;border-right:1px solid var(--border)}
+        .sidebar-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;font-size:12.5px;color:var(--t2);margin-bottom:3px;font-family:var(--font-mono);transition:all .25s}
+        .sidebar-item.active{background:rgba(168,85,247,.1);color:var(--accent-1)}
+        html[data-mode="daily"] .sidebar-item.active{background:rgba(249,115,22,.1)}
+        .scene-editor{padding:0 24px;font-family:var(--font-mono);font-size:12.5px;line-height:2.1;overflow:hidden;border-right:1px solid var(--border)}
+        .editor-line{white-space:nowrap;transition:background .3s}
+        .line-num{color:var(--t3);display:inline-block;width:26px;text-align:right;margin-right:18px;opacity:.4;user-select:none}
+        .kw{color:#c792ea}.fn{color:#82aaff}.str{color:#c3e88d}.cm{color:#546e7a}
+        .ai-line{background:rgba(168,85,247,.07);border-left:3px solid var(--accent-1);margin:0 -24px;padding:0 24px}
+        html[data-mode="daily"] .ai-line{background:rgba(249,115,22,.07)}
+        .ai-suggest{color:rgba(168,85,247,.55);font-style:italic}
+        html[data-mode="daily"] .ai-suggest{color:rgba(249,115,22,.5)}
+        .scene-chat{padding:20px;background:rgba(0,0,0,.15);display:flex;flex-direction:column;gap:10px;transition:background var(--transition-speed)}
+        html[data-mode="daily"] .scene-chat{background:rgba(0,0,0,.03)}
+        .chat-header{font-size:11px;font-weight:700;color:var(--t2);padding-bottom:12px;border-bottom:1px solid var(--border);letter-spacing:.08em;text-transform:uppercase}
+        .chat-msg{padding:10px 14px;border-radius:12px;font-size:12px;line-height:1.6}
+        .chat-msg.bot{background:rgba(255,255,255,.025);border:1px solid var(--border);color:var(--t2)}
+        html[data-mode="daily"] .chat-msg.bot{background:rgba(0,0,0,.025)}
+        .chat-msg.user{background:linear-gradient(135deg,rgba(168,85,247,.12),rgba(236,72,153,.08));border:1px solid rgba(168,85,247,.18);color:var(--accent-1);align-self:flex-end;max-width:85%}
+        html[data-mode="daily"] .chat-msg.user{background:linear-gradient(135deg,rgba(249,115,22,.1),rgba(20,184,166,.08));border-color:rgba(249,115,22,.18);color:var(--accent-1)}
+        .chat-msg.typing::after{content:'...';animation:typing 1.2s infinite}
         @keyframes typing{0%{content:'.'}33%{content:'..'}66%{content:'...'}}
 
-        /* Collab Demo */
-        .collab-demo{padding:24px;min-height:420px;display:flex;flex-direction:column;gap:16px}
-        .collab-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--border)}
-        .collab-badge{font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px}
-        .collab-badge.live{background:rgba(239,68,68,0.1);color:#EF4444;border:1px solid rgba(239,68,68,0.2)}
-        .collab-users{display:flex;align-items:center;gap:8px}
-        .user-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;margin-left:-8px}
-        .user-avatar:first-child{margin-left:0}
-        .collab-count{font-size:12px;color:var(--t2);margin-left:4px}
-        .collab-body{flex:1;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:13px;line-height:2.2;padding:16px;background:rgba(0,0,0,0.2);border-radius:8px}
-        .collab-line{position:relative;padding-left:8px}
-        .cursor-tag{font-size:10px;padding:1px 6px;border-radius:3px;color:#fff;margin-right:8px;font-family:'Inter',sans-serif}
-        .collab-chat{display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid var(--border)}
-        .collab-msg{font-size:12px;color:var(--t2)}
-        .collab-msg strong{color:var(--t1)}
+        .scene-agent{padding:28px 32px;display:flex;flex-direction:column;gap:18px}
+        .agent-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--border)}
+        .agent-badge{font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;background:rgba(6,182,212,.1);color:var(--accent-3);border:1px solid rgba(6,182,212,.2);letter-spacing:.04em}
+        .agent-task{font-family:var(--font-mono);font-size:14px;padding:14px 18px;background:rgba(0,0,0,.2);border-radius:10px;border-left:3px solid var(--accent-1)}
+        html[data-mode="daily"] .agent-task{background:rgba(0,0,0,.04)}
+        .agent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+        .agent-card{padding:14px;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:10px;font-size:11px;font-family:var(--font-mono);transition:all var(--transition-speed)}
+        html[data-mode="daily"] .agent-card{background:rgba(0,0,0,.02)}
+        .agent-card .agent-name{font-weight:600;color:var(--accent-1);margin-bottom:6px;font-size:12px}
+        .agent-card .agent-line{color:var(--t2);line-height:1.6}
+        .agent-card .agent-done{color:#10b981}
+        .agent-card .agent-progress{color:var(--accent-3)}
+        .agent-stats{display:flex;gap:24px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--t2);font-family:var(--font-mono)}
+        .agent-stats span strong{color:var(--accent-3);font-size:16px}
 
-        /* Code Complete Demo */
-        .code-complete-demo{padding:40px;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:13px;line-height:2.2;min-height:420px;display:flex;flex-direction:column;justify-content:center}
-        .complete-line{padding:0 16px}
-        .complete-line.ghost{color:rgba(139,92,246,0.4);font-style:italic;background:rgba(139,92,246,0.03);border-left:2px solid rgba(139,92,246,0.3);margin-left:0}
-        .complete-hint{margin-top:24px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--t3);font-family:'Inter',sans-serif;padding:0 16px}
-        .hint-icon{padding:3px 8px;background:rgba(255,255,255,0.08);border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:600;color:var(--t2)}
+        .scene-complete{padding:44px;font-family:var(--font-mono);font-size:13.5px;line-height:2.3;min-height:480px;display:flex;flex-direction:column;justify-content:center}
+        .complete-line{padding:0 20px;transition:all .3s}
+        .complete-line.ghost{color:rgba(168,85,247,.4);font-style:italic;background:rgba(168,85,247,.03);border-left:3px solid rgba(168,85,247,.2);margin-left:0}
+        html[data-mode="daily"] .complete-line.ghost{color:rgba(249,115,22,.4);background:rgba(249,115,22,.03);border-left-color:rgba(249,115,22,.2)}
+        .complete-hint{margin-top:28px;display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--t3);font-family:var(--font-display);padding:0 20px}
+        .hint-key{padding:4px 10px;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;color:var(--t2);font-family:var(--font-mono)}
+        html[data-mode="daily"] .hint-key{background:rgba(0,0,0,.05)}
 
-        .showcase-desc{margin-top:32px;font-size:15px;color:var(--t2);line-height:1.7}
+        .demo-tabs{display:flex;gap:6px;margin:0 auto 40px;width:fit-content;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:14px;padding:5px;transition:all var(--transition-speed)}
+        html[data-mode="daily"] .demo-tabs{background:rgba(0,0,0,.03)}
+        .tab-btn{padding:11px 28px;border-radius:10px;font-size:14px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .25s;border:none;background:none;font-family:var(--font-display)}
+        .tab-btn.active{background:linear-gradient(135deg,var(--accent-1),var(--accent-2));color:#fff;box-shadow:0 6px 20px var(--glow-purple)}
+        html[data-mode="daily"] .tab-btn.active{box-shadow:0 6px 20px var(--glow-orange)}
+        .tab-btn:hover:not(.active){color:var(--t1);background:rgba(255,255,255,.04)}
+        html[data-mode="daily"] .tab-btn:hover:not(.active){background:rgba(0,0,0,.04)}
 
-        /* FEATURES DETAIL */
-        .features-detail{padding:120px 24px;max-width:1200px;margin:0 auto;position:relative;z-index:2}
-        .features-detail-title{font-size:clamp(28px,4vw,42px);font-weight:800;line-height:1.2;margin-bottom:16px;letter-spacing:-1px}
-        .section-desc{font-size:16px;color:var(--t2);max-width:560px;line-height:1.7;margin-bottom:64px}
-        .feature-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
-        .feature-detail-card{padding:32px 28px;background:rgba(17,17,19,0.92);border:1px solid var(--border);border-radius:16px;transition:all .4s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;backdrop-filter:blur(8px)}
-        .feature-detail-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--cyan));opacity:0;transition:opacity .3s}
-        .feature-detail-card:hover::before{opacity:1}
-        .feature-detail-card:hover{border-color:var(--border-h);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,0.3)}
-        .fdc-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:20px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.15)}
-        .feature-detail-card h3{font-size:17px;font-weight:600;margin-bottom:10px}
-        .feature-detail-card p{font-size:14px;color:var(--t2);line-height:1.7}
+        .demo-desc{margin-top:36px;font-size:16px;color:var(--t2);line-height:1.8;text-align:center;max-width:640px;margin-left:auto;margin-right:auto;transition:color var(--transition-speed)}
 
-        /* SECURITY */
-        .security-section{padding:120px 24px;max-width:1100px;margin:0 auto;position:relative;z-index:2}
-        .security-title{font-size:clamp(28px,4vw,42px);font-weight:800;line-height:1.2;margin-bottom:16px;letter-spacing:-1px}
-        .security-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
-        .security-card{padding:32px 24px;background:rgba(17,17,19,0.92);border:1px solid var(--border);border-radius:16px;transition:all .3s;backdrop-filter:blur(8px)}
-        .security-card:hover{border-color:var(--border-h);transform:translateY(-2px)}
-        .security-icon{width:44px;height:44px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px}
-        .security-card h3{font-size:16px;font-weight:600;margin-bottom:8px}
-        .security-card p{font-size:13px;color:var(--t2);line-height:1.7}
+        /* ===== DAILY DEMO SCENE ===== */
+        .scene-daily-chat{padding:28px 32px;display:flex;flex-direction:column;gap:0;height:100%}
+        .daily-chat-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px}
+        .daily-chat-title{font-size:14px;font-weight:600;color:var(--t1)}
+        .daily-chat-badge{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(20,184,166,.1);color:var(--accent-2);border:1px solid rgba(20,184,166,.2)}
+        .daily-messages{flex:1;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+        .daily-msg{padding:14px 18px;border-radius:16px;font-size:13.5px;line-height:1.7;max-width:80%;animation:msgIn .4s ease backwards}
+        .daily-msg.bot{align-self:flex-start;background:var(--bg3);border:1px solid var(--border);color:var(--t1)}
+        .daily-msg.user{align-self:flex-end;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));color:#fff;border-radius:16px 16px 4px 16px}
+        .daily-msg .msg-time{font-size:10px;opacity:.5;margin-top:6px}
+        .daily-msg.bot .msg-highlight{color:var(--accent-1);font-weight:600}
+        html[data-mode="daily"] .daily-msg.bot .msg-highlight{color:var(--accent-1)}
+        .daily-input-bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;margin-top:12px}
+        html[data-mode="daily"] .daily-input-bar{background:rgba(0,0,0,.03)}
+        .daily-input-placeholder{flex:1;font-size:13px;color:var(--t3);font-style:italic}
+        .daily-input-send{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));border:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;cursor:pointer;transition:transform .2s}
+        .daily-input-send:hover{transform:scale(1.08)}
+        @keyframes msgIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
-        /* DOWNLOAD CTA */
-        .download-cta{padding:120px 24px 80px;text-align:center;position:relative;z-index:2}
-        .download-cta::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 80%,rgba(139,92,246,0.08) 0%,transparent 60%);pointer-events:none}
-        .download-cta h2{font-size:clamp(28px,5vw,48px);font-weight:700;margin-bottom:16px;position:relative}
-        .download-cta .section-desc{max-width:480px;margin:0 auto 48px;position:relative}
+        .scene-daily-memory{padding:28px 32px;display:flex;flex-direction:column;gap:18px;height:100%}
+        .memory-header{display:flex;align-items:center;justify-content:space-between}
+        .memory-title{font-size:14px;font-weight:600;color:var(--t1)}
+        .memory-count{font-size:11px;color:var(--t3);font-family:var(--font-mono);padding:4px 10px;background:var(--bg3);border-radius:20px;border:1px solid var(--border)}
+        .memory-search{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px}
+        html[data-mode="daily"] .memory-search{background:rgba(0,0,0,.03)}
+        .memory-search-icon{font-size:15px;color:var(--t3)}
+        .memory-search input{flex:1;background:none;border:none;font-size:13px;color:var(--t1);outline:none;font-family:var(--font-display)}
+        .memory-search input::placeholder{color:var(--t3)}
+        .memory-list{flex:1;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+        .memory-item{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all .25s}
+        html[data-mode="daily"] .memory-item{background:rgba(0,0,0,.02)}
+        .memory-item:hover{border-color:var(--border-h)}
+        .memory-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+        .memory-icon.chat{background:rgba(249,115,22,.1)}
+        .memory-icon.task{background:rgba(20,184,166,.1)}
+        .memory-icon.note{background:rgba(244,63,94,.1)}
+        .memory-info{flex:1;min-width:0}
+        .memory-item-title{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:3px}
+        .memory-item-preview{font-size:11.5px;color:var(--t2);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .memory-item-meta{display:flex;gap:12px;margin-top:4px;font-size:10px;color:var(--t3);font-family:var(--font-mono)}
+
+        .scene-daily-assistant{padding:28px 32px;display:flex;flex-direction:column;gap:16px;height:100%}
+        .assistant-greeting{font-size:26px;font-weight:700;color:var(--t1);line-height:1.3}
+        .assistant-sub{font-size:14px;color:var(--t2);margin-top:4px}
+        .assistant-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;flex:1}
+        .assistant-card{display:flex;align-items:center;gap:14px;padding:18px;background:var(--bg3);border:1px solid var(--border);border-radius:16px;cursor:pointer;transition:all .3s}
+        html[data-mode="daily"] .assistant-card{background:rgba(0,0,0,.02)}
+        .assistant-card:hover{border-color:var(--border-h);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+        .assistant-card-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+        .assistant-card-icon.orange{background:rgba(249,115,22,.1)}
+        .assistant-card-icon.teal{background:rgba(20,184,166,.1)}
+        .assistant-card-icon.rose{background:rgba(244,63,94,.1)}
+        .assistant-card-icon.purple{background:rgba(168,85,247,.1)}
+        .assistant-card-text h4{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:3px}
+        .assistant-card-text p{font-size:11.5px;color:var(--t2);line-height:1.5}
+
+        /* ===== BENTO FEATURES ===== */
+        .bento-section{padding:120px 24px;max-width:1280px;margin:0 auto;position:relative;z-index:2}
+        .bento-title{font-size:clamp(32px,5vw,56px);font-weight:700;line-height:1.08;margin-bottom:16px;letter-spacing:-1.5px;transition:all var(--transition-speed)}
+        .bento-title .gradient-text{background:linear-gradient(135deg,var(--accent-1),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .bento-desc{font-size:17px;color:var(--t2);max-width:520px;line-height:1.75;margin-bottom:64px;transition:color var(--transition-speed)}
+
+        .bento-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+        .bento-card{padding:36px 32px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;transition:all .4s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+        .bento-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));opacity:0;transition:opacity .35s}
+        .bento-card:hover::before{opacity:1}
+        .bento-card:hover{border-color:var(--border-h);transform:translateY(-6px);box-shadow:0 24px 64px rgba(0,0,0,.3),0 0 60px -20px var(--glow-purple)}
+        html[data-mode="daily"] .bento-card:hover{box-shadow:0 24px 64px rgba(0,0,0,.06),0 0 60px -20px var(--glow-orange)}
+
+        .bento-lg{grid-column:span 8;grid-row:span 2}
+        .bento-md{grid-column:span 6}
+        .bento-sm{grid-column:span 4}
+        .bento-full{grid-column:span 12}
+
+        .bento-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:22px;background:linear-gradient(135deg,rgba(168,85,247,.12),rgba(236,72,153,.08));border:1px solid rgba(168,85,247,.15);position:relative;transition:all var(--transition-speed)}
+        html[data-mode="daily"] .bento-icon{background:linear-gradient(135deg,rgba(249,115,22,.1),rgba(20,184,166,.08));border-color:rgba(249,115,22,.15)}
+        .bento-icon::after{content:'';position:absolute;inset:-1px;border-radius:15px;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));opacity:0;z-index:-1;filter:blur(12px);transition:opacity .3s}
+        .bento-card:hover .bento-icon::after{opacity:.4}
+        .bento-card h3{font-size:19px;font-weight:600;margin-bottom:10px;letter-spacing:-.3px;transition:color var(--transition-speed)}
+        .bento-card p{font-size:14px;color:var(--t2);line-height:1.75;transition:color var(--transition-speed)}
+        .bento-tag{display:inline-block;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(168,85,247,.1);color:var(--accent-1);margin-bottom:16px;letter-spacing:.04em;text-transform:uppercase;transition:all var(--transition-speed)}
+        html[data-mode="daily"] .bento-tag{background:rgba(249,115,22,.1);color:var(--accent-1)}
+
+        /* Daily mode features section hidden by default, shown in daily mode */
+        #features-daily{display:none}
+        html[data-mode="daily"] #features-coding{display:none}
+        html[data-mode="daily"] #features-daily{display:block}
+
+        .demo-daily{display:none}
+        html[data-mode="daily"] .demo-daily{display:block}
+        html[data-mode="daily"] .demo-coding{display:none}
+
+        /* ===== STATS ===== */
+        .stats-section{padding:120px 24px;max-width:1080px;margin:0 auto;position:relative;z-index:2}
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+        .stat-card{text-align:center;padding:40px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;transition:all .35s}
+        .stat-card:hover{border-color:var(--border-h);transform:translateY(-4px)}
+        .stat-num{font-size:48px;font-weight:800;background:linear-gradient(135deg,var(--accent-1),var(--accent-2),var(--accent-3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;margin-bottom:8px;letter-spacing:-2px}
+        .stat-info{font-size:14px;color:var(--t1);font-weight:500;transition:color var(--transition-speed)}
+        .stat-sub{font-size:12px;color:var(--t3);margin-top:4px;transition:color var(--transition-speed)}
+
+        /* Stats also switch content per mode */
+        #stats-daily{display:none}
+        html[data-mode="daily"] #stats-coding{display:none}
+        html[data-mode="daily"] #stats-daily{display:grid}
+
+        /* ===== DOWNLOAD ===== */
+        .download-section{padding:140px 24px 100px;text-align:center;position:relative;z-index:2}
+        .download-section::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 80%,rgba(168,85,247,.08) 0%,transparent 60%);pointer-events:none}
+        html[data-mode="daily"] .download-section::before{background:radial-gradient(ellipse at 50% 80%,rgba(249,115,22,.06) 0%,transparent 60%)}
+        .download-section h2{font-size:clamp(34px,5vw,58px);font-weight:700;margin-bottom:16px;letter-spacing:-1.5px;position:relative;transition:all var(--transition-speed)}
+        .download-section h2 .gradient-text{background:linear-gradient(135deg,var(--accent-1),var(--accent-3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .download-section .section-desc{max-width:440px;margin:0 auto 48px;position:relative;font-size:16px;color:var(--t2);line-height:1.7;transition:color var(--transition-speed)}
         .download-platforms{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;position:relative}
-        .platform-card{padding:28px 36px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;text-decoration:none;color:var(--t1);transition:all .3s;min-width:200px;text-align:center}
-        .platform-card:hover{border-color:var(--border-h);transform:translateY(-4px);box-shadow:0 12px 40px var(--glow);background:rgba(139,92,246,0.05)}
-        .platform-card.disabled{opacity:.4;pointer-events:none}
-        .platform-icon{font-size:36px;margin-bottom:12px}
-        .platform-name{font-size:16px;font-weight:600;margin-bottom:4px}
-        .platform-detail{font-size:12px;color:var(--t2)}
-        .download-version{margin-top:32px;font-size:13px;color:var(--t3);position:relative}
+        .platform-card{padding:32px 44px;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:20px;text-decoration:none;color:var(--t1);transition:all .4s;min-width:210px;text-align:center;position:relative;overflow:hidden}
+        html[data-mode="daily"] .platform-card{background:rgba(0,0,0,.025)}
+        .platform-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(168,85,247,.08),rgba(6,182,212,.04));opacity:0;transition:opacity .4s}
+        html[data-mode="daily"] .platform-card::before{background:linear-gradient(135deg,rgba(249,115,22,.06),rgba(20,184,166,.03))}
+        .platform-card:hover::before{opacity:1}
+        .platform-card:hover{border-color:var(--border-h);transform:translateY(-6px);box-shadow:0 20px 56px rgba(0,0,0,.3),0 0 80px -20px var(--glow-purple)}
+        html[data-mode="daily"] .platform-card:hover{box-shadow:0 20px 56px rgba(0,0,0,.06),0 0 80px -20px var(--glow-orange)}
+        .platform-card.disabled{opacity:.35;pointer-events:none}
+        .platform-icon{font-size:42px;margin-bottom:14px;display:block}
+        .platform-name{font-size:18px;font-weight:600;margin-bottom:6px}
+        .platform-detail{font-size:13px;color:var(--t2);transition:color var(--transition-speed)}
+        .download-version{margin-top:40px;font-size:13px;color:var(--t3);position:relative;letter-spacing:.03em;transition:color var(--transition-speed)}
 
-        /* FOOTER */
-        footer{padding:48px 24px;border-top:1px solid var(--border);position:relative;z-index:2;background:rgba(9,9,11,0.9);backdrop-filter:blur(12px)}
-        .footer-content{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr auto auto auto;gap:60px;align-items:start}
-        .footer-logo{font-size:18px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
-        .footer-desc{font-size:13px;color:var(--t2);max-width:280px;line-height:1.6}
-        .footer-col h4{font-size:13px;font-weight:600;margin-bottom:16px;color:var(--t1)}
-        .footer-col ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+        /* ===== FOOTER ===== */
+        footer{padding:72px 24px;border-top:1px solid var(--border);position:relative;z-index:2;background:var(--nav-bg);backdrop-filter:blur(12px);transition:all var(--transition-speed)}
+        .footer-content{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:56px;align-items:start}
+        .footer-logo{font-size:22px;font-weight:700;background:linear-gradient(135deg,var(--accent-1),var(--accent-3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:14px;letter-spacing:-.5px}
+        .footer-desc{font-size:13px;color:var(--t2);max-width:280px;line-height:1.7;transition:color var(--transition-speed)}
+        .footer-col h4{font-size:13px;font-weight:600;margin-bottom:18px;color:var(--t1);letter-spacing:.04em;text-transform:uppercase;transition:color var(--transition-speed)}
+        .footer-col ul{list-style:none;display:flex;flex-direction:column;gap:11px}
         .footer-col a{color:var(--t2);text-decoration:none;font-size:13px;transition:color .2s}
-        .footer-col a:hover{color:var(--t1)}
-        .footer-bottom{max-width:1200px;margin:32px auto 0;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--t3)}
+        .footer-col a:hover{color:var(--accent-1)}
+        .footer-bottom{max-width:1160px;margin:40px auto 0;padding-top:28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--t3);transition:color var(--transition-speed)}
 
-        /* RESPONSIVE */
+        /* ===== SCROLL REVEAL ===== */
+        .reveal{opacity:0;transform:translateY(36px);transition:opacity .7s cubic-bezier(.4,0,.2,1),transform .7s cubic-bezier(.4,0,.2,1)}
+        .reveal.visible{opacity:1;transform:translateY(0)}
+
+        /* ===== ACTIVE THEORY STYLE ANIMATIONS ===== */
+
+        /* Magnetic button wrapper */
+        .magnetic-wrap{display:inline-block;position:relative;transition:transform .3s cubic-bezier(.2,0,.2,1)}
+        .btn-primary.magnetic-wrap,.btn-ghost.magnetic-wrap,.tab-btn.magnetic-wrap,.mode-btn.magnetic-wrap{display:inline-flex}
+
+        /* Text reveal - character by character */
+        .text-reveal{overflow:hidden;display:inline-block}
+        .text-reveal .char{display:inline-block;opacity:0;transform:translateY(110%) rotate(12deg);transition:transform .55s cubic-bezier(.2,0,.2,1), opacity .45s cubic-bezier(.2,0,.2,1);transition-delay:calc(var(--char-index) * 0.03s)}
+        .text-reveal.revealed .char{opacity:1;transform:translateY(0) rotate(0deg)}
+
+        /* 3D Tilt Card */
+        .tilt-card{transform-style:preserve-3d;perspective:1000px;transition:transform .15s ease-out}
+        .tilt-card .tilt-shine{position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(circle at var(--shine-x, var(--shine-y), rgba(255,255,255,.12) 0%, transparent 60%);opacity:0;transition:opacity .35s;z-index:2}
+        .tilt-card:hover .tilt-shine{opacity:1}
+
+        /* Parallax layers */
+        [data-parallax]{will-change:transform;transition:transform .05s linear}
+
+        /* Smooth scroll container */
+        .smooth-scroll{scroll-behavior:auto}
+
+        /* ===== DIVIDER ===== */
+        .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);max-width:1280px;margin:0 auto}
+
+        /* ===== RESPONSIVE ===== */
+        @media(max-width:1024px){
+            .bento-lg{grid-column:span 12;grid-row:span 1}
+            .bento-md{grid-column:span 6}
+            .bento-sm{grid-column:span 6}
+            .stats-grid{grid-template-columns:repeat(2,1fr)}
+        }
         @media(max-width:768px){
             .nav{padding:0 20px}
             .nav-links{display:none}
-            .hero{padding:100px 20px 60px;min-height:auto}
-            .hero-stats{gap:24px}
-            .showcase{padding:40px 16px 80px}
-            .code-demo{grid-template-columns:1fr}
-            .demo-sidebar,.demo-chat{display:none}
-            .features-detail{padding:80px 20px}
-            .feature-detail-grid{grid-template-columns:1fr}
-            .security-section{padding:80px 20px}
-            .download-cta{padding:80px 20px 60px}
+            .hero{padding:100px 20px 70px;min-height:auto}
+            .hero-stats{gap:28px;flex-wrap:wrap}
+            .scene-ai{grid-template-columns:1fr}
+            .demo-sidebar,.scene-chat{display:none}
+            .scene-editor{border-right:none}
+            .bento-grid{grid-template-columns:1fr}
+            .bento-sm,.bento-md{grid-column:span 1}
+            .stats-grid{grid-template-columns:1fr 1fr;gap:14px}
             .download-platforms{flex-direction:column;align-items:center}
-            .footer-content{grid-template-columns:1fr;gap:32px}
-            .footer-bottom{flex-direction:column;gap:8px}
+            .footer-content{grid-template-columns:1fr;gap:36px}
+            .footer-bottom{flex-direction:column;gap:8px;text-align:center}
+            .assistant-cards{grid-template-columns:1fr}
+            .agent-grid{grid-template-columns:1fr}
         }
-
-        /* COSMOS BACKGROUND */
-        .cosmos{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden}
-        .stars-layer{position:absolute;inset:0}
-        .star{position:absolute;border-radius:50%;background:#fff}
-        .star-sm{width:1px;height:1px;opacity:.4}
-        .star-md{width:2px;height:2px;opacity:.6}
-        .star-lg{width:3px;height:3px;opacity:.8;box-shadow:0 0 4px 1px rgba(255,255,255,0.3)}
-        @keyframes twinkle{0%,100%{opacity:.3}50%{opacity:1}}
-        @keyframes twinkle2{0%,100%{opacity:.5}50%{opacity:.15}}
-
-        /* Nebula / Star Clouds */
-        .nebula{position:absolute;border-radius:50%;filter:blur(80px);opacity:.12;animation:nebulaDrift 30s ease-in-out infinite alternate}
-        .nebula-1{width:600px;height:400px;background:radial-gradient(ellipse,rgba(139,92,246,0.6),transparent 70%);top:10%;left:-5%}
-        .nebula-2{width:500px;height:500px;background:radial-gradient(ellipse,rgba(6,182,212,0.5),transparent 70%);top:50%;right:-10%;animation-delay:-15s}
-        .nebula-3{width:400px;height:300px;background:radial-gradient(ellipse,rgba(245,158,11,0.4),transparent 70%);bottom:10%;left:30%;animation-delay:-8s}
-        @keyframes nebulaDrift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(30px,-20px) scale(1.1)}}
-
-        /* Shooting Stars */
-        .shooting-star{position:absolute;width:120px;height:1px;background:linear-gradient(90deg,rgba(255,255,255,0.8),transparent);opacity:0;animation:shoot 4s linear infinite}
-        .shooting-star::before{content:'';position:absolute;left:0;top:-1px;width:4px;height:3px;border-radius:50%;background:#fff;box-shadow:0 0 6px 2px rgba(255,255,255,0.6)}
-        .shooting-star:nth-child(1){top:15%;left:70%;animation-delay:0s;transform:rotate(-35deg)}
-        .shooting-star:nth-child(2){top:35%;left:20%;animation-delay:3s;transform:rotate(-25deg);width:80px}
-        .shooting-star:nth-child(3){top:60%;left:80%;animation-delay:7s;transform:rotate(-40deg);width:100px}
-        .shooting-star:nth-child(4){top:80%;left:40%;animation-delay:11s;transform:rotate(-30deg);width:60px}
-        @keyframes shoot{0%{opacity:0;transform:translateX(0) rotate(inherit)}5%{opacity:1}30%{opacity:0;transform:translateX(-300px) rotate(inherit)}100%{opacity:0}}
-
-        /* Solar System */
-        .solar-system{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:1400px;height:1400px;pointer-events:none;z-index:0;opacity:.45}
-        .sun{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:180px;height:180px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFF7C2 0%,#FDE68A 15%,#F59E0B 35%,#D97706 55%,#92400E 80%,#451A03 100%);box-shadow:0 0 100px 40px rgba(245,158,11,0.5),0 0 200px 80px rgba(245,158,11,0.2),0 0 300px 120px rgba(245,158,11,0.08);animation:sunPulse 4s ease-in-out infinite;overflow:hidden}
-        .sun::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 25% 25%,rgba(255,255,255,0.3),transparent 50%)}
-        .sun::after{content:'';position:absolute;inset:-10px;border-radius:50%;background:radial-gradient(circle,transparent 40%,rgba(255,200,50,0.08) 60%,rgba(255,150,0,0.15) 80%,transparent 100%);animation:sunCorona 6s ease-in-out infinite alternate}
-        @keyframes sunPulse{0%,100%{box-shadow:0 0 100px 40px rgba(245,158,11,0.5),0 0 200px 80px rgba(245,158,11,0.2),0 0 300px 120px rgba(245,158,11,0.08)}50%{box-shadow:0 0 120px 50px rgba(245,158,11,0.6),0 0 240px 100px rgba(245,158,11,0.25),0 0 360px 140px rgba(245,158,11,0.1)}}
-        @keyframes sunCorona{0%{transform:scale(1) rotate(0deg)}100%{transform:scale(1.05) rotate(10deg)}}
-        .orbit{position:absolute;top:50%;left:50%;border-radius:50%;border:1px solid rgba(255,255,255,0.04);transform:translate(-50%,-50%)}
-        .orbit-1{width:320px;height:320px;animation:orbitSpin 12s linear infinite}
-        .orbit-2{width:480px;height:480px;animation:orbitSpin 20s linear infinite}
-        .orbit-3{width:680px;height:680px;animation:orbitSpin 32s linear infinite}
-        .orbit-4{width:940px;height:940px;animation:orbitSpin 50s linear infinite}
-        .orbit-5{width:1240px;height:1240px;animation:orbitSpin 72s linear infinite}
-        @keyframes orbitSpin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
-        .planet{position:absolute;top:0;left:50%;border-radius:50%;transform:translateX(-50%)}
-        /* Mercury - 灰色岩石表面，有陨石坑纹理 */
-        .planet-mercury{width:24px;height:24px;background:radial-gradient(circle at 35% 30%,#D4D4D8,#A1A1AA 40%,#71717A 70%,#52525B 100%);box-shadow:0 0 8px 2px rgba(161,161,170,0.4),inset -3px -3px 6px rgba(0,0,0,0.4);overflow:hidden}
-        .planet-mercury::before{content:'';position:absolute;width:5px;height:5px;top:30%;left:55%;border-radius:50%;background:rgba(0,0,0,0.15);box-shadow:8px 6px 0 2px rgba(0,0,0,0.1),-4px 8px 0 1px rgba(0,0,0,0.12)}
-        /* Venus - 金黄色厚大气层，表面模糊 */
-        .planet-venus{width:36px;height:36px;background:radial-gradient(circle at 35% 30%,#FEF3C7,#FDE68A 25%,#F59E0B 50%,#B45309 80%,#78350F 100%);box-shadow:0 0 14px 4px rgba(245,158,11,0.4),inset -4px -4px 10px rgba(0,0,0,0.3);overflow:hidden}
-        .planet-venus::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 30% 25%,rgba(255,255,255,0.35),transparent 45%)}
-        .planet-venus::after{content:'';position:absolute;inset:2px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,200,100,0.08) 0deg 20deg,transparent 20deg 40deg);opacity:.6}
-        /* Earth - 蓝色海洋+绿色大陆+白色云层 */
-        .planet-earth{width:42px;height:42px;background:radial-gradient(circle at 35% 30%,#93C5FD,#3B82F6 30%,#1D4ED8 55%,#1E3A5F 80%,#0F172A 100%);box-shadow:0 0 16px 5px rgba(59,130,246,0.5),0 0 30px 8px rgba(59,130,246,0.2),inset -5px -5px 12px rgba(0,0,0,0.4);overflow:hidden}
-        .planet-earth::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 45% 40%,rgba(34,197,94,0.7) 0%,transparent 25%),radial-gradient(ellipse at 65% 60%,rgba(34,197,94,0.5) 0%,transparent 20%),radial-gradient(ellipse at 30% 65%,rgba(34,197,94,0.4) 0%,transparent 15%)}
-        .planet-earth::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 25% 20%,rgba(255,255,255,0.5),transparent 35%),radial-gradient(ellipse at 60% 30%,rgba(255,255,255,0.2),transparent 20%),radial-gradient(ellipse at 50% 70%,rgba(255,255,255,0.15),transparent 25%)}
-        /* Mars - 红色表面+极冠+峡谷纹理 */
-        .planet-mars{width:32px;height:32px;background:radial-gradient(circle at 35% 30%,#FECACA,#F87171 25%,#DC2626 45%,#991B1B 70%,#450A0A 100%);box-shadow:0 0 12px 4px rgba(220,38,38,0.4),inset -4px -4px 10px rgba(0,0,0,0.4);overflow:hidden}
-        .planet-mars::before{content:'';position:absolute;top:0;left:30%;width:40%;height:20%;border-radius:50%;background:rgba(255,255,255,0.3);filter:blur(2px)}
-        .planet-mars::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 50% 50%,transparent 30%,rgba(120,20,20,0.3) 50%,transparent 70%)}
-        /* Jupiter - 巨大气态行星+条纹+大红斑 */
-        .planet-jupiter{width:72px;height:72px;background:radial-gradient(circle at 35% 30%,#FEF3C7,#FDE68A 15%,#D97706 35%,#92400E 60%,#451A03 85%,#1C0A00 100%);box-shadow:0 0 24px 8px rgba(217,119,6,0.4),0 0 48px 16px rgba(217,119,6,0.15),inset -8px -8px 16px rgba(0,0,0,0.4);overflow:hidden}
-        .planet-jupiter::before{content:'';position:absolute;inset:0;border-radius:50%;background:repeating-linear-gradient(0deg,transparent,transparent 8px,rgba(139,69,19,0.2) 8px,rgba(139,69,19,0.2) 10px,transparent 10px,transparent 14px,rgba(210,150,60,0.15) 14px,rgba(210,150,60,0.15) 16px)}
-        .planet-jupiter::after{content:'';position:absolute;width:16px;height:10px;top:55%;left:35%;border-radius:50%;background:radial-gradient(ellipse,#DC2626,#991B1B);opacity:.7;box-shadow:0 0 4px 1px rgba(220,38,38,0.3)}
-
-        /* Dividers */
-        .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);max-width:1200px;margin:0 auto}
+        @media(hover:none) and (pointer:coarse){}
     </style>
 </head>
 <body>
-    <!-- Cosmos Background -->
-    <div class="cosmos">
-        <div class="stars-layer" id="stars-layer"></div>
-        <div class="nebula nebula-1"></div>
-        <div class="nebula nebula-2"></div>
-        <div class="nebula nebula-3"></div>
-        <div class="shooting-star"></div>
-        <div class="shooting-star"></div>
-        <div class="shooting-star"></div>
-        <div class="shooting-star"></div>
+
+    <!-- Coding Mode Decorations -->
+    <div class="ambient-orb ambient-orb-1"></div>
+    <div class="ambient-orb ambient-orb-2"></div>
+    <div class="ambient-orb ambient-orb-3"></div>
+    <div class="particles-container" id="particles"></div>
+    <div class="glow-ring glow-ring-1"></div>
+    <div class="glow-ring glow-ring-2"></div>
+    <div class="scan-line"></div>
+
+    <!-- Daily Mode Decorations -->
+    <div class="daily-decor">
+        <!-- Rainbow Aurora (conic gradient blobs) -->
+        <div class="rainbow-aurora rainbow-aurora-1"></div>
+        <div class="rainbow-aurora rainbow-aurora-2"></div>
+        <div class="rainbow-aurora rainbow-aurora-3"></div>
+        <!-- Rainbow Shimmer overlay -->
+        <div class="rainbow-shimmer"></div>
+        <!-- Subtle grid -->
+        <div class="daily-grid"></div>
+        <!-- Rainbow floating particles -->
+        <div class="rainbow-particle rp-1"></div>
+        <div class="rainbow-particle rp-2"></div>
+        <div class="rainbow-particle rp-3"></div>
+        <div class="rainbow-particle rp-4"></div>
+        <div class="rainbow-particle rp-5"></div>
+        <div class="rainbow-particle rp-6"></div>
+        <div class="rainbow-particle rp-7"></div>
+        <div class="rainbow-particle rp-8"></div>
+        <!-- Rainbow spinning rings -->
+        <div class="rainbow-ring rainbow-ring-1"></div>
+        <div class="rainbow-ring rainbow-ring-2"></div>
+        <!-- Rainbow scan bars -->
+        <div class="rainbow-bar rainbow-bar-1"></div>
+        <div class="rainbow-bar rainbow-bar-2"></div>
     </div>
 
-    <!-- Solar System -->
-    <div class="solar-system">
-        <div class="sun"></div>
-        <div class="orbit orbit-1"><div class="planet planet-mercury"></div></div>
-        <div class="orbit orbit-2"><div class="planet planet-venus"></div></div>
-        <div class="orbit orbit-3"><div class="planet planet-earth"></div></div>
-        <div class="orbit orbit-4"><div class="planet planet-mars"></div></div>
-        <div class="orbit orbit-5"><div class="planet planet-jupiter"></div></div>
-    </div>
-
-    <!-- Nav -->
+    <!-- NAV -->
     <nav class="nav">
         <div class="nav-logo">CodeCast</div>
         <ul class="nav-links">
-            <li><a href="#showcase">产品</a></li>
+            <li><a href="#demo">演示</a></li>
             <li><a href="#features">功能</a></li>
-            <li><a href="#security">安全</a></li>
             <li><a href="#download">下载</a></li>
-            <li><a href="https://github.com/1405451216/codecast" target="_blank">GitHub</a></li>
+            <li><a href="https://github.com/CodeCast/CodeCast" target="_blank">GitHub</a></li>
         </ul>
-        <a href="#download" class="nav-cta">下载 CodeCast</a>
+        <div class="mode-switch">
+            <button class="mode-btn active" data-mode="coding" title="编程模式">
+                <span>编程</span>
+            </button>
+            <button class="mode-btn" data-mode="daily" title="日常对话模式">
+                <span>日常</span>
+            </button>
+        </div>
     </nav>
 
-    <!-- Hero -->
-    <section class="hero">
-        <div class="hero-bg"><div class="hero-grid"></div></div>
+    <!-- ========== HERO - CODING MODE ========== -->
+    <section class="hero hero-coding">
+        <div class="hero-bg">
+            <div class="hero-blob-1"></div>
+            <div class="hero-blob-2"></div>
+            <div class="hero-blob-3"></div>
+            <div class="hero-grid"></div>
+        </div>
         <div class="hero-content">
-            <div style="display:flex;align-items:flex-start;justify-content:center;gap:36px;margin-bottom:28px">
-                <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;margin-top:24px">
-                    <img src="assets/logo.png" alt="CodeCast" style="width:100px;height:100px;border-radius:22px;box-shadow:0 8px 32px rgba(139,92,246,0.3),0 0 0 1px rgba(255,255,255,0.08)">
-                    <div class="hero-badge" style="margin-top:16px;margin-bottom:0"><span class="hero-badge-dot"></span> 全新发布 v1.0</div>
-                </div>
-                <h1 style="text-align:left">智能无限，<br><span class="gradient">协作无间</span></h1>
-            </div>
-            <p class="hero-desc">CodeCast 围绕真实开发工作流进行整体设计：AI 驱动的智能编程助手与代码协作平台，只需提出想法，执行交给 AI。</p>
+            <div class="hero-badge"><span class="hero-badge-dot"></span>v1.0 正式发布</div>
+            <h1>颠覆世界的产物<br>将在你手中创造</h1>
+            <p class="hero-desc">AI 原生驱动的智能编程助手。不只是补全——理解你的意图、编排工具链、让想法直接变成可运行的代码。</p>
             <div class="hero-buttons">
-                <a href="#download" class="btn-primary">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    免费下载
-                </a>
-                <a href="https://github.com/1405451216/codecast" class="btn-ghost" target="_blank">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                    GitHub
-                </a>
+                <a href="#download" class="btn-primary"><span>免费下载</span></a>
+                <a href="https://github.com/CodeCast/CodeCast" class="btn-ghost" target="_blank">查看源码</a>
             </div>
             <div class="hero-stats">
-                <div class="stat-item"><div class="stat-value">10x</div><div class="stat-label">效率提升</div></div>
+                <div class="stat-item"><div class="stat-value">4.2x</div><div class="stat-label">并行加速</div></div>
                 <div class="stat-item"><div class="stat-value">AI</div><div class="stat-label">原生驱动</div></div>
                 <div class="stat-item"><div class="stat-value">0</div><div class="stat-label">使用门槛</div></div>
             </div>
         </div>
     </section>
 
-    <!-- Showcase -->
-    <section class="showcase" id="showcase">
-        <div class="section-label"><span>产品展示</span></div>
-        <h2 class="showcase-title">CodeCast 为你解锁全新可能</h2>
-        <div class="showcase-tabs">
-            <button class="tab-btn active" data-tab="ai">AI 对话</button>
-            <button class="tab-btn" data-tab="collab">实时协作</button>
-            <button class="tab-btn" data-tab="code">智能编码</button>
+    <!-- ========== HERO - DAILY MODE ========== -->
+    <section class="hero hero-daily" style="display:none">
+        <div class="hero-content">
+            <div class="hero-badge"><span class="hero-badge-dot"></span>你的私人 AI 伙伴</div>
+            <h1>记住每一次对话<br>懂你的每一个需求</h1>
+            <p class="hero-desc">不只是编程助手——它是能记忆、会思考、真正理解你的 AI 伴侣。从代码到生活，从工作到灵感，随时陪伴。</p>
+            <div class="hero-buttons">
+                <a href="#download" class="btn-primary"><span>免费下载</span></a>
+                <a href="#demo-daily" class="btn-ghost">看看它能做什么</a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item"><div class="stat-value">&#x221E;</div><div class="stat-label">记忆容量</div></div>
+                <div class="stat-item"><div class="stat-value">24/7</div><div class="stat-label">随时在线</div></div>
+                <div class="stat-item"><div class="stat-value">100%</div><div class="stat-label">本地隐私</div></div>
+            </div>
         </div>
-        <div class="showcase-window">
+    </section>
+
+    <!-- ========== DEMO - CODING MODE ========== -->
+    <section class="demo-section demo-coding" id="demo">
+        <div class="section-label"><span>产品展示</span></div>
+        <h2 class="demo-title">看见 <span class="gradient-text">智能编码</span> 的样子</h2>
+
+        <div class="demo-tabs">
+            <button class="tab-btn active" data-tab="ai">AI 对话</button>
+            <button class="tab-btn" data-tab="agent">Agent 集群</button>
+            <button class="tab-btn" data-tab="code">智能补全</button>
+        </div>
+
+        <div class="demo-window">
             <div class="window-titlebar">
                 <div class="window-dot red"></div>
                 <div class="window-dot yellow"></div>
                 <div class="window-dot green"></div>
-                <span class="window-title">CodeCast - main.ts</span>
+                <span class="window-title">CodeCast — workspace</span>
             </div>
-            <div class="window-body">
-                <!-- Tab: AI -->
-                <div class="tab-content active" id="tab-ai">
-                    <div class="code-demo">
-                        <div class="demo-sidebar">
-                            <div class="sidebar-item active">&#x1F4C4; main.ts</div>
-                            <div class="sidebar-item">&#x1F4C4; api.ts</div>
-                            <div class="sidebar-item">&#x1F4C4; utils.ts</div>
-                            <div class="sidebar-item">&#x1F4C4; store.ts</div>
-                            <div class="sidebar-item">&#x1F4C1; components/</div>
-                            <div class="sidebar-item">&#x1F4C1; hooks/</div>
+            <div class="demo-body">
+                <div class="demo-scene scene-ai active" id="tab-ai">
+                    <div class="scene-sidebar">
+                        <div class="sidebar-item active">&#x1F4CB; main.ts</div>
+                        <div class="sidebar-item">&#x1F4CB; api.ts</div>
+                        <div class="sidebar-item">&#x1F4CB; store.ts</div>
+                        <div class="sidebar-item">&#x1F4C1; components/</div>
+                        <div class="sidebar-item">&#x1F4C1; hooks/</div>
+                    </div>
+                    <div class="scene-editor">
+                        <div class="editor-line"><span class="line-num">1</span><span class="cm">// AI 正在生成项目脚手架...</span></div>
+                        <div class="editor-line"><span class="line-num">2</span></div>
+                        <div class="editor-line"><span class="line-num">3</span><span class="kw">import</span> { <span class="fn">createApp</span> } <span class="kw">from</span> <span class="str">'vue'</span></div>
+                        <div class="editor-line"><span class="line-num">4</span><span class="kw">import</span> { <span class="fn">createPinia</span> } <span class="kw">from</span> <span class="str">'pinia'</span></div>
+                        <div class="editor-line"><span class="line-num">5</span></div>
+                        <div class="editor-line"><span class="line-num">6</span><span class="kw">const</span> app = <span class="fn">createApp</span>(App)</div>
+                        <div class="editor-line"><span class="line-num">7</span>app.<span class="fn">use</span>(<span class="fn">createPinia</span>())</div>
+                        <div class="editor-line"><span class="line-num">8</span>app.<span class="fn">mount</span>(<span class="str">'#app'</span>)</div>
+                        <div class="editor-line ai-line"><span class="line-num">9</span><span class="ai-suggest">// &#x2728; AI: 添加全局错误处理和性能监控</span></div>
+                        <div class="editor-line ai-line"><span class="line-num">10</span><span class="ai-suggest">app.config.errorHandler = (err) =&gt; report(err)</span></div>
+                    </div>
+                    <div class="scene-chat">
+                        <div class="chat-header">&#x1F916; AI 助手</div>
+                        <div class="chat-msg bot">已为你生成 Vue 3 项目脚手架，包含路由和状态管理。还需要什么？</div>
+                        <div class="chat-msg user">加上登录页和权限控制</div>
+                        <div class="chat-msg bot typing">正在生成登录模块...</div>
+                    </div>
+                </div>
+
+                <div class="demo-scene scene-agent" id="tab-agent">
+                    <div class="agent-header">
+                        <span class="agent-badge">&#x1F3AF; 并行执行中</span>
+                        <span style="font-size:12px;color:var(--t3);font-family:var(--font-mono)">3 个子智能体</span>
+                    </div>
+                    <div class="agent-task">
+                        <span style="color:var(--accent-1)">📋 主任务：</span>
+                        <span style="color:var(--t2)">搭建一个全栈电商平台，包含商品管理、购物车、支付和用户系统</span>
+                    </div>
+                    <div class="agent-grid">
+                        <div class="agent-card">
+                            <div class="agent-name">🔧 Agent #1 — 后端架构</div>
+                            <div class="agent-line agent-done">✓ 设计数据库模型 (User, Product, Order)</div>
+                            <div class="agent-line agent-done">✓ RESTful API 路由定义</div>
+                            <div class="agent-line agent-done">✓ JWT 认证中间件</div>
+                            <div class="agent-line agent-progress">⟳ 支付网关对接中...</div>
                         </div>
-                        <div class="demo-editor">
-                            <div class="editor-line"><span class="line-num">1</span><span class="comment">// CodeCast AI 正在帮你编写代码...</span></div>
-                            <div class="editor-line"><span class="line-num">2</span></div>
-                            <div class="editor-line"><span class="line-num">3</span><span class="keyword">import</span> { createApp } <span class="keyword">from</span> <span class="str">'vue'</span></div>
-                            <div class="editor-line"><span class="line-num">4</span><span class="keyword">import</span> { setupRouter } <span class="keyword">from</span> <span class="str">'./router'</span></div>
-                            <div class="editor-line"><span class="line-num">5</span><span class="keyword">import</span> { createPinia } <span class="keyword">from</span> <span class="str">'pinia'</span></div>
-                            <div class="editor-line"><span class="line-num">6</span></div>
-                            <div class="editor-line"><span class="line-num">7</span><span class="keyword">const</span> app = <span class="func">createApp</span>(App)</div>
-                            <div class="editor-line"><span class="line-num">8</span>app.<span class="func">use</span>(<span class="func">createPinia</span>())</div>
-                            <div class="editor-line"><span class="line-num">9</span>app.<span class="func">use</span>(<span class="func">setupRouter</span>())</div>
-                            <div class="editor-line"><span class="line-num">10</span>app.<span class="func">mount</span>(<span class="str">'#app'</span>)</div>
-                            <div class="editor-line ai-line"><span class="line-num">11</span><span class="ai-suggest">// &#x2728; AI: 添加全局错误处理和性能监控</span></div>
-                            <div class="editor-line ai-line"><span class="line-num">12</span><span class="ai-suggest">app.config.errorHandler = (err) =&gt; report(err)</span></div>
+                        <div class="agent-card">
+                            <div class="agent-name">🎨 Agent #2 — 前端界面</div>
+                            <div class="agent-line agent-done">✓ Vue 3 项目初始化</div>
+                            <div class="agent-line agent-done">✓ 商品列表/详情组件</div>
+                            <div class="agent-line agent-done">✓ 购物车状态管理</div>
+                            <div class="agent-line agent-progress">⟳ 订单结算页开发中...</div>
                         </div>
-                        <div class="demo-chat">
-                            <div class="chat-header">&#x1F916; AI 助手</div>
-                            <div class="chat-msg bot">已为你生成 Vue 3 项目脚手架，包含路由和状态管理。还需要什么？</div>
-                            <div class="chat-msg user">加上登录页和权限控制</div>
-                            <div class="chat-msg bot typing">正在生成登录模块</div>
+                        <div class="agent-card">
+                            <div class="agent-name">🧪 Agent #3 — 测试/部署</div>
+                            <div class="agent-line agent-done">✓ 单元测试框架搭建</div>
+                            <div class="agent-line agent-done">✓ API 集成测试</div>
+                            <div class="agent-line agent-progress">⟳ Docker 容器化配置...</div>
+                            <div class="agent-line" style="color:var(--t3);margin-top:4px">⏳ E2E 测试 (排队中)</div>
+                        </div>
+                    </div>
+                    <div class="agent-stats">
+                        <span><strong>12</strong> 任务已完成</span>
+                        <span><strong>3</strong> 进行中</span>
+                        <span><strong>1</strong> 等待调度</span>
+                        <span style="margin-left:auto;color:var(--accent-1)">⚡ 并行加速 4.2x</span>
+                    </div>
+                </div>
+
+                <div class="demo-scene scene-complete" id="tab-code">
+                    <div class="complete-line"><span class="kw">async function</span> <span class="fn">fetchUserProfile</span>(id: string) {</div>
+                    <div class="complete-line">    <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\`/api/users/\${id}\`</span>)</div>
+                    <div class="complete-line ghost">    if (!res.ok) throw new HttpError(res.status)</div>
+                    <div class="complete-line ghost">    const data: UserProfile = await res.json()</div>
+                    <div class="complete-line ghost">    cache.set(id, data)</div>
+                    <div class="complete-line ghost">    return data</div>
+                    <div class="complete-line">}</div>
+                    <div class="complete-line"></div>
+                    <div class="complete-line"><span class="kw">interface</span> <span class="fn">UserProfile</span> {</div>
+                    <div class="complete-line ghost">    id: string</div>
+                    <div class="complete-line ghost">    name: string</div>
+                    <div class="complete-line ghost">    avatar: string</div>
+                    <div class="complete-line ghost">    role: 'admin' | 'member'</div>
+                    <div class="complete-line">}</div>
+                    <div class="complete-hint">
+                        <span class="hint-key">Tab</span>
+                        <span>按 Tab 接受 AI 补全建议（灰色部分）</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="demo-desc">一个主任务自动拆解为多个子智能体并行处理——后端、前端、测试、部署同步推进。</p>
+    </section>
+
+    <!-- ========== DEMO - DAILY MODE ========== -->
+    <section class="demo-section demo-daily" id="demo-daily">
+        <div class="section-label"><span>体验展示</span></div>
+        <h2 class="demo-title">像朋友一样<span class="gradient-text">自然对话</span></h2>
+
+        <div class="demo-tabs">
+            <button class="tab-btn active" data-tab="dchat">智能对话</button>
+            <button class="tab-btn" data-tab="dmemory">记忆中心</button>
+            <button class="tab-btn" data-tab="dassist">生活助手</button>
+        </div>
+
+        <div class="demo-window">
+            <div class="window-titlebar">
+                <div class="window-dot red"></div>
+                <div class="window-dot yellow"></div>
+                <div class="window-dot green"></div>
+                <span class="window-title">CodeCast — 日常助手</span>
+            </div>
+            <div class="demo-body">
+                <div class="demo-scene scene-daily-chat active" id="tab-dchat">
+                    <div class="daily-chat-header">
+                        <span class="daily-chat-title">&#x1F4AC; 对话记录</span>
+                        <span class="daily-chat-badge">&#x2728; 记忆已关联</span>
+                    </div>
+                    <div class="daily-messages">
+                        <div class="daily-msg bot" style="animation-delay:0s">
+                            早安！今天有什么计划吗？
+                            <div class="msg-time">08:30</div>
+                        </div>
+                        <div class="daily-msg user" style="animation-delay:.1s">
+                            帮我整理一下昨天讨论的项目方案
+                            <div class="msg-time">08:32</div>
+                        </div>
+                        <div class="daily-msg bot" style="animation-delay:.2s">
+                            好的！根据我们昨天的对话，你提到的 <span class="msg-highlight">电商平台重构</span> 方案涉及三个核心模块：用户系统升级、支付流程优化、以及前端性能提升。需要我把完整方案整理成文档吗？
+                            <div class="msg-time">08:32</div>
+                        </div>
+                        <div class="daily-msg user" style="animation-delay:.3s">
+                            对，顺便提醒我下午3点的会议
+                            <div class="msg-time">08:33</div>
+                        </div>
+                        <div class="daily-msg bot" style="animation-delay:.4s">
+                            已创建提醒 &#x23F0; 下午 3:00 — 产品评审会议。另外，我记得你上次提到想了解 <span class="msg-highlight">Rust 异步编程</span>，要不要趁上午空闲时间一起看看？
+                            <div class="msg-time">08:33</div>
+                        </div>
+                    </div>
+                    <div class="daily-input-bar">
+                        <span class="daily-input-placeholder">输入消息... (支持上下文记忆)</span>
+                        <button class="daily-input-send">&#x27A1;</button>
+                    </div>
+                </div>
+
+                <div class="demo-scene scene-daily-memory" id="tab-dmemory">
+                    <div class="memory-header">
+                        <span class="memory-title">&#x1F4BE; 记忆中心</span>
+                        <span class="memory-count">128 条记录</span>
+                    </div>
+                    <div class="memory-search">
+                        <span class="memory-search-icon">&#x1F50D;</span>
+                        <input type="text" placeholder="搜索对话、笔记、任务..." readonly>
+                    </div>
+                    <div class="memory-list">
+                        <div class="memory-item">
+                            <div class="memory-icon chat">&#x1F4AC;</div>
+                            <div class="memory-info">
+                                <div class="memory-item-title">电商平台重构方案</div>
+                                <div class="memory-item-preview">讨论了用户系统升级、支付流程优化、前端性能提升三个方向...</div>
+                                <div class="memory-item-meta">
+                                    <span>昨天 14:20</span>
+                                    <span>对话</span>
+                                    <span>5 条关联</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="memory-item">
+                            <div class="memory-icon task">&#x1F4CB;</div>
+                            <div class="memory-info">
+                                <div class="memory-item-title">学习 Rust 异步编程</div>
+                                <div class="memory-item-preview">Tokio runtime、async/await 语法、错误处理模式...</div>
+                                <div class="memory-item-meta">
+                                    <span>3 天前</span>
+                                    <span>目标</span>
+                                    <span>进行中</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="memory-item">
+                            <div class="memory-icon note">&#x1F4DD;</div>
+                            <div class="memory-info">
+                                <div class="memory-item-title">API 设计规范笔记</div>
+                                <div class="memory-item-preview">RESTful 风格、版本控制策略、分页与过滤标准...</div>
+                                <div class="memory-item-meta">
+                                    <span>上周</span>
+                                    <span>笔记</span>
+                                    <span>12 条引用</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="memory-item">
+                            <div class="memory-icon chat">&#x1F4AC;</div>
+                            <div class="memory-info">
+                                <div class="memory-item-title">周末旅行计划讨论</div>
+                                <div class="memory-item-preview">目的地选择、行程安排、预算规划、酒店预订...</div>
+                                <div class="memory-item-meta">
+                                    <span>5 天前</span>
+                                    <span>生活</span>
+                                    <span>8 条关联</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- Tab: Collab -->
-                <div class="tab-content" id="tab-collab">
-                    <div class="collab-demo">
-                        <div class="collab-header">
-                            <span class="collab-badge live">&#x1F534; Live Session</span>
-                            <span class="collab-users">
-                                <span class="user-avatar" style="background:#8B5CF6">Y</span>
-                                <span class="user-avatar" style="background:#06B6D4">L</span>
-                                <span class="user-avatar" style="background:#F59E0B">Z</span>
-                                <span class="collab-count">3 人在线协作</span>
-                            </span>
-                        </div>
-                        <div class="collab-body">
-                            <div class="collab-line"><span class="cursor-tag" style="background:#8B5CF6">杨晨</span><span class="keyword">function</span> <span class="func">handleAuth</span>(req: Request) {</div>
-                            <div class="collab-line">    <span class="keyword">const</span> token = req.headers.get(<span class="str">'Authorization'</span>)</div>
-                            <div class="collab-line"><span class="cursor-tag" style="background:#06B6D4">李明</span>    <span class="keyword">if</span> (!token) <span class="keyword">return</span> <span class="func">unauthorized</span>()</div>
-                            <div class="collab-line">    <span class="keyword">const</span> user = <span class="keyword">await</span> <span class="func">verifyToken</span>(token)</div>
-                            <div class="collab-line">    <span class="keyword">return</span> <span class="func">next</span>(req, user)</div>
-                            <div class="collab-line">}</div>
-                        </div>
-                        <div class="collab-chat">
-                            <div class="collab-msg"><strong>李明:</strong> 这里需要加个 try-catch 处理 token 过期的情况</div>
-                            <div class="collab-msg"><strong>杨晨:</strong> 好主意，我来加上 refresh token 逻辑</div>
-                        </div>
+
+                <div class="demo-scene scene-daily-assist" id="tab-dassist">
+                    <div class="assistant-greeting">
+                        &#x1F44B; 你好！今天想做什么？
                     </div>
-                </div>
-                <!-- Tab: Code -->
-                <div class="tab-content" id="tab-code">
-                    <div class="code-complete-demo">
-                        <div class="complete-line"><span class="keyword">async function</span> <span class="func">fetchUserProfile</span>(id: string) {</div>
-                        <div class="complete-line">    <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="str">`/api/users/${id}`</span>)</div>
-                        <div class="complete-line ghost">    if (!res.ok) throw new HttpError(res.status)</div>
-                        <div class="complete-line ghost">    const data: UserProfile = await res.json()</div>
-                        <div class="complete-line ghost">    cache.set(id, data)</div>
-                        <div class="complete-line ghost">    return data</div>
-                        <div class="complete-line">}</div>
-                        <div class="complete-line"></div>
-                        <div class="complete-line"><span class="keyword">interface</span> <span class="func">UserProfile</span> {</div>
-                        <div class="complete-line ghost">    id: string</div>
-                        <div class="complete-line ghost">    name: string</div>
-                        <div class="complete-line ghost">    avatar: string</div>
-                        <div class="complete-line ghost">    role: 'admin' | 'member'</div>
-                        <div class="complete-line">}</div>
-                        <div class="complete-hint">
-                            <span class="hint-icon">Tab</span>
-                            <span>按 Tab 接受 AI 补全建议 (灰色部分)</span>
+                    <div class="assistant-sub">选择一个场景，或者直接告诉我你的需求</div>
+                    <div class="assistant-cards">
+                        <div class="assistant-card">
+                            <div class="assistant-card-icon orange">&#x1F3AF;</div>
+                            <div class="assistant-card-text">
+                                <h4>目标追踪</h4>
+                                <p>设定学习/工作目标，跟踪进度，智能提醒</p>
+                            </div>
+                        </div>
+                        <div class="assistant-card">
+                            <div class="assistant-card-icon teal">&#x1F4D6;</div>
+                            <div class="assistant-card-text">
+                                <h4>知识整理</h4>
+                                <p>自动归档对话要点，构建个人知识库</p>
+                            </div>
+                        </div>
+                        <div class="assistant-card">
+                            <div class="assistant-card-icon rose">&#x1F4C5;</div>
+                            <div class="assistant-card-text">
+                                <h4>日程管理</h4>
+                                <p>智能排程、会议提醒、时间块规划</p>
+                            </div>
+                        </div>
+                        <div class="assistant-card">
+                            <div class="assistant-card-icon purple">&#x1F3A8;</div>
+                            <div class="assistant-card-text">
+                                <h4>创意头脑</h4>
+                                <p>灵感捕捉、方案发散、决策辅助</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <p class="showcase-desc">全场景提效，释放你的生产力潜能。支持 AI Coding Agent，流畅推动每一步开发。</p>
+        <p class="demo-desc">它记得你说过的每一句话，并在最合适的时机主动提供帮助。</p>
     </section>
 
     <div class="divider"></div>
 
-    <!-- Features Detail -->
-    <section class="features-detail" id="features">
-        <div class="section-label"><span>核心功能</span></div>
-        <h2 class="features-detail-title">智能 IDE，将 AI 融入你的工作流</h2>
-        <p class="section-desc">以智能生产力为核心，灵活适配你的开发节奏，与你默契协作，共同实现高效、高质的项目交付。</p>
-        <div class="feature-detail-grid">
-            <div class="feature-detail-card">
-                <div class="fdc-icon">&#x1F916;</div>
-                <h3>AI 智能体，构建专属团队</h3>
-                <p>提供可自由配置的智能体体系。根据需求灵活定义工具、技能和任务逻辑，轻松构建专属的 AI 智能体团队，让 AI 真正为你所用。</p>
+    <!-- BENTO FEATURES - CODING MODE -->
+    <section class="bento-section" id="features">
+        <div id="features-coding">
+            <div class="section-label"><span>核心能力</span></div>
+            <h2 class="bento-title">不止是工具，<br>是你的<span class="gradient-text">开发搭档</span></h2>
+            <p class="bento-desc">每一个功能都围绕真实开发场景打磨，没有花架子。</p>
+
+            <div class="bento-grid">
+                <div class="bento-card bento-lg reveal">
+                    <div class="bento-tag">核心引擎</div>
+                    <div class="bento-icon">&#x1F916;</div>
+                    <h3>AI 智能体系统</h3>
+                    <p>不是简单的对话框，而是完整的智能体架构。自由配置工具链、技能树、任务逻辑，构建属于你的 AI 开发团队。MCP 协议原生支持，能力边界由你定义。</p>
+                </div>
+
+                <div class="bento-card bento-sm reveal">
+                    <div class="bento-icon">&#x26A1;</div>
+                    <h3>智能补全</h3>
+                    <p>基于仓库上下文的精准续写，感知编辑轨迹，Tab 即用。</p>
+                </div>
+
+                <div class="bento-card bento-sm reveal">
+                    <div class="bento-icon">&#x1F4AC;</div>
+                    <h3>深度上下文</h3>
+                    <p>理解整个代码仓库、终端状态、联网搜索，而非单文件猜测。</p>
+                </div>
+
+                <div class="bento-card bento-md reveal">
+                    <div class="bento-icon">&#x1F465;</div>
+                    <h3>Agent 智能体集群</h3>
+                    <p>一个主 Agent 自动拆解复杂任务，派发给多个子智能体并行处理。后端、前端、测试、部署同步推进，大幅压缩交付周期。</p>
+                </div>
+
+                <div class="bento-card bento-md reveal">
+                    <div class="bento-icon">&#x1F50C;</div>
+                    <h3>工具自由装配</h3>
+                    <p>MCP 协议无缝集成外部工具。数据库、API、部署流水线——全部纳入 AI 调用链。</p>
+                </div>
+
+                <div class="bento-card bento-full reveal">
+                    <div class="bento-icon">&#x1F6E1;&#xFE0F;</div>
+                    <h3>隐私优先，开源透明</h3>
+                    <p>代码默认本地存储，处理完成即销毁明文。完全开源，社区审计，无后门无隐藏数据收集。你的代码，始终在你掌控之中。</p>
+                </div>
             </div>
-            <div class="feature-detail-card">
-                <div class="fdc-icon">&#x1F50C;</div>
-                <h3>工具自由装配，拓展能力边界</h3>
-                <p>支持多种外部工具的无缝集成。通过 MCP 协议赋予智能体专属的外部资源调用能力，精细化打磨 AI 的能力边界。</p>
-            </div>
-            <div class="feature-detail-card">
-                <div class="fdc-icon">&#x1F4AC;</div>
-                <h3>更多上下文，更符合个人偏好</h3>
-                <p>理解能力全面升级，不仅理解代码仓库、终端信息，还支持联网搜索、上传文档集。配置 AI 工作规则，让 AI 融入你的工作流。</p>
-            </div>
-            <div class="feature-detail-card">
-                <div class="fdc-icon">&#x26A1;</div>
-                <h3>智能补全，实现智能预测</h3>
-                <p>基于优化模型实现精准续写，智能感知仓库上下文与编辑轨迹，自动预测下一改动点。按 Tab 即可快速应用建议，让开发行云流水。</p>
-            </div>
-            <div class="feature-detail-card">
-                <div class="fdc-icon">&#x1F465;</div>
-                <h3>实时协作，团队无缝协同</h3>
-                <p>多人实时编辑同一项目，代码变更即时同步。内置聊天和代码评审，让团队协作像在同一房间一样自然。</p>
-            </div>
-            <div class="feature-detail-card">
-                <div class="fdc-icon">&#x1F4E6;</div>
-                <h3>开放生态，无限扩展</h3>
-                <p>开源项目，社区驱动。丰富的插件系统支持自定义扩展，从代码格式化到部署自动化，按需定制你的工作流。</p>
+        </div>
+
+        <!-- BENTO FEATURES - DAILY MODE -->
+        <div id="features-daily">
+            <div class="section-label"><span>日常能力</span></div>
+            <h2 class="bento-title">不只是工具，<br>是你的<span class="gradient-text">数字伙伴</span></h2>
+            <p class="bento-desc">每一个功能都围绕真实生活场景设计，温暖而实用。</p>
+
+            <div class="bento-grid">
+                <div class="bento-card bento-lg reveal">
+                    <div class="bento-tag">核心能力</div>
+                    <div class="bento-icon">&#x1F4BE;</div>
+                    <h3>持久化记忆系统</h3>
+                    <p>不是一次性对话，而是持续成长的记忆。自动提取关键信息、建立知识关联、跨会话回忆上下文。你说过的话，它都记得。支持搜索、标签、时间线多维度检索。</p>
+                </div>
+
+                <div class="bento-card bento-sm reveal">
+                    <div class="bento-icon">&#x1F4AC;</div>
+                    <h3>自然对话</h3>
+                    <p>像和朋友聊天一样自然，支持多轮上下文、话题切换无缝衔接。</p>
+                </div>
+
+                <div class="bento-card bento-sm reveal">
+                    <div class="bento-icon">&#x1F3AF;</div>
+                    <h3>目标追踪</h3>
+                    <p>设定学习或生活目标，自动拆解步骤，跟踪进度并智能提醒。</p>
+                </div>
+
+                <div class="bento-card bento-md reveal">
+                    <div class="bento-icon">&#x1F4D6;</div>
+                    <h3>知识库构建</h3>
+                    <p>从日常对话中自动提炼知识点，构建专属知识体系。支持分类、标签、全文搜索，让碎片信息变成有序资产。</p>
+                </div>
+
+                <div class="bento-card bento-md reveal">
+                    <div class="bento-icon">&#x1F4C5;</div>
+                    <h3>智能日程</h3>
+                    <p>从对话中识别时间节点，自动创建日程和提醒。支持优先级排序、冲突检测、智能推荐最佳时间段。</p>
+                </div>
+
+                <div class="bento-card bento-full reveal">
+                    <div class="bento-icon">&#x1F6E1;&#xFE0F;</div>
+                    <h3>完全本地，隐私至上</h3>
+                    <p>所有数据存储在你的设备上，无需联网即可使用。没有云端账号、没有数据上传、没有广告追踪。你的记忆、你的对话、你的生活——只属于你自己。MIT 开源，完全透明。</p>
+                </div>
             </div>
         </div>
     </section>
 
     <div class="divider"></div>
 
-    <!-- Security -->
-    <section class="security-section" id="security">
-        <div class="section-label"><span>隐私与安全</span></div>
-        <h2 class="security-title">始终致力于保护你的数据安全</h2>
-        <p class="section-desc">坚持"本地优先"和"最小化数据收集"的原则，你的代码始终在你的掌控之中。</p>
-        <div class="security-grid">
-            <div class="security-card">
-                <div class="security-icon">&#x1F512;</div>
-                <h3>数据隐私保护</h3>
-                <p>代码文件默认保存在用户本地设备。处理完成后，所有明文数据将被删除。你可以通过隐私模式来限制数据的使用。</p>
+    <!-- STATS - CODING MODE -->
+    <section class="stats-section">
+        <div id="stats-coding" class="stats-grid">
+            <div class="stat-card reveal">
+                <div class="stat-num">4.2x</div>
+                <div class="stat-info">并行加速</div>
+                <div class="stat-sub">多智能体协同处理</div>
             </div>
-            <div class="security-card">
-                <div class="security-icon">&#x1F6E1;&#xFE0F;</div>
-                <h3>安全访问控制</h3>
-                <p>通过严格的访问权限管理和加密传输机制，防止未经授权的访问，降低安全风险。</p>
+            <div class="stat-card reveal">
+                <div class="stat-num">100%</div>
+                <div class="stat-info">离线可用</div>
+                <div class="stat-sub">无需联网即可使用</div>
             </div>
-            <div class="security-card">
-                <div class="security-icon">&#x1F310;</div>
-                <h3>开源透明</h3>
-                <p>完全开源，代码可审计。社区共同维护，确保没有后门、没有隐藏的数据收集行为。</p>
+            <div class="stat-card reveal">
+                <div class="stat-num">0</div>
+                <div class="stat-info">数据外传</div>
+                <div class="stat-sub">代码永不离设备</div>
+            </div>
+            <div class="stat-card reveal">
+                <div class="stat-num">MIT</div>
+                <div class="stat-info">开源协议</div>
+                <div class="stat-sub">自由使用与修改</div>
+            </div>
+        </div>
+
+        <!-- STATS - DAILY MODE -->
+        <div id="stats-daily" class="stats-grid">
+            <div class="stat-card reveal">
+                <div class="stat-num">&#x221E;</div>
+                <div class="stat-info">无限记忆</div>
+                <div class="stat-sub">跨会话持久化存储</div>
+            </div>
+            <div class="stat-card reveal">
+                <div class="stat-num">100%</div>
+                <div class="stat-info">本地运行</div>
+                <div class="stat-sub">数据永不上传云端</div>
+            </div>
+            <div class="stat-card reveal">
+                <div class="stat-num">0</div>
+                <div class="stat-info">订阅费用</div>
+                <div class="stat-sub">完全免费且开源</div>
+            </div>
+            <div class="stat-card reveal">
+                <div class="stat-num">24/7</div>
+                <div class="stat-info">随时待命</div>
+                <div class="stat-sub">无需网络也能对话</div>
             </div>
         </div>
     </section>
 
-    <div class="divider"></div>
-
-    <!-- Download CTA -->
-    <section class="download-cta" id="download">
+    <!-- DOWNLOAD -->
+    <section class="download-section" id="download">
         <div class="section-label"><span>立即体验</span></div>
-        <h2>CodeCast<br>先一步体验未来</h2>
-        <p class="section-desc">下载 CodeCast，开启 AI 驱动的全新编程与协作方式</p>
-        <div class="download-platforms" id="download-platforms">
+        <h2>准备好<br><span class="gradient-text">开始使用了</span>吗？</h2>
+        <p class="section-desc">下载 CodeCast，开启你的 AI 助手之旅</p>
+        <div class="download-platforms">
             <a href="https://gitee.com/CodeCast/code-cast/releases/download/v1.0.0/CodeCast.exe" class="platform-card">
-                <div class="platform-icon">&#x1FA9F;</div>
+                <span class="platform-icon">&#x1FA9F;</span>
                 <div class="platform-name">Windows</div>
                 <div class="platform-detail">Windows 10+ x64</div>
             </a>
             <a href="#" class="platform-card disabled">
-                <div class="platform-icon">&#x1F34E;</div>
+                <span class="platform-icon">&#x1F34E;</span>
                 <div class="platform-name">macOS</div>
                 <div class="platform-detail">即将推出</div>
             </a>
             <a href="#" class="platform-card disabled">
-                <div class="platform-icon">&#x1F427;</div>
+                <span class="platform-icon">&#x1F427;</span>
                 <div class="platform-name">Linux</div>
                 <div class="platform-detail">即将推出</div>
             </a>
         </div>
-        <p class="download-version">当前版本: v1.0.0 &middot; 开源免费</p>
+        <p class="download-version">v1.0.0 &middot; 开源免费 &middot; Windows 优先支持中</p>
     </section>
 
-    <!-- Footer -->
+    <!-- FOOTER -->
     <footer>
         <div class="footer-content">
             <div class="footer-brand">
                 <div class="footer-logo">CodeCast</div>
-                <p class="footer-desc">AI 驱动的智能编程助手与代码协作平台，让编程更高效、协作更流畅。</p>
+                <p class="footer-desc">AI 驱动的智能助手——编程、对话、记忆、生活，一个应用全部搞定。</p>
             </div>
             <div class="footer-col">
-                <h4>社区与文档</h4>
+                <h4>产品</h4>
                 <ul>
-                    <li><a href="https://github.com/1405451216/codecast" target="_blank">GitHub</a></li>
-                    <li><a href="#">开发者文档</a></li>
+                    <li><a href="#features">功能特性</a></li>
+                    <li><a href="#download">下载</a></li>
                     <li><a href="#">更新日志</a></li>
                 </ul>
             </div>
             <div class="footer-col">
-                <h4>联系我们</h4>
+                <h4>资源</h4>
                 <ul>
-                    <li><a href="#">建议反馈</a></li>
-                    <li><a href="#">加入社区</a></li>
+                    <li><a href="https://github.com/CodeCast/CodeCast" target="_blank">GitHub</a></li>
+                    <li><a href="#">开发者文档</a></li>
+                    <li><a href="#">API 参考</a></li>
                 </ul>
             </div>
             <div class="footer-col">
-                <h4>加入交流群</h4>
-                <img src="assets/qrcode.png" alt="CodeCast交流群" style="width:120px;height:120px;border-radius:8px;object-fit:cover">
+                <h4>社区</h4>
+                <ul>
+                    <li><a href="#">问题反馈</a></li>
+                    <li><a href="#">加入讨论</a></li>
+                    <li><a href="#">贡献指南</a></li>
+                </ul>
             </div>
         </div>
         <div class="footer-bottom">
             <span>&copy; 2025 CodeCast. Open Source under MIT License.</span>
-            <span>Made with &#x1F49C; for developers</span>
+            <span>Made with &#x2728; for everyone.</span>
         </div>
     </footer>
 
     <script>
-    // Generate Stars
-    (function(){
-        var layer=document.getElementById('stars-layer');
-        var count=200;
-        var html='';
-        for(var i=0;i<count;i++){
-            var size=['star-sm','star-sm','star-sm','star-md','star-md','star-lg'][Math.floor(Math.random()*6)];
-            var x=Math.random()*100;
-            var y=Math.random()*100;
-            var delay=Math.random()*5;
-            var duration=2+Math.random()*3;
-            var anim=Math.random()>0.5?'twinkle':'twinkle2';
-            html+='<div class="star '+size+'" style="left:'+x+'%;top:'+y+'%;animation:'+anim+' '+duration+'s '+delay+'s infinite"></div>';
-        }
-        layer.innerHTML=html;
-    })();
+    // ====== ACTIVE THEORY STYLE ANIMATION ENGINE ======
 
-    // Tabs
+    // --- Magnetic Buttons ---
     (function(){
-        var tabs=document.querySelectorAll('.tab-btn'),contents=document.querySelectorAll('.tab-content');
-        tabs.forEach(function(t){
-            t.addEventListener('click',function(){
-                var target=this.getAttribute('data-tab');
-                tabs.forEach(function(b){b.classList.remove('active')});
-                contents.forEach(function(c){c.classList.remove('active')});
-                this.classList.add('active');
-                document.getElementById('tab-'+target).classList.add('active')
-            })
-        });
-        // Auto rotate
-        var idx=0,keys=['ai','collab','code'];
-        setInterval(function(){
-            idx=(idx+1)%keys.length;
-            tabs.forEach(function(b){b.classList.remove('active')});
-            contents.forEach(function(c){c.classList.remove('active')});
-            tabs[idx].classList.add('active');
-            document.getElementById('tab-'+keys[idx]).classList.add('active')
-        },6000)
-    })();
-
-    // Scroll reveal
-    (function(){
-        var obs=new IntersectionObserver(function(entries){
-            entries.forEach(function(e){if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)'}})
-        },{threshold:0.1});
-        document.querySelectorAll('.feature-detail-card,.security-card,.platform-card').forEach(function(el){
-            el.style.opacity='0';el.style.transform='translateY(30px)';el.style.transition='opacity .6s ease,transform .6s ease';obs.observe(el)
+        var magnets=document.querySelectorAll('.btn-primary,.btn-ghost,.mode-btn');
+        magnets.forEach(function(el){
+            el.addEventListener('mousemove',function(e){
+                var rect=this.getBoundingClientRect(),x=e.clientX-rect.left-rect.width/2,y=e.clientY-rect.top-rect.height/2;
+                this.style.transform='translate('+x*.3+'px,'+y*.3+'px)'
+            });
+            el.addEventListener('mouseleave',function(){this.style.transform='translate(0,0)'})
         })
     })();
 
-    // Smooth scroll
+    // --- Text Reveal (split text into characters) ---
+    (function(){
+        function splitText(el){
+            var text=el.textContent.trim();
+            if(!text||el.dataset.split)return;
+            el.dataset.split='1';
+            el.innerHTML='';
+            var wrap=document.createElement('span');
+            wrap.className='text-reveal';
+            el.appendChild(wrap);
+            for(var i=0;i<text.length;i++){
+                var span=document.createElement('span');
+                span.className='char';
+                span.style.setProperty('--char-index',i);
+                if(text[i]===' '){span.innerHTML='&nbsp;'}else{span.textContent=text[i]}
+                wrap.appendChild(span)
+            }
+        }
+        // Apply to section titles (not hero h1 which uses gradient text)
+        document.querySelectorAll('.demo-title').forEach(splitText);
+        document.querySelectorAll('.bento-title').forEach(splitText);
+        // Trigger reveal on load
+        setTimeout(function(){
+            document.querySelectorAll('.text-reveal').forEach(function(t){t.classList.add('revealed')})
+        },300)
+    })();
+
+    // --- 3D Tilt Cards ---
+    (function(){
+        var cards=document.querySelectorAll('.bento-card,.stat-card,.platform-card:not(.disabled)');
+        cards.forEach(function(card){
+            card.classList.add('tilt-card');
+            var shine=document.createElement('div');
+            shine.className='tilt-shine';
+            card.appendChild(shine);
+            card.addEventListener('mousemove',function(e){
+                var rect=this.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top,cx=rect.width/2,cy=rect.height/2;
+                var rx=(y-cy)/10,ry=(cx-x)/10;
+                this.style.transform='perspective(1000px) rotateX('+rx+'deg) rotateY('+ry+'deg) translateZ(4px)';
+                this.style.setProperty('--shine-x',(x/rect.width*100)+'%');
+                this.style.setProperty('--shine-y',(y/rect.height*100)+'%')
+            });
+            card.addEventListener('mouseleave',function(){
+                this.style.transform='perspective(1000px) rotateX(0) rotateY(0) translateZ(0)'
+            })
+        })
+    })();
+
+    // --- Parallax Scroll ---
+    (function(){
+        var scrollY=0,ticking=false;
+        window.addEventListener('scroll',function(){scrollY=window.pageYOffset;if(!ticking){requestAnimationFrame(updateParallax);ticking=true}});
+        function updateParallax(){
+            var items=document.querySelectorAll('[data-parallax]');
+            items.forEach(function(el){
+                var speed=parseFloat(el.getAttribute('data-parallax'))||0.5,y=scrollY*-speed;
+                el.style.transform='translateY('+y+'px)'
+            });
+            ticking=false
+        }
+        // Assign parallax to ambient orbs and hero blobs
+        document.querySelectorAll('.ambient-orb').forEach(function(el,i){el.setAttribute('data-parallax',0.08*(i+1))});
+        document.querySelectorAll('.hero-blob').forEach(function(el,i){el.setAttribute('data-parallax',0.12*(i+1))});
+        document.querySelectorAll('.rainbow-aurora').forEach(function(el,i){el.setAttribute('data-parallax',0.06*(i+1))});
+        updateParallax()
+    })();
+
+    // --- Mode Switcher ---
+    (function(){
+        const btns=document.querySelectorAll('.mode-btn');
+        btns.forEach(function(b){
+            b.addEventListener('click',function(){
+                var mode=this.getAttribute('data-mode');
+                if(document.documentElement.getAttribute('data-mode')===mode)return;
+                document.documentElement.setAttribute('data-mode',mode);
+                btns.forEach(function(x){x.classList.remove('active')});
+                this.classList.add('active');
+                toggleModeContent(mode);
+                // Re-trigger text reveals after mode switch
+                setTimeout(function(){
+                    document.querySelectorAll('.hero:visible .text-reveal,.demo-section:visible .text-reveal').forEach(function(t){
+                        t.classList.remove('revealed');
+                        void t.offsetWidth;t.classList.add('revealed')
+                    })
+                },100)
+            });
+        });
+    })();
+
+    // Toggle content between modes (hero sections only, demo handled by CSS)
+    function toggleModeContent(mode){
+        var isDaily=mode==='daily';
+        document.querySelectorAll('.hero-coding').forEach(function(el){el.style.display=isDaily?'none':''});
+        document.querySelectorAll('.hero-daily').forEach(function(el){el.style.display=isDaily?'':'none'})
+    }
+
+    // Floating Particles (coding mode only)
+    (function(){
+      var container = document.getElementById('particles');
+      if(!container)return;
+      var types = ['particle-dot', 'particle-glow', 'particle-line'];
+      for (var i = 0; i < 50; i++) {
+        var p = document.createElement('div');
+        p.className = 'particle ' + types[Math.floor(Math.random() * types.length)];
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDuration = (12 + Math.random() * 18) + 's';
+        p.style.animationDelay = Math.random() * 20 + 's';
+        container.appendChild(p);
+      }
+    })();
+
+    // Tabs (both modes)
+    (function(){
+        function setupTabs(containerSelector){
+            var container=document.querySelector(containerSelector);
+            if(!container)return;
+            var tabs=container.querySelectorAll('.tab-btn'),scenes=container.querySelectorAll('.demo-scene');
+            if(!tabs.length)return;
+            tabs.forEach(function(t){
+                t.addEventListener('click',function(){
+                    var target=this.getAttribute('data-tab');
+                    tabs.forEach(function(b){b.classList.remove('active')});
+                    scenes.forEach(function(s){s.classList.remove('active')});
+                    this.classList.add('active');
+                    var el=document.getElementById('tab-'+target);
+                    if(el)el.classList.add('active')
+                })
+            });
+            var keys=[];
+            tabs.forEach(function(t){keys.push(t.getAttribute('data-tab'))});
+            var idx=0;
+            setInterval(function(){
+                idx=(idx+1)%keys.length;
+                tabs.forEach(function(b){b.classList.remove('active')});
+                scenes.forEach(function(s){s.classList.remove('active')});
+                tabs[idx].classList.add('active');
+                var el=document.getElementById('tab-'+keys[idx]);
+                if(el)el.classList.add('active')
+            },6500)
+        }
+        setupTabs('.demo-coding');
+        setupTabs('.demo-daily');
+    })();
+
+    // Scroll Reveal (enhanced with staggered delays)
+    (function(){
+        var obs=new IntersectionObserver(function(entries){
+            entries.forEach(function(e){
+                if(e.isIntersecting){
+                    e.target.classList.add('visible')
+                    // Also trigger child text reveals
+                    e.target.querySelectorAll('.text-reveal').forEach(function(t){
+                        t.classList.add('revealed')
+                    })
+                }
+            })
+        },{threshold:0.06,rootMargin:'0px 0px -30px 0px'});
+        document.querySelectorAll('.reveal').forEach(function(el){
+            el.style.transitionDelay=(Array.from(document.querySelectorAll('.reveal')).indexOf(el)*70)+'ms';
+            obs.observe(el)
+        })
+    })();
+
+    // Smooth scroll (nav links)
     document.querySelectorAll('a[href^="#"]').forEach(function(a){
-        a.addEventListener('click',function(e){e.preventDefault();var t=document.querySelector(this.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth'})})
+        a.addEventListener('click',function(e){
+            e.preventDefault();
+            var t=document.querySelector(this.getAttribute('href'));
+            if(t)t.scrollIntoView({behavior:'smooth',block:'start'})
+        })
     });
 
-    // Download cards are now direct Gitee links — no routing needed
+    // Nav background opacity change on scroll
+    (function(){
+        var nav=document.querySelector('.nav');
+        if(!nav)return;
+        var lastScroll=0,ticking=false;
+        window.addEventListener('scroll',function(){
+            lastScroll=window.pageYOffset;
+            if(!ticking){requestAnimationFrame(updateNav);ticking=true}
+        });
+        function updateNav(){
+            if(lastScroll>80){nav.style.background=varCss('--nav-bg');nav.style.boxShadow='0 4px 30px rgba(0,0,0,.15)'}
+            else{nav.style.background='';nav.style.boxShadow=''}
+            ticking=false
+        }
+        function varCss(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}
     })();
-</script>
+    </script>
 </body>
 </html>
