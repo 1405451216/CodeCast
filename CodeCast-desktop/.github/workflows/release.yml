@@ -30,19 +30,26 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      - name: Add Go bin to PATH
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
       - name: Install frontend dependencies
         working-directory: CodeCast-desktop/frontend
         run: npm install
 
       - name: Build macOS ${{ matrix.name }}
         working-directory: CodeCast-desktop
-        run: wails build -platform darwin/${{ matrix.arch }} -clean -skipbindings
+        run: wails build -platform darwin/${{ matrix.arch }} -clean -nosignerdmg
+
+      - name: Package .app as zip
+        working-directory: CodeCast-desktop/build/bin
+        run: zip -r ../../CodeCast-v3.0.0-macOS-${{ matrix.name }}.zip CodeCast.app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: CodeCast-v3.0.0-macOS-${{ matrix.name }}
-          path: CodeCast-desktop/build/bin/CodeCast.app
+          path: CodeCast-desktop/CodeCast-v3.0.0-macOS-${{ matrix.name }}.zip
           retention-days: 30
 
   build-windows:
@@ -61,13 +68,16 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      - name: Add Go bin to PATH
+        run: echo "$(go env GOPATH)/bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
       - name: Install frontend dependencies
         working-directory: CodeCast-desktop/frontend
         run: npm install
 
       - name: Build Windows
         working-directory: CodeCast-desktop
-        run: wails build -platform windows/amd64 -clean -skipbindings
+        run: wails build -platform windows/amd64 -clean
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
