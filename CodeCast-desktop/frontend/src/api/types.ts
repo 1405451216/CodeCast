@@ -9,6 +9,7 @@ export interface GoSession {
   Name: string;
   CreatedAt: string;
   SkillID: string;
+  Mode: string;
   Messages: GoMessage[];
 }
 
@@ -36,6 +37,7 @@ export function toSession(gs: GoSession): import('../store/types').Session {
     Name: gs.Name,
     CreatedAt: gs.CreatedAt,
     SkillID: gs.SkillID,
+    Mode: (gs.Mode as 'coding' | 'daily' | '') || '',
     Messages: (gs.Messages || []).map(toMessage),
   };
 }

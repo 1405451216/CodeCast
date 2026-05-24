@@ -16,6 +16,7 @@ export function useChatSender() {
   const setView = useAppStore((s: AppState) => s.setView);
   const setTitle = useAppStore((s: AppState) => s.setTitle);
   const setIsLoading = useAppStore((s: AppState) => s.setIsLoading);
+  const pendingMode = useAppStore((s: AppState) => s.pendingMode);
   const streamingRef = useRef(false);
 
   const handleSendMessage = useCallback(async (text: string) => {
@@ -25,7 +26,7 @@ export function useChatSender() {
 
     if (!sessionId) {
       try {
-        const session = await api.createSession('新对话', '');
+        const session = await api.createSession('新对话', '', pendingMode ?? '');
         sessionId = session.ID;
         setCurrentSessionId(sessionId);
         addSession(toSession(session));
@@ -91,11 +92,13 @@ export function useChatSender() {
         });
       }
     } finally {
-      if (cleanup) cleanup();
+      setTimeout(() => {
+        if (cleanup) cleanup();
+      }, 100);
       setIsLoading(false);
       streamingRef.current = false;
     }
-  }, [isLoading, currentSessionId, selectedModel, thinkingMode, setCurrentSessionId, addSession, addMessage, updateLastMessage, setView, setTitle, setIsLoading]);
+  }, [isLoading, currentSessionId, selectedModel, thinkingMode, pendingMode, setCurrentSessionId, addSession, addMessage, updateLastMessage, setView, setTitle, setIsLoading]);
 
   return { handleSendMessage };
 }

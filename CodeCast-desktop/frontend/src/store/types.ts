@@ -11,8 +11,12 @@ export interface Session {
   Name: string;
   CreatedAt: string;
   SkillID: string;
+  Mode: 'coding' | 'daily' | '';
   Messages: Message[];
 }
+
+export type SessionMode = 'coding' | 'daily';
+export const DEFAULT_SESSION_MODE: SessionMode = 'daily';
 
 export interface Attachment {
   name: string;

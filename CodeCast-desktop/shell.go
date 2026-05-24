@@ -53,6 +53,8 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 		}
 	}
 
+	command = sanitizeWindowsCommand(command)
+
 	var shell, flag string
 	if runtime.GOOS == "windows" {
 		shell = "cmd"
@@ -101,4 +103,19 @@ func (a *App) getCustomEnvVars() []string {
 		vars = append(vars, ev.Key+"="+ev.Value)
 	}
 	return vars
+}
+
+func sanitizeWindowsCommand(cmd string) string {
+	if runtime.GOOS != "windows" {
+		return cmd
+	}
+	replacer := strings.NewReplacer(
+		"^", "^^",
+		"&", "^&",
+		"<", "^<",
+		">", "^>",
+		"|", "^|",
+		"%", "%%",
+	)
+	return replacer.Replace(cmd)
 }

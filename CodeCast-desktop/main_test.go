@@ -341,7 +341,7 @@ func TestSlashCommandEmptyName(t *testing.T) {
 func TestArchiveSession(t *testing.T) {
 	app := NewApp()
 
-	session := app.CreateSession("Test Session", "")
+	session := app.CreateSession("Test Session", "", "")
 	if session == nil {
 		t.Fatal("CreateSession returned nil")
 	}
@@ -371,7 +371,7 @@ func TestArchiveSession(t *testing.T) {
 func TestUnarchiveSession(t *testing.T) {
 	app := NewApp()
 
-	session := app.CreateSession("Test", "")
+	session := app.CreateSession("Test", "", "")
 	app.ArchiveSession(session.ID)
 
 	err := app.UnarchiveSession(session.ID)
@@ -898,10 +898,14 @@ func TestCleanupExpiredEntries(t *testing.T) {
 }
 
 func TestDeleteSessionCleansUpCancel(t *testing.T) {
+	cancelMu.Lock()
+	activeCancels = make(map[string]cancelEntry)
+	cancelMu.Unlock()
+
 	app := NewApp()
 
 	// 创建 session
-	session := app.CreateSession("Test Session", "")
+	session := app.CreateSession("Test Session", "", "")
 	if session == nil {
 		t.Fatal("CreateSession returned nil")
 	}
@@ -987,7 +991,7 @@ func TestMassiveSessionCreationAndDestruction(t *testing.T) {
 
 	var sessionIDs []string
 	for i := 0; i < sessionCount; i++ {
-		session := app.CreateSession(fmt.Sprintf("Session_%d", i), "")
+		session := app.CreateSession(fmt.Sprintf("Session_%d", i), "", "")
 		sessionIDs = append(sessionIDs, session.ID)
 
 		// 为每个 session 注册 cancel 函数
@@ -1059,6 +1063,10 @@ func TestStartupInitiatesCleanup(t *testing.T) {
 }
 
 func TestShutdownCleansAllResources(t *testing.T) {
+	cancelMu.Lock()
+	activeCancels = make(map[string]cancelEntry)
+	cancelMu.Unlock()
+
 	app := NewApp()
 
 	for i := 0; i < 10; i++ {
@@ -1175,11 +1183,11 @@ func TestIsEncrypted(t *testing.T) {
 }
 
 func TestEncryptWithInvalidKey(t *testing.T) {
-	invalidKey := make([]byte, 16)
+	invalidKey := make([]byte, 15) // AES 不支持 15 字节
 
 	_, err := encryptAPIKey("test-key", invalidKey)
 	if err == nil {
-		t.Error("Expected error for invalid key length")
+		t.Error("Expected error for invalid key length (15 bytes)")
 	}
 }
 
@@ -1234,8 +1242,8 @@ func TestGetKeyPath(t *testing.T) {
 		settingsPath string
 		expected     string
 	}{
-		{"/path/to/settings.json", "/path/to/.encryption_key"},
-		{"C:\\Users\\test\\settings.json", "C:\\Users\\test\\.encryption_key"},
+		{filepath.Join("path", "to", "settings.json"), filepath.Join("path", "to", ".encryption_key")},
+		{filepath.Join("C:", "Users", "test", "settings.json"), filepath.Join("C:", "Users", "test", ".encryption_key")},
 		{"settings.json", ".encryption_key"},
 	}
 

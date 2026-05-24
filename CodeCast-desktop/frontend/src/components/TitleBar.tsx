@@ -170,7 +170,7 @@ const TitleBar: React.FC = () => {
       </div>
 
       {/* Center title */}
-      <div className="titlebar-title">CodeCast</div>
+      <div className="titlebar-title">✦ CodeCast</div>
 
       <div className="titlebar-right">
         {/* Tool buttons */}

@@ -8,14 +8,6 @@ const GeneralTab: React.FC<TabProps> = ({ settings, updateAndSave, isDarwin, mod
       <div className="settings-section-title">常规</div>
 
       <div className="settings-group">
-        <div className="settings-group-title">工作模式</div>
-        {renderRadioGroup('work_mode', settings.work_mode || 'coding', [
-          { value: 'coding', title: '编码', desc: '专注于代码编写和项目开发' },
-          { value: 'daily', title: '日常', desc: '通用对话和日常任务' },
-        ], updateAndSave)}
-      </div>
-
-      <div className="settings-group">
         <div className="settings-group-title">权限</div>
         {renderToggle(S.default_perm, settings.default_permission ?? true, '默认权限', updateAndSave, '允许基本文件操作')}
         {renderToggle(S.auto_review, settings.auto_review ?? false, '自动审核', updateAndSave, '自动审核代码变更')}

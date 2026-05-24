@@ -66,8 +66,8 @@ export function ConfirmGitCommit(arg1) {
   return window['go']['main']['App']['ConfirmGitCommit'](arg1);
 }
 
-export function CreateSession(arg1, arg2) {
-  return window['go']['main']['App']['CreateSession'](arg1, arg2);
+export function CreateSession(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateSession'](arg1, arg2, arg3);
 }
 
 export function CreateSkill(arg1, arg2, arg3) {

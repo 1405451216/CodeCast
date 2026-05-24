@@ -1,4 +1,4 @@
-import { View, ActivePanel, PreviewTab } from './types';
+import { View, ActivePanel, PreviewTab } from '../store/types';
 import type { SliceSet } from './storeTypes';
 
 interface UISlice {
@@ -23,6 +23,10 @@ interface UISlice {
   togglePopout: () => void;
   sidebarVisible: boolean;
   toggleSidebar: () => void;
+  showModeSelector: boolean;
+  setShowModeSelector: (show: boolean) => void;
+  pendingMode: import('../store/types').SessionMode | null;
+  setPendingMode: (mode: import('../store/types').SessionMode | null) => void;
 }
 
 const createUISlice = (set: SliceSet): UISlice => ({
@@ -47,6 +51,10 @@ const createUISlice = (set: SliceSet): UISlice => ({
   togglePopout: () => set((state) => ({ popoutMode: !state.popoutMode })),
   sidebarVisible: true,
   toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
+    showModeSelector: false,
+    setShowModeSelector: (show) => set({ showModeSelector: show }),
+    pendingMode: null,
+    setPendingMode: (mode) => set({ pendingMode: mode }),
 });
 
 export { type UISlice, createUISlice };

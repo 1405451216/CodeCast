@@ -4,9 +4,11 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -34,6 +36,7 @@ type App struct {
 	currentProjectID string
 	noProjectMode bool
 	memory        *MemoryStore
+	notes         *NotesStore
 	activeSessionID string
 	memoryCleanupStop chan struct{}
 	taskSchedulerStop  chan struct{}
@@ -78,27 +81,42 @@ func (a *App) startup(ctx context.Context) {
 	memoryPath := filepath.Join(filepath.Dir(a.settingsPath), "memory.db")
 	memoryStore, err := NewMemoryStore(memoryPath)
 	if err != nil {
-		fmt.Printf("[Warning] 记忆系统初始化失败: %v\n", err)
+		slog.Warn("记忆系统初始化失败", "error", err)
 	} else {
 		a.memory = memoryStore
-		fmt.Printf("[Startup] 情景记忆系统已启动 (db: %s)\n", memoryPath)
+		slog.Info("情景记忆系统已启动", "db", memoryPath)
 
 		if deleted, cleanupErr := a.memory.CleanupExpired(); cleanupErr == nil && deleted > 0 {
-			fmt.Printf("[Startup] 已清理 %d 条过期记忆\n", deleted)
+			slog.Info("已清理过期记忆", "count", deleted)
 		}
 
 		a.memoryCleanupStop = make(chan struct{})
 		StartAutoCleanup(a.memory, a.memoryCleanupStop)
-		fmt.Println("[Startup] 记忆自动清理已启动（每24小时清理超过30天的记录）")
+		slog.Info("记忆自动清理已启动", "interval", "24h")
+
+		notesDir := filepath.Join(filepath.Dir(a.settingsPath))
+		notesStore, notesErr := NewNotesStore(notesDir)
+		if notesErr != nil {
+			slog.Warn("笔记系统初始化失败", "error", notesErr)
+		} else {
+			a.notes = notesStore
+			slog.Info("结构化笔记系统已启动", "dir", notesDir)
+			go func() {
+				time.Sleep(5 * time.Minute)
+				if deleted, cleanupErr := a.notes.CleanupOld(30); cleanupErr == nil && deleted > 0 {
+					slog.Info("已清理过期笔记", "count", deleted)
+				}
+			}()
+		}
 	}
 
 	a.taskSchedulerStop = make(chan struct{})
 	a.StartTaskScheduler(a.taskSchedulerStop)
-	fmt.Println("[Startup] 任务调度器已启动（每分钟检查一次定时任务）")
+	slog.Info("任务调度器已启动", "interval", "1m")
 	startCleanupGoroutine()
-	fmt.Println("[Startup] 活跃连接清理机制已启动")
+	slog.Info("活跃连接清理机制已启动")
 	a.agentPool = NewAgentPool(a, DefaultMaxConcurrency)
-	fmt.Println("[Startup] 子 Agent 并发池已启动 (最大并发: 10)")
+	slog.Info("子 Agent 并发池已启动", "max_concurrency", DefaultMaxConcurrency)
 	go cleanupOldAgents()
 }
 
@@ -114,15 +132,15 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	if a.memory != nil {
 		a.memory.Close()
-		fmt.Println("[Shutdown] 情景记忆系统已关闭")
+		slog.Info("情景记忆系统已关闭")
 	}
 	if a.agentPool != nil {
 		a.agentPool.Shutdown()
-		fmt.Println("[Shutdown] 子 Agent 并发池已关闭")
+		slog.Info("子 Agent 并发池已关闭")
 	}
 	cleanupOnce.Do(func() { close(cleanupStopCh) })
 	a.CancelRequest()
-	fmt.Printf("[Shutdown] 已清理所有活跃连接，应用即将关闭\n")
+	slog.Info("应用即将关闭", "action", "cleaned_all_active_connections")
 }
 
 func main() {

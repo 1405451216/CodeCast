@@ -1,12 +1,13 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import InputArea, { type InputAreaHandle } from './InputArea/InputArea';
 import { useAppStore } from '../store';
+import type { SessionMode } from '../store/types';
 
 interface WelcomeViewProps {
   onSend: (text: string) => void;
 }
 
-const quickActions = [
+const codingActions = [
   {
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,10 +43,58 @@ const quickActions = [
   },
 ];
 
+const dailyActions = [
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+        <path d="M2 2l7.586 7.586"></path>
+        <circle cx="11" cy="11" r="2"></circle>
+      </svg>
+    ),
+    title: '写作',
+    desc: '文案、报告、总结',
+    prompt: '帮我写一篇关于',
+  },
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+    ),
+    title: '问答',
+    desc: '知识、分析、建议',
+    prompt: '我想了解',
+  },
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m5 8 6 6"></path>
+        <path d="m4 14 6-6 2-3"></path>
+        <path d="M2 5h12"></path>
+        <path d="M7 2h1"></path>
+        <path d="m22 22-5-10-5 10"></path>
+        <path d="M14 18h6"></path>
+      </svg>
+    ),
+    title: '翻译',
+    desc: '多语言互译',
+    prompt: '翻译以下内容为',
+  },
+];
+
 const WelcomeView: React.FC<WelcomeViewProps> = ({ onSend }) => {
   const sessions = useAppStore((s) => s.sessions);
   const setCurrentSessionId = useAppStore((s) => s.setCurrentSessionId);
+  const pendingMode = useAppStore((s: any) => s.pendingMode) as SessionMode | null;
   const inputRef = useRef<InputAreaHandle>(null);
+
+  const effectiveMode: SessionMode = pendingMode || 'daily';
+
+  const quickActions = effectiveMode === 'coding' ? codingActions : dailyActions;
 
   const recentSessions = [...sessions]
     .sort((a, b) => new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime())
@@ -77,7 +126,9 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onSend }) => {
     <div className="welcome-view">
       <div className="welcome-brand">
         <h1 className="welcome-title">✦ CodeCast</h1>
-        <p className="welcome-subtitle">AI 帮你写代码，把想法铸成产物</p>
+        <p className="welcome-subtitle">
+          {effectiveMode === 'coding' ? 'AI 帮你写代码，把想法铸成产物' : 'AI 助手，随时为你解答'}
+        </p>
       </div>
 
       <div className="welcome-cards">

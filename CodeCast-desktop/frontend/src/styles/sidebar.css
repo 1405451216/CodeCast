@@ -26,7 +26,7 @@
     color: var(--btn-primary-text);
     border: none;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 0.929rem;
     font-weight: 500;
     cursor: pointer;
     position: relative;
@@ -50,7 +50,7 @@
     color: var(--btn-primary-text);
     border: none;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 0.929rem;
     font-weight: 500;
     cursor: pointer;
     position: relative;
@@ -75,7 +75,7 @@
     border: 1px solid var(--input-border);
     border-radius: 4px;
     color: var(--text);
-    font-size: 12px;
+    font-size: 0.857rem;
     outline: none;
 }
 
@@ -103,7 +103,7 @@
     border: 1px solid var(--input-border);
     border-radius: 4px;
     color: var(--text);
-    font-size: 12px;
+    font-size: 0.857rem;
     outline: none;
 }
 
@@ -128,7 +128,7 @@
 }
 
 .sidebar-section-title {
-    font-size: 11px;
+    font-size: 0.786rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -193,7 +193,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 13px;
+    font-size: 0.929rem;
 }
 
 .item-del {
@@ -205,7 +205,7 @@
     color: var(--text-muted);
     cursor: pointer;
     border-radius: 3px;
-    font-size: 14px;
+    font-size: 1rem;
     line-height: 1;
     flex-shrink: 0;
 }
@@ -244,7 +244,7 @@
     border-radius: 6px;
     cursor: pointer;
     color: var(--text-dim);
-    font-size: 13px;
+    font-size: 0.929rem;
     border: none;
     background: transparent;
     width: 100%;

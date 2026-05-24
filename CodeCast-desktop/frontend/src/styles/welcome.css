@@ -9,6 +9,49 @@
     overflow-y: auto;
 }
 
+/* 模式切换按钮（TopBar 使用） */
+.welcome-mode-switch {
+    display: inline-flex;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 10px);
+    padding: 3px;
+    gap: 2px;
+}
+
+.mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 16px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.929rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+}
+
+.mode-btn:hover {
+    color: var(--text);
+    background: var(--glass-hover, rgba(255,255,255,0.06));
+}
+
+.mode-btn.active {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.35);
+}
+
+.mode-btn-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
 /* 品牌区域 */
 .welcome-brand {
     text-align: center;
@@ -16,7 +59,7 @@
 }
 
 .welcome-title {
-    font-size: 40px;
+    font-size: 2.857rem;
     font-weight: 700;
     letter-spacing: 2px;
     margin-bottom: 12px;
@@ -27,7 +70,7 @@
 }
 
 .welcome-subtitle {
-    font-size: 15px;
+    font-size: 1.071rem;
     color: var(--text-dim);
     margin-bottom: 0;
 }
@@ -74,13 +117,13 @@
 }
 
 .welcome-card h3 {
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 600;
     margin-bottom: 4px;
 }
 
 .welcome-card p {
-    font-size: 12px;
+    font-size: 0.857rem;
     color: var(--text-dim);
 }
 
@@ -98,7 +141,7 @@
 }
 
 .welcome-recent-title {
-    font-size: 13px;
+    font-size: 0.929rem;
     font-weight: 600;
     color: var(--text-muted);
     margin-bottom: 12px;
@@ -130,7 +173,7 @@
 }
 
 .welcome-recent-name {
-    font-size: 13px;
+    font-size: 0.929rem;
     color: var(--text);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -139,7 +182,7 @@
 }
 
 .welcome-recent-time {
-    font-size: 12px;
+    font-size: 0.857rem;
     color: var(--text-muted);
     flex-shrink: 0;
     margin-left: 16px;
@@ -152,7 +195,7 @@
     }
 
     .welcome-title {
-        font-size: 28px;
+        font-size: 2rem;
         letter-spacing: 1px;
     }
 

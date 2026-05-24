@@ -98,6 +98,7 @@ type AgentPool struct {
 	app       *App
 	ctx       context.Context
 	cancel    context.CancelFunc
+	wg        sync.WaitGroup
 
 	// Layer 2: Runtime file-level write locks to prevent concurrent writes
 	fileLocksMu sync.Mutex
@@ -132,10 +133,12 @@ func (pool *AgentPool) AcquireFileLock(absPath string) {
 // ReleaseFileLock releases the write lock for a file path.
 func (pool *AgentPool) ReleaseFileLock(absPath string) {
 	pool.fileLocksMu.Lock()
-	lk, exists := pool.fileLocks[absPath]
-	pool.fileLocksMu.Unlock()
-	if exists {
+	if lk, exists := pool.fileLocks[absPath]; exists {
+		delete(pool.fileLocks, absPath)
+		pool.fileLocksMu.Unlock()
 		lk.Unlock()
+	} else {
+		pool.fileLocksMu.Unlock()
 	}
 }
 
@@ -201,6 +204,8 @@ func (pool *AgentPool) Submit(agent *SubAgent) {
 	pool.emitEvent(agent, "status")
 
 	go func() {
+		pool.wg.Add(1)
+		defer pool.wg.Done()
 		select {
 		case pool.semaphore <- struct{}{}:
 			defer func() { <-pool.semaphore }()
@@ -267,7 +272,7 @@ func (pool *AgentPool) GetAgentsBySession(sessionID string) []*SubAgent {
 
 func (pool *AgentPool) Shutdown() {
 	pool.cancel()
-	time.Sleep(2 * time.Second)
+	pool.wg.Wait()
 }
 
 func (pool *AgentPool) emitEvent(agent *SubAgent, eventType string) {

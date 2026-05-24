@@ -25,7 +25,7 @@
 }
 
 .proj-header h3 {
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text);
 }
@@ -42,7 +42,7 @@
     gap: 8px;
     padding: 6px 16px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 0.929rem;
     color: var(--text-dim);
     transition: background 0.1s;
 }
@@ -84,7 +84,7 @@
     overflow: auto;
     padding: 16px;
     font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-    font-size: 13px;
+    font-size: 0.929rem;
     line-height: 1.5;
     color: var(--text);
     background: var(--code-bg);
@@ -107,7 +107,7 @@
 }
 
 .plugins-header h2 {
-    font-size: 18px;
+    font-size: 1.286rem;
     font-weight: 600;
     color: var(--text);
 }
@@ -139,13 +139,13 @@
 }
 
 .plugin-card-name {
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text);
 }
 
 .plugin-card-desc {
-    font-size: 12px;
+    font-size: 0.857rem;
     color: var(--text-dim);
     margin-bottom: 12px;
     line-height: 1.4;
@@ -159,7 +159,7 @@
 .plugin-card-actions button {
     padding: 4px 12px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 0.857rem;
     cursor: pointer;
     border: none;
     transition: background 0.15s;
@@ -204,7 +204,7 @@
 }
 
 .plugin-form-card h3 {
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text);
 }
@@ -234,7 +234,7 @@
 }
 
 .panel-title {
-    font-size: 16px;
+    font-size: 1.143rem;
     font-weight: 600;
     color: var(--text);
 }
@@ -284,7 +284,7 @@
 }
 
 .plugin-name {
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text);
     overflow: hidden;
@@ -293,7 +293,7 @@
 }
 
 .plugin-desc {
-    font-size: 12px;
+    font-size: 0.857rem;
     color: var(--text-dim);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -310,7 +310,7 @@
     border-radius: 6px;
     background: var(--bg2);
     color: var(--text);
-    font-size: 12px;
+    font-size: 0.857rem;
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -325,7 +325,7 @@
 }
 
 .plugins-section-title {
-    font-size: 12px;
+    font-size: 0.857rem;
     font-weight: 600;
     color: var(--text-dim);
     text-transform: uppercase;
@@ -363,7 +363,7 @@
 }
 
 .builtin-plugin-icon {
-    font-size: 20px;
+    font-size: 1.429rem;
     width: 32px;
     height: 32px;
     display: flex;
@@ -382,13 +382,13 @@
 }
 
 .builtin-plugin-name {
-    font-size: 13px;
+    font-size: 0.929rem;
     font-weight: 600;
     color: var(--text);
 }
 
 .builtin-plugin-desc {
-    font-size: 11px;
+    font-size: 0.786rem;
     color: var(--text-dim);
     overflow: hidden;
     text-overflow: ellipsis;

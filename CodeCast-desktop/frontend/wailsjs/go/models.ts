@@ -182,6 +182,7 @@ export namespace main {
 	    // Go type: time
 	    CreatedAt: any;
 	    SkillID: string;
+	    Mode: string;
 	    Messages: Message[];
 	
 	    static createFrom(source: any = {}) {
@@ -194,6 +195,7 @@ export namespace main {
 	        this.Name = source["Name"];
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.SkillID = source["SkillID"];
+	        this.Mode = source["Mode"];
 	        this.Messages = this.convertValues(source["Messages"], Message);
 	    }
 	

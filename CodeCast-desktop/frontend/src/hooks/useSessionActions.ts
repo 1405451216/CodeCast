@@ -22,15 +22,17 @@ export function useSessionActions(): UseSessionActionsReturn {
   const clearMessages = useAppStore((s: AppState) => s.clearMessages);
   const setTitle = useAppStore((s: AppState) => s.setTitle);
   const setView = useAppStore((s: AppState) => s.setView);
+  const setPendingMode = useAppStore((s: AppState) => s.setPendingMode);
 
   const handleNewSession = useCallback(() => {
+    setPendingMode('daily');
     setCurrentSessionId(null);
     setAttachments([]);
     clearMessages();
     setTitle('CodeCast');
     setView('welcome');
     setActivePanel(null);
-  }, [setCurrentSessionId, setAttachments, setActivePanel, clearMessages, setTitle, setView]);
+  }, [setCurrentSessionId, setAttachments, setActivePanel, clearMessages, setTitle, setView, setPendingMode]);
 
   const handleSelectSession = useCallback(async (id: string) => {
     setCurrentSessionId(id);

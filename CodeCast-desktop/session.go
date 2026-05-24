@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -51,15 +52,17 @@ type Session struct {
 	Name      string
 	CreatedAt time.Time
 	SkillID   string
+	Mode      string // "" | "coding" | "daily"
 	Messages  []Message
 }
 
 func NewSession(name string, skillID string) *Session {
 	return &Session{
-		ID:        fmt.Sprintf("session_%d", time.Now().UnixNano()),
+		ID:        "sess_" + uuid.New().String()[:8],
 		Name:      name,
 		CreatedAt: time.Now(),
 		SkillID:   skillID,
+		Mode:      "",
 		Messages:  []Message{},
 	}
 }
@@ -100,8 +103,9 @@ const (
 var httpClient = &http.Client{
 	Timeout: 30 * time.Second,
 	Transport: &http.Transport{
-		MaxIdleConns:        10,
-		MaxIdleConnsPerHost: 5,
+		MaxIdleConns:        50,
+		MaxIdleConnsPerHost: 20,
+		MaxConnsPerHost:     20,
 		IdleConnTimeout:     90 * time.Second,
 	},
 }
@@ -144,7 +148,7 @@ func cleanupExpiredEntries() {
 	}
 
 	if expiredCount > 0 {
-		fmt.Printf("[Cleanup] 已清理 %d 个过期的活跃连接\n", expiredCount)
+		slog.Info("已清理过期的活跃连接", "count", expiredCount)
 	}
 
 	checkAndLogMapSize(len(activeCancels))
@@ -153,11 +157,11 @@ func cleanupExpiredEntries() {
 func checkAndLogMapSize(size int) {
 	switch {
 	case size >= criticalMapSizeThreshold:
-		fmt.Printf("[WARNING] 活跃连接数达到严重阈值: %d (阈值: %d), 可能存在内存泄漏\n",
-			size, criticalMapSizeThreshold)
+		slog.Warn("活跃连接数达到严重阈值，可能存在内存泄漏",
+			"size", size, "threshold", criticalMapSizeThreshold)
 	case size >= warnMapSizeThreshold:
-		fmt.Printf("[INFO] 活跃连接数较高: %d (警告阈值: %d)\n",
-			size, warnMapSizeThreshold)
+		slog.Info("活跃连接数较高",
+			"size", size, "warn_threshold", warnMapSizeThreshold)
 	}
 }
 
@@ -179,11 +183,12 @@ func (a *App) GetSessions() []*Session {
 	return result
 }
 
-func (a *App) CreateSession(name, skillID string) *Session {
+func (a *App) CreateSession(name, skillID, mode string) *Session {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	session := NewSession(name, skillID)
+	session.Mode = mode
 	a.sessions = append(a.sessions, session)
 	return deepCopySession(session)
 }
@@ -207,6 +212,7 @@ func (a *App) DeleteSession(id string) error {
 	for i, s := range a.sessions {
 		if s.ID == id {
 			a.sessions = append(a.sessions[:i], a.sessions[i+1:]...)
+			a.CancelSessionRequest(id)
 			return nil
 		}
 	}
@@ -217,6 +223,15 @@ func (a *App) getSessionByID(id string) *Session {
 	for _, s := range a.sessions {
 		if s.ID == id {
 			return deepCopySession(s)
+		}
+	}
+	return nil
+}
+
+func (a *App) getSessionByIDLocked(id string) *Session {
+	for _, s := range a.sessions {
+		if s.ID == id {
+			return s
 		}
 	}
 	return nil
@@ -274,7 +289,7 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 	actualModel = modelName
 	longContext = a.settings.LongContext
 
-	session := a.getSessionByID(sessionID)
+	session := a.getSessionByIDLocked(sessionID)
 	if session == nil {
 		session = NewSession("新对话", "")
 		a.sessions = append(a.sessions, session)
@@ -285,7 +300,17 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 	session.AddMessage(Message{Role: "user", Content: input})
 
 	systemPrompt := a.buildSystemPrompt(session)
-	allMessages := a.buildMessageSequence(session, input, longContext, systemPrompt)
+	if session.Mode == "coding" {
+		systemPrompt = a.injectToolDetails(systemPrompt, input)
+	}
+
+	allMessages := a.buildContextAssembly(session, input, longContext, systemPrompt)
+
+	if a.notes != nil {
+		if notesCtx, err := a.notes.ToContextPrompt(sessionID); err == nil && notesCtx != "" {
+			allMessages = append([]Message{{Role: "system", Content: notesCtx}}, allMessages[1:]...)
+		}
+	}
 
 	a.mu.Unlock()
 
@@ -297,17 +322,103 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 	a.saveResultToSession(sessionID, resp)
 	a.saveMemoryAsync(sessionID, input, resp.Content)
 
+	if a.notes != nil && session.Mode == "coding" {
+		go a.recordNotesAsync(sessionID, input, resp.Content)
+	}
+
 	return []Message{resp}, nil
 }
 
-func (a *App) buildSystemPrompt(session *Session) string {
-	var systemPrompt string
+func (a *App) injectToolDetails(systemPrompt, userInput string) string {
+	inputLower := strings.ToLower(userInput)
+	needsReadFile := strings.Contains(inputLower, "读取") || strings.Contains(inputLower, "查看") ||
+		strings.Contains(inputLower, "read") || strings.Contains(inputLower, "view") ||
+		strings.Contains(inputLower, "list") || strings.Contains(inputLower, ".go") ||
+		strings.Contains(inputLower, ".ts") || strings.Contains(inputLower, ".py") ||
+		strings.Contains(inputLower, "文件内容")
+	needsWriteFile := strings.Contains(inputLower, "写") || strings.Contains(inputLower, "修改") ||
+		strings.Contains(inputLower, "编辑") || strings.Contains(inputLower, "创建") ||
+		strings.Contains(inputLower, "write") || strings.Contains(inputLower, "edit") ||
+		strings.Contains(inputLower, "create") || strings.Contains(inputLower, "file")
+	needsCommand := strings.Contains(inputLower, "运行") || strings.Contains(inputLower, "执行") ||
+		strings.Contains(inputLower, "编译") || strings.Contains(inputLower, "测试") ||
+		strings.Contains(inputLower, "安装") || strings.Contains(inputLower, "build") ||
+		strings.Contains(inputLower, "test") || strings.Contains(inputLower, "install") ||
+		strings.Contains(inputLower, "run") || strings.Contains(inputLower, "npm") ||
+		strings.Contains(inputLower, "git ") || strings.Contains(inputLower, "命令")
+	needsAgents := strings.Contains(inputLower, "并行") || strings.Contains(inputLower, "同时") ||
+		strings.Contains(inputLower, "多个") || strings.Contains(inputLower, "dispatch") ||
+		strings.Contains(inputLower, "agent")
 
-	if a.settings.WorkMode == "coding" {
-		systemPrompt = PromptCoding
-	} else {
-		systemPrompt = PromptDaily
+	var details string
+	if needsReadFile {
+		details += ToolDetailReadFile
 	}
+	if needsWriteFile {
+		details += ToolDetailWriteFile
+	}
+	if needsCommand {
+		details += ToolDetailCommand
+	}
+	if needsAgents {
+		details += ToolDetailAgents
+	}
+
+	if details != "" {
+		systemPrompt += details
+	}
+	return systemPrompt
+}
+
+func (a *App) recordNotesAsync(sessionID, userMsg, assistantMsg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Warn("笔记记录异常恢复", "recover", r)
+		}
+	}()
+
+	inputLower := strings.ToLower(userMsg)
+
+	if strings.Contains(inputLower, "帮我写") || strings.Contains(inputLower, "实现") ||
+		strings.Contains(inputLower, "添加") || strings.Contains(inputLower, "创建") {
+		a.notes.SetTask(sessionID, truncateLine(userMsg, 100))
+	}
+
+	if strings.Contains(inputLower, "修改") || strings.Contains(inputLower, "改") ||
+		strings.Contains(inputLower, "fix") || strings.Contains(inputLower, "修复") {
+		a.notes.AddIssue(sessionID, truncateLine(userMsg, 100))
+	}
+
+	assistantLower := strings.ToLower(assistantMsg)
+	if strings.Contains(assistantLower, "已完成") || strings.Contains(assistantLower, "修改了") ||
+		strings.Contains(assistantLower, "创建了") || strings.Contains(assistantLower, "实现了") {
+		a.notes.AddDecision(sessionID, truncateLine(assistantMsg, 150))
+	}
+}
+
+func truncateLine(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + "..."
+}
+
+func (a *App) buildSystemPrompt(session *Session) string {
+	var modePrompt string
+
+	effectiveMode := session.Mode
+	if effectiveMode == "" {
+		effectiveMode = a.settings.WorkMode
+	}
+
+	if effectiveMode == "coding" {
+		modePrompt = PromptCoding
+	} else {
+		modePrompt = PromptDaily
+	}
+
+	systemPrompt := PromptBase + "\n\n" + modePrompt
 
 	if cp := a.getCurrentProjectLocked(); cp != nil {
 		systemPrompt += fmt.Sprintf("\n\n【当前项目】\n项目名称: %s\n项目路径: %s\n所有文件操作默认基于此项目目录。", cp.Name, cp.Path)
@@ -381,7 +492,7 @@ func (a *App) buildMessageSequence(session *Session, input string, longContext b
 func (a *App) saveResultToSession(sessionID string, resp Message) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if saveSession := a.getSessionByID(sessionID); saveSession != nil {
+	if saveSession := a.getSessionByIDLocked(sessionID); saveSession != nil {
 		saveSession.AddMessage(resp)
 	}
 }
@@ -392,10 +503,10 @@ func (a *App) saveMemoryAsync(sessionID, userIn, assistContent string) {
 	}
 	go func(sid, uIn, aContent string) {
 		if _, err := a.memory.SaveEpisode(sid, "user", uIn); err != nil {
-			fmt.Printf("[Memory] 保存用户消息失败: %v\n", err)
+			slog.Error("保存用户消息失败", "error", err)
 		}
 		if _, err := a.memory.SaveEpisode(sid, "assistant", aContent); err != nil {
-			fmt.Printf("[Memory] 保存AI回复失败: %v\n", err)
+			slog.Error("保存AI回复失败", "error", err)
 		}
 		if a.settings.AutoMemory || len(uIn) > 20 {
 			a.ExtractSummaryAsync(sid, uIn, aContent)
@@ -436,6 +547,15 @@ func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, lo
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	cancelMu.Lock()
+	if len(activeCancels) > criticalMapSizeThreshold {
+		now := time.Now()
+		for id, entry := range activeCancels {
+			if now.Sub(entry.createdAt) > maxCancelEntryAge {
+				entry.cancel()
+				delete(activeCancels, id)
+			}
+		}
+	}
 	activeCancels[sessionID] = cancelEntry{
 		cancel:     cancel,
 		createdAt: time.Now(),
@@ -591,7 +711,7 @@ func (a *App) CreateSkill(name, description, prompt string) (*Skill, error) {
 	defer a.mu.Unlock()
 
 	skill := &Skill{
-		ID:          fmt.Sprintf("skill_%d", time.Now().UnixNano()),
+		ID:          "sk_" + uuid.New().String()[:8],
 		Name:        name,
 		Description: description,
 		Prompt:      prompt,
@@ -651,7 +771,7 @@ func (a *App) ImportSkill(jsonStr string) (*Skill, error) {
 	defer a.mu.Unlock()
 
 	skill := &Skill{
-		ID:          fmt.Sprintf("skill_%d", time.Now().UnixNano()),
+		ID:          "sk_" + uuid.New().String()[:8],
 		Name:        data.Name,
 		Description: data.Description,
 		Prompt:      data.Prompt,
@@ -668,7 +788,15 @@ func (a *App) initDefaultSkills() {
 			ID:          "code_gen",
 			Name:        "代码生成",
 			Description: "帮助生成各种编程语言的代码",
-			Prompt:      "你是一个专业的代码生成助手。请根据用户需求生成高质量的代码。",
+			Prompt: `你是一个专业的代码生成助手。根据用户需求生成高质量、可维护的代码。
+
+要求：
+1. 先理解需求再写代码，必要时询问澄清
+2. 代码要有清晰的命名和适当的注释
+3. 提供完整的、可直接运行的代码片段
+4. 考虑边界情况和错误处理
+5. 如果涉及框架或库的使用，说明依赖关系
+6. 优先使用现代语言特性和最佳实践`,
 			Type:        "builtin",
 			CreatedAt:   time.Now().Unix(),
 		},
@@ -676,7 +804,19 @@ func (a *App) initDefaultSkills() {
 			ID:          "code_review",
 			Name:        "代码审查",
 			Description: "审查代码并提供改进建议",
-			Prompt:      "你是一个专业的代码审查专家。请审查代码并提供详细的改进建议。",
+			Prompt: `你是一个资深代码审查专家。对用户提供的代码进行全面审查。
+
+审查维度：
+1. **正确性**: 逻辑错误、边界条件、竞态条件
+2. **安全性**: 注入风险、敏感信息泄露、权限问题
+3. **性能**: 算法复杂度、内存使用、I/O 效率
+4. **可维护性**: 命名规范、代码结构、职责分离
+5. **最佳实践**: 语言惯用法、设计模式应用
+
+输出格式：
+- 先给出总体评价（优点 + 需改进）
+- 按严重程度排列问题（🔴严重 🟡建议 💡优化）
+- 每个问题给出：位置、问题描述、修复建议代码`,
 			Type:        "builtin",
 			CreatedAt:   time.Now().Unix(),
 		},
@@ -684,7 +824,20 @@ func (a *App) initDefaultSkills() {
 			ID:          "doc_writer",
 			Name:        "文档生成",
 			Description: "生成技术文档和注释",
-			Prompt:      "你是一个技术文档专家。请为代码生成清晰的文档和注释。",
+			Prompt: `你是一个技术文档专家。为代码生成清晰、专业的文档。
+
+文档原则：
+1. **准确性**: 文档必须与代码行为一致
+2. **完整性**: 覆盖公共 API、关键算法、设计决策
+3. **简洁性**: 避免冗余，每句话都有信息量
+4. **结构化**: 使用标题、列表、表格组织信息
+
+能生成的文档类型：
+- API 文档（函数签名、参数说明、返回值、示例）
+- 架构设计文档（模块关系、数据流、决策理由）
+- README（项目介绍、快速开始、使用指南）
+- 代码内联注释（复杂逻辑解释、TODO/FIXME 标记）
+- 变更日志（按版本记录重要变更）`,
 			Type:        "builtin",
 			CreatedAt:   time.Now().Unix(),
 		},
@@ -731,7 +884,7 @@ func (a *App) ClearMemory() error {
 		if err := a.memory.ClearAll(); err != nil {
 			return fmt.Errorf("清空记忆数据失败: %v", err)
 		}
-		fmt.Println("[Memory] 记忆数据已清空")
+		slog.Info("记忆数据已清空")
 	}
 	return nil
 }
@@ -742,7 +895,7 @@ func (a *App) recordToolIfEnabled(sessionID, toolName, detail string) {
 	}
 	go func() {
 		if err := a.memory.RecordToolUse(sessionID, toolName, detail); err != nil {
-			fmt.Printf("[Memory] 记录工具操作失败: %v\n", err)
+			slog.Error("记录工具操作失败", "error", err, "tool", toolName)
 		}
 	}()
 }
@@ -818,7 +971,7 @@ func (a *App) GetAgents(sessionID string) []*SubAgent {
 
 	persisted, err := listAgentsBySession(sessionID)
 	if err != nil {
-		fmt.Printf("[Agent] 加载持久化 agents 失败: %v\n", err)
+		slog.Error("加载持久化 agents 失败", "error", err)
 		return nil
 	}
 	return persisted

@@ -14,7 +14,7 @@
 .atm-create-btn {
     padding: 6px 14px;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 0.857rem;
     font-weight: 500;
     cursor: pointer;
     border: 1px solid var(--border);
@@ -35,7 +35,7 @@
     gap: 4px;
     padding: 4px 10px;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 0.857rem;
     cursor: pointer;
     border: none;
     background: transparent;
@@ -50,7 +50,7 @@
 
 /* Description & Tips */
 .atm-desc {
-    font-size: 13px;
+    font-size: 0.929rem;
     color: var(--text-dim);
     margin-bottom: 12px;
     line-height: 1.5;
@@ -60,7 +60,7 @@
     list-style: disc;
     padding-left: 20px;
     margin-bottom: 24px;
-    font-size: 12px;
+    font-size: 0.857rem;
     color: var(--text-muted);
     line-height: 1.8;
 }
@@ -71,7 +71,7 @@
 }
 
 .atm-existing-title {
-    font-size: 13px;
+    font-size: 0.929rem;
     font-weight: 600;
     color: var(--text);
     margin-bottom: 12px;
@@ -99,14 +99,14 @@
 }
 
 .atm-task-card-name {
-    font-size: 13px;
+    font-size: 0.929rem;
     font-weight: 500;
     color: var(--text);
     margin-bottom: 2px;
 }
 
 .atm-task-card-meta {
-    font-size: 11px;
+    font-size: 0.786rem;
     color: var(--text-muted);
 }
 
@@ -177,7 +177,7 @@
 }
 
 .atm-templates-title {
-    font-size: 13px;
+    font-size: 0.929rem;
     font-weight: 600;
     color: var(--text);
     margin-bottom: 16px;
@@ -208,7 +208,7 @@
 }
 
 .atm-template-icon {
-    font-size: 20px;
+    font-size: 1.429rem;
     flex-shrink: 0;
     width: 36px;
     height: 36px;
@@ -220,7 +220,7 @@
 }
 
 .atm-template-text {
-    font-size: 12px;
+    font-size: 0.857rem;
     color: var(--text);
     line-height: 1.4;
 }
@@ -231,7 +231,7 @@
 }
 
 .atm-form-title {
-    font-size: 16px;
+    font-size: 1.143rem;
     font-weight: 600;
     color: var(--text);
     margin-bottom: 20px;
@@ -247,7 +247,7 @@
 .atm-cancel-btn {
     padding: 8px 20px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 0.929rem;
     cursor: pointer;
     border: 1px solid var(--border);
     background: transparent;
@@ -262,7 +262,7 @@
 .atm-submit-btn {
     padding: 8px 20px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 0.929rem;
     font-weight: 500;
     cursor: pointer;
     border: none;
@@ -276,7 +276,7 @@
 }
 
 .form-hint {
-    font-size: 11px;
+    font-size: 0.786rem;
     color: var(--text-muted);
     margin-top: 4px;
 }

@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 )
 
 const (
@@ -55,6 +57,10 @@ func loadOrCreateKey(keyPath string) ([]byte, error) {
 
 	if err := os.WriteFile(keyPath, []byte(encoded), 0600); err != nil {
 		return nil, fmt.Errorf("failed to save encryption key: %w", err)
+	}
+
+	if runtime.GOOS == "windows" {
+		_ = restrictKeyFileAccess(keyPath)
 	}
 
 	return key, nil
@@ -130,4 +136,9 @@ func decryptAPIKey(encrypted string, key []byte) (string, error) {
 
 func isEncrypted(value string) bool {
 	return len(value) > len(encryptedPrefix) && value[:len(encryptedPrefix)] == encryptedPrefix
+}
+
+func restrictKeyFileAccess(path string) error {
+	cmd := exec.Command("icacls", path, "/inheritance:r", "/grant:r", fmt.Sprintf("%s:(R)", os.Getenv("USERNAME")))
+	return cmd.Run()
 }

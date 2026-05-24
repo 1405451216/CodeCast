@@ -42,9 +42,13 @@
 .titlebar-title {
     flex: 1;
     text-align: center;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-dim);
+    font-size: 0.929rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    background: var(--gradient-accent, linear-gradient(135deg, var(--accent), #a78bfa));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     pointer-events: none;
 }
 
@@ -164,7 +168,7 @@
     padding: 8px 12px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 0.929rem;
     color: var(--text);
     transition: background 0.15s;
     border: none;
@@ -178,7 +182,7 @@
 }
 
 .tb-dropdown-item .shortcut {
-    font-size: 11px;
+    font-size: 0.786rem;
     color: var(--text-muted);
     margin-left: auto;
 }

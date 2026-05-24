@@ -40,7 +40,7 @@ interface GoAppMethods {
 
   // Sessions
   GetSessions(): Promise<GoSession[]>;
-  CreateSession(name: string, skillId: string): Promise<GoSession>;
+  CreateSession(name: string, skillId: string, mode?: string): Promise<GoSession>;
   GetSession(id: string): Promise<GoSession>;
   DeleteSession(id: string): Promise<void>;
 
@@ -244,7 +244,8 @@ export const updateSetting = (key: string, value: string | boolean | string[]) =
 
 // Sessions
 export const getSessions = () => callGo('GetSessions');
-export const createSession = (name: string, skillId: string) => callGo('CreateSession', name, skillId);
+export const createSession = (name: string, skillId: string, mode?: string) =>
+  callGo('CreateSession', name, skillId, mode ?? '');
 export const getSession = (id: string) => callGo('GetSession', id);
 export const deleteSession = (id: string) => callGo('DeleteSession', id);
 

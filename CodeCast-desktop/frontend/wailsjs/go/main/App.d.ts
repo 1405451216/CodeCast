@@ -34,7 +34,7 @@ export function ClearMemory():Promise<void>;
 
 export function ConfirmGitCommit(arg1:string):Promise<void>;
 
-export function CreateSession(arg1:string,arg2:string):Promise<main.Session>;
+export function CreateSession(arg1:string,arg2:string,arg3:string):Promise<main.Session>;
 
 export function CreateSkill(arg1:string,arg2:string,arg3:string):Promise<main.Skill>;
 

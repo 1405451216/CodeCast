@@ -311,12 +311,15 @@ func (a *App) loadSettings() {
 	a.ensureBuiltinMCP(&s)
 
 	if a.encryptionKey != nil && s.APIKey != "" {
+		wasEncrypted := isEncrypted(s.APIKey)
 		decryptedKey, decryptErr := decryptAPIKey(s.APIKey, a.encryptionKey)
 		if decryptErr == nil {
 			s.APIKey = decryptedKey
 			if isEncrypted(s.APIKey) {
 				s.APIKey = ""
 				fmt.Printf("warning: API key appears to be encrypted but decryption failed, clearing\n")
+			} else if !wasEncrypted {
+				migrationNeeded = true
 			}
 		} else if !isEncrypted(s.APIKey) {
 			migrationNeeded = true
