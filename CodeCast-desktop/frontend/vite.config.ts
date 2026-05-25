@@ -2,20 +2,69 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+const isAnalyze = process.env.ANALYZE === 'true';
+
+let plugins = [react()];
+
+if (isAnalyze) {
+  const { visualizer } = await import('rollup-plugin-visualizer');
+  plugins.push(
+    visualizer({
+      filename: 'dist/stats.html',
+      open: true,
+      gzipSize: true,
+      brotliSize: true,
+    })
+  );
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: plugins,
   root: '.',
   base: './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    target: 'esnext',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info'],
+      },
+      format: {
+        comments: false,
+      },
+    },
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
       },
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-virtual': ['@tanstack/react-virtual'],
+          'vendor-state': ['zustand'],
+          'vendor-utils': ['dompurify', 'marked'],
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'assets/css/[name]-[hash][extname]';
+          }
+          return 'assets/[name]-[hash][extname]';
+        },
+      },
     },
+    chunkSizeWarningLimit: 500 * 1024,
+    reportCompressedSize: false,
   },
   server: {
     port: 5173,
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'zustand', '@tanstack/react-virtual'],
   },
 });

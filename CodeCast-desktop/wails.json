@@ -15,5 +15,11 @@
     "copyright": "Copyright 2024",
     "comments": "AI 帮你写代码，把想法铸成产物"
   },
-  "obfuscated": false
+  "obfuscated": false,
+  "console": {
+    "show": false
+  },
+  "logging": {
+    "logLevel": "error"
+  }
 }

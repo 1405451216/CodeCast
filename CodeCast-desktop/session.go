@@ -20,10 +20,16 @@ import (
 // ==================== Core Types ====================
 
 type Message struct {
-	Role      string `json:"role"`
-	Content   string `json:"content"`
-	Reasoning string `json:"reasoning,omitempty"`
+	Role       string     `json:"role"`
+	Content    string     `json:"content"`
+	Reasoning  string     `json:"reasoning,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
 }
+
+// ChatResponse is the return type of callAPIEx, identical to Message but
+// kept as a type alias for clarity in the function calling flow.
+type ChatResponse = Message
 
 type Skill struct {
 	ID          string `json:"id"`
@@ -100,8 +106,15 @@ const (
 	criticalMapSizeThreshold = 1000
 )
 
+// isRetryableError checks if an HTTP response status indicates a transient error worth retrying.
+func isRetryableError(statusCode int) bool {
+	return statusCode == 429 || statusCode >= 500
+}
+
+// httpClient 不设置全局 Timeout——超时完全由每个请求的 context 控制。
+// 原因：LLM API 首 token 延迟可能超过 60s（尤其长推理模式），
+// 而 http.Client.Timeout 会覆盖 context deadline 导致间歇性中断。
 var httpClient = &http.Client{
-	Timeout: 30 * time.Second,
 	Transport: &http.Transport{
 		MaxIdleConns:        50,
 		MaxIdleConnsPerHost: 20,
@@ -174,8 +187,8 @@ func getActiveCancelCount() int {
 // ==================== Sessions ====================
 
 func (a *App) GetSessions() []*Session {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	result := make([]*Session, len(a.sessions))
 	for i, s := range a.sessions {
 		result[i] = deepCopySession(s)
@@ -190,12 +203,13 @@ func (a *App) CreateSession(name, skillID, mode string) *Session {
 	session := NewSession(name, skillID)
 	session.Mode = mode
 	a.sessions = append(a.sessions, session)
+	go a.persistSession(session)
 	return deepCopySession(session)
 }
 
 func (a *App) GetSession(id string) *Session {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	for _, s := range a.sessions {
 		if s.ID == id {
@@ -213,6 +227,7 @@ func (a *App) DeleteSession(id string) error {
 		if s.ID == id {
 			a.sessions = append(a.sessions[:i], a.sessions[i+1:]...)
 			a.CancelSessionRequest(id)
+			go a.deletePersistedSession(id)
 			return nil
 		}
 	}
@@ -235,6 +250,180 @@ func (a *App) getSessionByIDLocked(id string) *Session {
 		}
 	}
 	return nil
+}
+
+// ==================== Session Experience Enhancement ====================
+
+// SearchSessions searches sessions by keyword in name and message content.
+// Returns deep copies of matching sessions (without full messages to keep response lightweight).
+func (a *App) SearchSessions(keyword string) []*Session {
+	if keyword == "" {
+		return a.GetSessions()
+	}
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	keyword = strings.ToLower(keyword)
+	var result []*Session
+
+	for _, s := range a.sessions {
+		if matchesKeyword(s, keyword) {
+			result = append(result, deepCopySession(s))
+		}
+	}
+	return result
+}
+
+// matchesKeyword checks if a session's name or any message content contains the keyword.
+func matchesKeyword(s *Session, keyword string) bool {
+	if strings.Contains(strings.ToLower(s.Name), keyword) {
+		return true
+	}
+	for _, msg := range s.Messages {
+		if strings.Contains(strings.ToLower(msg.Content), keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// ExportSession exports a session as Markdown or JSON string.
+// format should be "markdown" or "json". Defaults to "markdown" if unrecognized.
+func (a *App) ExportSession(id, format string) (string, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	session := a.getSessionByIDLocked(id)
+	if session == nil {
+		return "", fmt.Errorf("session not found: %s", id)
+	}
+
+	switch strings.ToLower(format) {
+	case "json":
+		return a.exportSessionJSON(session)
+	default:
+		return a.exportSessionMarkdown(session), nil
+	}
+}
+
+func (a *App) exportSessionJSON(s *Session) (string, error) {
+	type exportMessage struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	}
+	type exportData struct {
+		ID        string          `json:"id"`
+		Name      string          `json:"name"`
+		Mode      string          `json:"mode"`
+		CreatedAt string          `json:"created_at"`
+		Messages  []exportMessage `json:"messages"`
+	}
+
+	data := exportData{
+		ID:        s.ID,
+		Name:      s.Name,
+		Mode:      s.Mode,
+		CreatedAt: s.CreatedAt.Format(time.RFC3339),
+		Messages:  make([]exportMessage, 0, len(s.Messages)),
+	}
+	for _, msg := range s.Messages {
+		data.Messages = append(data.Messages, exportMessage{
+			Role:    msg.Role,
+			Content: msg.Content,
+		})
+	}
+
+	b, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("JSON 序列化失败: %v", err)
+	}
+	return string(b), nil
+}
+
+func (a *App) exportSessionMarkdown(s *Session) string {
+	var sb strings.Builder
+	sb.WriteString("# " + s.Name + "\n\n")
+	sb.WriteString(fmt.Sprintf("- **ID**: %s\n", s.ID))
+	sb.WriteString(fmt.Sprintf("- **Mode**: %s\n", s.Mode))
+	sb.WriteString(fmt.Sprintf("- **Created**: %s\n\n", s.CreatedAt.Format("2006-01-02 15:04:05")))
+	sb.WriteString("---\n\n")
+
+	for _, msg := range s.Messages {
+		switch msg.Role {
+		case "user":
+			sb.WriteString("## 🧑 User\n\n")
+		case "assistant":
+			sb.WriteString("## 🤖 Assistant\n\n")
+		case "system":
+			sb.WriteString("## ⚙️ System\n\n")
+		default:
+			sb.WriteString("## " + msg.Role + "\n\n")
+		}
+		sb.WriteString(msg.Content + "\n\n")
+	}
+	return sb.String()
+}
+
+// RenameSession renames a session by ID.
+func (a *App) RenameSession(id, newName string) error {
+	if newName == "" {
+		return fmt.Errorf("session name cannot be empty")
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	session := a.getSessionByIDLocked(id)
+	if session == nil {
+		return fmt.Errorf("session not found: %s", id)
+	}
+
+	session.Name = newName
+	go a.persistSession(session)
+	return nil
+}
+
+// GetSessionsByMode returns all sessions filtered by mode ("coding", "daily", or "" for all).
+func (a *App) GetSessionsByMode(mode string) []*Session {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	var result []*Session
+	for _, s := range a.sessions {
+		if mode == "" || s.Mode == mode {
+			result = append(result, deepCopySession(s))
+		}
+	}
+	return result
+}
+
+// BatchDeleteSessions deletes multiple sessions by their IDs.
+// Returns the list of IDs that were successfully deleted.
+func (a *App) BatchDeleteSessions(ids []string) []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	idSet := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		idSet[id] = struct{}{}
+	}
+
+	var deleted []string
+	remaining := make([]*Session, 0, len(a.sessions))
+
+	for _, s := range a.sessions {
+		if _, found := idSet[s.ID]; found {
+			deleted = append(deleted, s.ID)
+			a.CancelSessionRequest(s.ID)
+			go a.deletePersistedSession(s.ID)
+		} else {
+			remaining = append(remaining, s)
+		}
+	}
+
+	a.sessions = remaining
+	return deleted
 }
 
 // ==================== Cancel Request ====================
@@ -273,20 +462,15 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 
 	a.mu.Lock()
 
-	apiKey = a.settings.APIKey
-	if apiKey == "" {
-		apiKey = a.config.Model.APIKey
-	}
-	if apiKey == "" {
+	// 通过统一方法解析凭据
+	creds, credErr := a.resolveCredentialsLocked(modelName)
+	if credErr != nil {
 		a.mu.Unlock()
-		return nil, fmt.Errorf("请先设置 API Key")
+		return nil, credErr
 	}
-
-	apiURL = a.llmConfig.APIURL
-	if modelName == "" {
-		modelName = a.llmConfig.Model
-	}
-	actualModel = modelName
+	apiKey = creds.APIKey
+	apiURL = creds.APIURL
+	actualModel = creds.Model
 	longContext = a.settings.LongContext
 
 	session := a.getSessionByIDLocked(sessionID)
@@ -294,6 +478,7 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 		session = NewSession("新对话", "")
 		a.sessions = append(a.sessions, session)
 		sessionID = session.ID
+		go a.persistSession(session)
 	}
 	a.activeSessionID = sessionID
 
@@ -312,21 +497,105 @@ func (a *App) SendMessageEx(sessionID, input, modelName string, thinking bool) (
 		}
 	}
 
+	// coding 模式下传入 tools 以支持 function calling
+	var tools []map[string]interface{}
+	if session.Mode == "coding" {
+		tools = mainChatToolDefinitions()
+	}
+
 	a.mu.Unlock()
 
-	resp, err := a.callAPIEx(allMessages, apiKey, apiURL, actualModel, longContext, thinking, sessionID)
-	if err != nil {
-		return nil, err
+	// Function calling 循环：如果模型返回 tool_calls，执行后继续对话
+	const maxToolRounds = 5 // 防止无限循环
+	var finalContent string
+	var finalReasoning string
+
+	for round := 0; round <= maxToolRounds; round++ {
+		resp, err := a.callAPIEx(allMessages, apiKey, apiURL, actualModel, longContext, thinking, sessionID, tools)
+		if err != nil {
+			return nil, err
+		}
+
+		// 如果没有 tool_calls，正常返回
+		if len(resp.ToolCalls) == 0 {
+			finalContent = resp.Content
+			finalReasoning = resp.Reasoning
+			break
+		}
+
+		// 模型返回了 tool_calls，需要执行工具并继续对话
+		slog.Info("主对话检测到 tool_calls", "count", len(resp.ToolCalls), "round", round)
+
+		// 通知前端模型正在调用工具
+		eventName := "stream:" + sessionID
+		wailsRuntime.EventsEmit(a.ctx, eventName, map[string]interface{}{
+			"type":       "tool_call",
+			"tool_calls": resp.ToolCalls,
+		})
+
+		// 将 assistant 的带 tool_calls 的消息加入上下文
+		// （OpenAI/DeepSeek 协议要求 assistant 消息包含 tool_calls）
+		allMessages = append(allMessages, Message{
+			Role:      "assistant",
+			Content:   resp.Content,
+			ToolCalls: resp.ToolCalls,
+		})
+
+		// 执行每个 tool call 并收集结果
+		for _, tc := range resp.ToolCalls {
+			var toolResult string
+			switch tc.Name {
+			case "dispatch_agents":
+				agentIDs, dispatchErr := a.DispatchAgents(tc.Args)
+				if dispatchErr != nil {
+					toolResult = fmt.Sprintf(`{"error": "%s"}`, dispatchErr.Error())
+				} else {
+					resultJSON, _ := json.Marshal(map[string]interface{}{
+						"success":   true,
+						"agent_ids": agentIDs,
+						"message":   fmt.Sprintf("已成功创建 %d 个子智能体并开始并行执行", len(agentIDs)),
+					})
+					toolResult = string(resultJSON)
+				}
+
+				// 通知前端子智能体已创建
+				wailsRuntime.EventsEmit(a.ctx, eventName, map[string]interface{}{
+					"type":      "agents_dispatched",
+					"agent_ids": agentIDs,
+				})
+			default:
+				toolResult = fmt.Sprintf(`{"error": "unknown tool: %s"}`, tc.Name)
+			}
+
+			// 将工具结果以 tool role 加入上下文（按 OpenAI 协议需要 tool_call_id）
+			allMessages = append(allMessages, Message{
+				Role:       "tool",
+				Content:    toolResult,
+				ToolCallID: tc.ID,
+			})
+		}
+
+		// 如果已到最大轮次，使用最后一轮的内容
+		if round == maxToolRounds {
+			finalContent = resp.Content
+			finalReasoning = resp.Reasoning
+		}
 	}
 
-	a.saveResultToSession(sessionID, resp)
-	a.saveMemoryAsync(sessionID, input, resp.Content)
+	result := Message{
+		Role:      "assistant",
+		Content:   finalContent,
+		Reasoning: finalReasoning,
+	}
+
+	a.saveResultToSession(sessionID, result)
+	a.saveMemoryAsync(sessionID, input, result.Content)
 
 	if a.notes != nil && session.Mode == "coding" {
-		go a.recordNotesAsync(sessionID, input, resp.Content)
+		go a.recordNotesAsync(sessionID, input, result.Content)
 	}
 
-	return []Message{resp}, nil
+	return []Message{result}, nil
 }
 
 func (a *App) injectToolDetails(systemPrompt, userInput string) string {
@@ -494,6 +763,7 @@ func (a *App) saveResultToSession(sessionID string, resp Message) {
 	defer a.mu.Unlock()
 	if saveSession := a.getSessionByIDLocked(sessionID); saveSession != nil {
 		saveSession.AddMessage(resp)
+		go a.persistSession(saveSession)
 	}
 }
 
@@ -514,14 +784,93 @@ func (a *App) saveMemoryAsync(sessionID, userIn, assistContent string) {
 	}(sessionID, userIn, assistContent)
 }
 
-func (a *App) callAPI(messages []Message, apiKey, apiURL, modelName string, longContext bool) (Message, error) {
-	return a.callAPIEx(messages, apiKey, apiURL, modelName, longContext, false, "_default")
+// mainChatToolDefinitions returns tool definitions available in the main chat (coding mode).
+// Currently only dispatch_agents is supported.
+func mainChatToolDefinitions() []map[string]interface{} {
+	return []map[string]interface{}{
+		{
+			"type": "function",
+			"function": map[string]interface{}{
+				"name":        "dispatch_agents",
+				"description": "创建并行子智能体来同时执行多个独立任务。每个子任务会由一个独立的 agent 执行，可以读写文件、运行命令等。适用于需要同时处理多个文件或多个独立工作的场景。",
+				"parameters": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"tasks": map[string]interface{}{
+							"type":        "array",
+							"description": "子任务列表，每个子任务会分配给一个独立的子智能体",
+							"items": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"title": map[string]interface{}{
+										"type":        "string",
+										"description": "子任务的简短标题",
+									},
+									"prompt": map[string]interface{}{
+										"type":        "string",
+										"description": "子任务的详细描述和指令",
+									},
+									"files_scope": map[string]interface{}{
+										"type":        "array",
+										"description": "该子任务允许操作的文件或目录路径列表，不同子任务间不可重叠",
+										"items": map[string]interface{}{
+											"type": "string",
+										},
+									},
+								},
+								"required": []string{"title", "prompt"},
+							},
+						},
+						"mode": map[string]interface{}{
+							"type":        "string",
+							"description": "执行模式: explicit (前端展示每步) 或 implicit (静默执行)",
+							"enum":        []string{"explicit", "implicit"},
+						},
+					},
+					"required": []string{"tasks"},
+				},
+			},
+		},
+	}
 }
 
-func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, longContext bool, thinking bool, sessionID string) (Message, error) {
+func (a *App) callAPI(messages []Message, apiKey, apiURL, modelName string, longContext bool) (Message, error) {
+	return a.callAPIEx(messages, apiKey, apiURL, modelName, longContext, false, "_default", nil)
+}
+
+func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, longContext bool, thinking bool, sessionID string, tools []map[string]interface{}) (ChatResponse, error) {
+	// 将 []Message 转化为 API 协议格式的 messages 数组
+	apiMessages := make([]map[string]any, 0, len(messages))
+	for _, msg := range messages {
+		m := map[string]any{
+			"role":    msg.Role,
+			"content": msg.Content,
+		}
+		// assistant 消息带 tool_calls 时，转为标准 API 格式
+		if msg.Role == "assistant" && len(msg.ToolCalls) > 0 {
+			tcArr := make([]map[string]any, len(msg.ToolCalls))
+			for i, tc := range msg.ToolCalls {
+				tcArr[i] = map[string]any{
+					"id":   tc.ID,
+					"type": "function",
+					"function": map[string]any{
+						"name":      tc.Name,
+						"arguments": tc.Args,
+					},
+				}
+			}
+			m["tool_calls"] = tcArr
+		}
+		// tool 结果消息需要 tool_call_id
+		if msg.Role == "tool" && msg.ToolCallID != "" {
+			m["tool_call_id"] = msg.ToolCallID
+		}
+		apiMessages = append(apiMessages, m)
+	}
+
 	reqBody := map[string]any{
 		"model":    modelName,
-		"messages": messages,
+		"messages": apiMessages,
 		"stream":   true,
 	}
 
@@ -535,9 +884,14 @@ func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, lo
 		reqBody["thinking"] = true
 	}
 
+	// 添加工具定义（function calling）
+	if len(tools) > 0 {
+		reqBody["tools"] = tools
+	}
+
 	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return Message{}, fmt.Errorf("序列化请求失败: %v", err)
+		return ChatResponse{}, fmt.Errorf("序列化请求失败: %v", err)
 	}
 
 	timeout := 120 * time.Second
@@ -557,7 +911,7 @@ func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, lo
 		}
 	}
 	activeCancels[sessionID] = cancelEntry{
-		cancel:     cancel,
+		cancel:    cancel,
 		createdAt: time.Now(),
 	}
 	cancelMu.Unlock()
@@ -569,19 +923,55 @@ func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, lo
 		cancel()
 	}()
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL+"/chat/completions", bytes.NewBuffer(body))
-	if err != nil {
-		return Message{}, err
-	}
-	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
-	httpReq.Header.Set("Content-Type", "application/json")
+	// 重试机制：最多重试 2 次（共 3 次尝试），对网络错误、429、5xx 进行指数退避重试
+	const maxRetries = 2
+	retryBackoffs := []time.Duration{2 * time.Second, 4 * time.Second}
 
-	resp, err := httpClient.Do(httpReq)
-	if err != nil {
-		if ctx.Err() == context.Canceled {
-			return Message{}, fmt.Errorf("request cancelled")
+	var resp *http.Response
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			slog.Info("API 请求重试", "attempt", attempt+1, "backoff", retryBackoffs[attempt-1])
+			select {
+			case <-time.After(retryBackoffs[attempt-1]):
+			case <-ctx.Done():
+				return ChatResponse{}, fmt.Errorf("request cancelled")
+			}
 		}
-		return Message{}, err
+
+		httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL+"/chat/completions", bytes.NewBuffer(body))
+		if err != nil {
+			return ChatResponse{}, err
+		}
+		httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+		httpReq.Header.Set("Content-Type", "application/json")
+
+		resp, err = httpClient.Do(httpReq)
+		if err != nil {
+			if ctx.Err() == context.Canceled {
+				return ChatResponse{}, fmt.Errorf("request cancelled")
+			}
+			// 网络错误，可重试
+			lastErr = err
+			if attempt < maxRetries {
+				continue
+			}
+			return ChatResponse{}, lastErr
+		}
+
+		// 检查是否为可重试的 HTTP 状态码
+		if isRetryableError(resp.StatusCode) {
+			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
+			resp.Body.Close()
+			lastErr = fmt.Errorf("API 请求失败 (HTTP %d): %s", resp.StatusCode, string(respBody))
+			if attempt < maxRetries {
+				continue
+			}
+			return ChatResponse{}, lastErr
+		}
+
+		// 非可重试错误或成功，跳出重试循环
+		break
 	}
 	defer resp.Body.Close()
 
@@ -589,41 +979,74 @@ func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, lo
 	if resp.Header.Get("Content-Type") != "" && !strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
 		respBody, err := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
 		if err != nil {
-			return Message{}, fmt.Errorf("读取响应失败: %v", err)
+			return ChatResponse{}, fmt.Errorf("读取响应失败: %v", err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			return Message{}, fmt.Errorf("API 请求失败 (HTTP %d): %s", resp.StatusCode, string(respBody))
+			return ChatResponse{}, fmt.Errorf("API 请求失败 (HTTP %d): %s", resp.StatusCode, string(respBody))
 		}
 		var result map[string]any
 		if err := json.Unmarshal(respBody, &result); err != nil {
-			return Message{}, fmt.Errorf("failed to parse response: %v", err)
+			return ChatResponse{}, fmt.Errorf("failed to parse response: %v", err)
 		}
 		choices, ok := result["choices"].([]any)
 		if !ok || len(choices) == 0 {
-			return Message{}, fmt.Errorf("no response from model")
+			return ChatResponse{}, fmt.Errorf("no response from model")
 		}
 		choice, ok := choices[0].(map[string]any)
 		if !ok {
-			return Message{}, fmt.Errorf("invalid response format")
+			return ChatResponse{}, fmt.Errorf("invalid response format")
 		}
 		msg, ok := choice["message"].(map[string]any)
 		if !ok {
-			return Message{}, fmt.Errorf("no message in response")
+			return ChatResponse{}, fmt.Errorf("no message in response")
 		}
 		content, _ := msg["content"].(string)
 		reasoning, _ := msg["reasoning_content"].(string)
-		return Message{Role: "assistant", Content: content, Reasoning: reasoning}, nil
+
+		// 解析非流式 tool_calls
+		chatResp := ChatResponse{
+			Role: "assistant", Content: content, Reasoning: reasoning,
+		}
+		if tcRaw, ok := msg["tool_calls"].([]any); ok {
+			for _, tcItem := range tcRaw {
+				tcMap, ok := tcItem.(map[string]any)
+				if !ok {
+					continue
+				}
+				fn, _ := tcMap["function"].(map[string]any)
+				if fn == nil {
+					continue
+				}
+				chatResp.ToolCalls = append(chatResp.ToolCalls, ToolCall{
+					ID:   fmt.Sprintf("%v", tcMap["id"]),
+					Name: fmt.Sprintf("%v", fn["name"]),
+					Args: fmt.Sprintf("%v", fn["arguments"]),
+				})
+			}
+		}
+		return chatResp, nil
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
-		return Message{}, fmt.Errorf("API 请求失败 (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return ChatResponse{}, fmt.Errorf("API 请求失败 (HTTP %d): %s", resp.StatusCode, string(respBody))
 	}
 
 	// 流式 SSE 解析
 	var contentBuilder strings.Builder
 	var reasoningBuilder strings.Builder
 	eventName := "stream:" + sessionID
+
+	// tool_calls 流式累积器
+	// DeepSeek 流式 function calling 格式:
+	// delta.tool_calls: [{index: 0, id: "call_xxx", function: {name: "fn", arguments: ""}}]
+	// 后续 chunk: [{index: 0, function: {arguments: "partial..."}}]
+	type toolCallAccum struct {
+		ID   string
+		Name string
+		Args strings.Builder
+	}
+	var toolCallAccums []toolCallAccum
 
 	// 通知前端流式开始
 	wailsRuntime.EventsEmit(a.ctx, eventName, map[string]interface{}{
@@ -679,6 +1102,41 @@ func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, lo
 				"content": c,
 			})
 		}
+
+		// 处理流式 tool_calls
+		if tcArr, ok := delta["tool_calls"].([]any); ok {
+			for _, tcRaw := range tcArr {
+				tc, ok := tcRaw.(map[string]any)
+				if !ok {
+					continue
+				}
+				// 获取 index
+				idx := 0
+				if idxFloat, ok := tc["index"].(float64); ok {
+					idx = int(idxFloat)
+				}
+
+				// 确保 accumulator 切片足够大
+				for len(toolCallAccums) <= idx {
+					toolCallAccums = append(toolCallAccums, toolCallAccum{})
+				}
+
+				// 如果有 id，设置 id
+				if id, ok := tc["id"].(string); ok && id != "" {
+					toolCallAccums[idx].ID = id
+				}
+
+				// 解析 function 部分
+				if fn, ok := tc["function"].(map[string]any); ok {
+					if name, ok := fn["name"].(string); ok && name != "" {
+						toolCallAccums[idx].Name = name
+					}
+					if args, ok := fn["arguments"].(string); ok && args != "" {
+						toolCallAccums[idx].Args.WriteString(args)
+					}
+				}
+			}
+		}
 	}
 
 	// 通知前端流式结束
@@ -686,18 +1144,32 @@ func (a *App) callAPIEx(messages []Message, apiKey, apiURL, modelName string, lo
 		"type": "done",
 	})
 
-	return Message{
+	// 构建最终响应
+	chatResp := ChatResponse{
 		Role:      "assistant",
 		Content:   contentBuilder.String(),
 		Reasoning: reasoningBuilder.String(),
-	}, nil
+	}
+
+	// 将累积的 tool_calls 转为最终结果
+	for _, accum := range toolCallAccums {
+		if accum.Name != "" {
+			chatResp.ToolCalls = append(chatResp.ToolCalls, ToolCall{
+				ID:   accum.ID,
+				Name: accum.Name,
+				Args: accum.Args.String(),
+			})
+		}
+	}
+
+	return chatResp, nil
 }
 
 // ==================== Skills ====================
 
 func (a *App) GetSkills() []*Skill {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	result := make([]*Skill, len(a.skills))
 	for i, s := range a.skills {
 		copy := *s

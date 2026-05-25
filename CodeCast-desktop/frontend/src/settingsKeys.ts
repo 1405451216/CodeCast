@@ -4,7 +4,7 @@
  * ⚠️ 请勿手动编辑此文件！修改后端 Settings struct 后重新运行:
  *   node scripts/generate-settings-keys.mjs
  *
- * 生成时间: 2026-05-24T12:53:00.149Z
+ * 生成时间: 2026-05-25T15:37:51.613Z
  */
 
 export const S = {
@@ -35,7 +35,6 @@ export const S = {
   font_size: 'font_size',
 
   // ===== API =====
-  api_key: 'api_key',
   long_context: 'long_context',
   llm_provider: 'llm_provider',
   llm_api_url: 'llm_api_url',
@@ -68,6 +67,7 @@ export const S = {
   blocked_domains: 'blocked_domains',
   allowed_domains: 'allowed_domains',
   mcp_servers: 'mcp_servers',
+  model_configs: 'model_configs',
   env_vars: 'env_vars',
   slash_commands: 'slash_commands',
   archived_sessions: 'archived_sessions',
@@ -96,7 +96,6 @@ export const SCALAR_KEYS: readonly SettingKey[] = [
   S.notification_question,
   S.theme,
   S.font_size,
-  S.api_key,
   S.long_context,
   S.llm_provider,
   S.llm_api_url,

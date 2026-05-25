@@ -27,6 +27,9 @@ export interface Project {
   id: string;
   name: string;
   path: string;
+  created_at?: number;
+  last_accessed_at?: number;
+  custom_instructions?: string;
 }
 
 export interface SlashCommand {
@@ -82,6 +85,7 @@ export interface AgentEvent {
   message?: string;
 }
 
-export const AVAILABLE_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'] as const;
-export type AvailableModel = (typeof AVAILABLE_MODELS)[number];
+// ProviderPreset 接口已移至 api.ts（单一数据源，从后端动态加载）
+
+export type AvailableModel = string;
 export const DEFAULT_MODEL: AvailableModel = 'deepseek-v4-flash';

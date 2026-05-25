@@ -22,6 +22,10 @@ export function AddMCPServerStdio(arg1, arg2, arg3) {
   return window['go']['main']['App']['AddMCPServerStdio'](arg1, arg2, arg3);
 }
 
+export function AddModelConfig(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+  return window['go']['main']['App']['AddModelConfig'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+}
+
 export function AddProject(arg1) {
   return window['go']['main']['App']['AddProject'](arg1);
 }
@@ -32,6 +36,10 @@ export function AddSlashCommand(arg1, arg2, arg3) {
 
 export function ArchiveSession(arg1) {
   return window['go']['main']['App']['ArchiveSession'](arg1);
+}
+
+export function BatchDeleteSessions(arg1) {
+  return window['go']['main']['App']['BatchDeleteSessions'](arg1);
 }
 
 export function CancelAgent(arg1) {
@@ -48,6 +56,18 @@ export function CancelSessionAgents(arg1) {
 
 export function CancelSessionRequest(arg1) {
   return window['go']['main']['App']['CancelSessionRequest'](arg1);
+}
+
+export function CheckAntivirusCompatibility() {
+  return window['go']['main']['App']['CheckAntivirusCompatibility']();
+}
+
+export function CheckEnvironment() {
+  return window['go']['main']['App']['CheckEnvironment']();
+}
+
+export function CheckForUpdate() {
+  return window['go']['main']['App']['CheckForUpdate']();
 }
 
 export function CheckSeleniumInstalled() {
@@ -94,12 +114,24 @@ export function DispatchAgents(arg1) {
   return window['go']['main']['App']['DispatchAgents'](arg1);
 }
 
+export function DownloadUpdate(arg1) {
+  return window['go']['main']['App']['DownloadUpdate'](arg1);
+}
+
 export function ExecuteCommand(arg1, arg2) {
   return window['go']['main']['App']['ExecuteCommand'](arg1, arg2);
 }
 
+export function ExportSession(arg1, arg2) {
+  return window['go']['main']['App']['ExportSession'](arg1, arg2);
+}
+
 export function ExtractSummaryAsync(arg1, arg2, arg3) {
   return window['go']['main']['App']['ExtractSummaryAsync'](arg1, arg2, arg3);
+}
+
+export function FixEnvironmentIssue(arg1) {
+  return window['go']['main']['App']['FixEnvironmentIssue'](arg1);
 }
 
 export function GetAgentDetail(arg1) {
@@ -110,6 +142,10 @@ export function GetAgents(arg1) {
   return window['go']['main']['App']['GetAgents'](arg1);
 }
 
+export function GetAllReleases(arg1) {
+  return window['go']['main']['App']['GetAllReleases'](arg1);
+}
+
 export function GetArchivedSessions() {
   return window['go']['main']['App']['GetArchivedSessions']();
 }
@@ -118,12 +154,20 @@ export function GetAvailableEditors() {
   return window['go']['main']['App']['GetAvailableEditors']();
 }
 
+export function GetChangelog(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetChangelog'](arg1, arg2, arg3);
+}
+
 export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }
 
 export function GetCurrentProject() {
   return window['go']['main']['App']['GetCurrentProject']();
+}
+
+export function GetCurrentVersion() {
+  return window['go']['main']['App']['GetCurrentVersion']();
 }
 
 export function GetDomainRules() {
@@ -138,12 +182,20 @@ export function GetGitStatus() {
   return window['go']['main']['App']['GetGitStatus']();
 }
 
+export function GetKeyRotationInfo() {
+  return window['go']['main']['App']['GetKeyRotationInfo']();
+}
+
 export function GetMCPStatus() {
   return window['go']['main']['App']['GetMCPStatus']();
 }
 
 export function GetMemoryStats() {
   return window['go']['main']['App']['GetMemoryStats']();
+}
+
+export function GetModelConfigs() {
+  return window['go']['main']['App']['GetModelConfigs']();
 }
 
 export function GetNoProjectMode() {
@@ -166,12 +218,32 @@ export function GetProjects() {
   return window['go']['main']['App']['GetProjects']();
 }
 
+export function GetProviderModels(arg1) {
+  return window['go']['main']['App']['GetProviderModels'](arg1);
+}
+
+export function GetProviders() {
+  return window['go']['main']['App']['GetProviders']();
+}
+
+export function GetSandboxStatus() {
+  return window['go']['main']['App']['GetSandboxStatus']();
+}
+
+export function GetSecurityStatus() {
+  return window['go']['main']['App']['GetSecurityStatus']();
+}
+
 export function GetSession(arg1) {
   return window['go']['main']['App']['GetSession'](arg1);
 }
 
 export function GetSessions() {
   return window['go']['main']['App']['GetSessions']();
+}
+
+export function GetSessionsByMode(arg1) {
+  return window['go']['main']['App']['GetSessionsByMode'](arg1);
 }
 
 export function GetSettings() {
@@ -186,8 +258,20 @@ export function GetSlashCommands() {
   return window['go']['main']['App']['GetSlashCommands']();
 }
 
+export function GetTaskStats() {
+  return window['go']['main']['App']['GetTaskStats']();
+}
+
+export function GetTaskTemplates() {
+  return window['go']['main']['App']['GetTaskTemplates']();
+}
+
 export function GetTasks() {
   return window['go']['main']['App']['GetTasks']();
+}
+
+export function GetUpdateHistory() {
+  return window['go']['main']['App']['GetUpdateHistory']();
 }
 
 export function GetWorkspaceFiles(arg1) {
@@ -210,12 +294,52 @@ export function NotifyAIQuestion(arg1) {
   return window['go']['main']['App']['NotifyAIQuestion'](arg1);
 }
 
+export function NotifyEnvironmentIssue(arg1, arg2, arg3) {
+  return window['go']['main']['App']['NotifyEnvironmentIssue'](arg1, arg2, arg3);
+}
+
+export function NotifyLongRunning(arg1, arg2) {
+  return window['go']['main']['App']['NotifyLongRunning'](arg1, arg2);
+}
+
+export function NotifyMemoryFull(arg1, arg2) {
+  return window['go']['main']['App']['NotifyMemoryFull'](arg1, arg2);
+}
+
 export function NotifyPermissionNeeded(arg1) {
   return window['go']['main']['App']['NotifyPermissionNeeded'](arg1);
 }
 
+export function NotifySecurityAlert(arg1, arg2) {
+  return window['go']['main']['App']['NotifySecurityAlert'](arg1, arg2);
+}
+
+export function NotifySessionComplete(arg1) {
+  return window['go']['main']['App']['NotifySessionComplete'](arg1);
+}
+
+export function NotifyTaskCompleted(arg1, arg2, arg3) {
+  return window['go']['main']['App']['NotifyTaskCompleted'](arg1, arg2, arg3);
+}
+
+export function NotifyUpdateAvailable(arg1) {
+  return window['go']['main']['App']['NotifyUpdateAvailable'](arg1);
+}
+
+export function OpenDownloadedFile(arg1) {
+  return window['go']['main']['App']['OpenDownloadedFile'](arg1);
+}
+
 export function OpenInEditor(arg1) {
   return window['go']['main']['App']['OpenInEditor'](arg1);
+}
+
+export function OpenReleasePage() {
+  return window['go']['main']['App']['OpenReleasePage']();
+}
+
+export function PauseAllTasks() {
+  return window['go']['main']['App']['PauseAllTasks']();
 }
 
 export function PopoutWindow() {
@@ -246,6 +370,10 @@ export function RemoveMCPServer(arg1) {
   return window['go']['main']['App']['RemoveMCPServer'](arg1);
 }
 
+export function RemoveModelConfig(arg1) {
+  return window['go']['main']['App']['RemoveModelConfig'](arg1);
+}
+
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
 }
@@ -254,8 +382,20 @@ export function RemoveSlashCommand(arg1) {
   return window['go']['main']['App']['RemoveSlashCommand'](arg1);
 }
 
+export function RenameSession(arg1, arg2) {
+  return window['go']['main']['App']['RenameSession'](arg1, arg2);
+}
+
 export function ResetMemory() {
   return window['go']['main']['App']['ResetMemory']();
+}
+
+export function ResumeAllTasks() {
+  return window['go']['main']['App']['ResumeAllTasks']();
+}
+
+export function RotateEncryptionKey() {
+  return window['go']['main']['App']['RotateEncryptionKey']();
 }
 
 export function RunTaskNow(arg1) {
@@ -264,6 +404,14 @@ export function RunTaskNow(arg1) {
 
 export function SaveSettings(arg1) {
   return window['go']['main']['App']['SaveSettings'](arg1);
+}
+
+export function SaveUpdateRecord(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SaveUpdateRecord'](arg1, arg2, arg3, arg4);
+}
+
+export function SearchSessions(arg1) {
+  return window['go']['main']['App']['SearchSessions'](arg1);
 }
 
 export function SelectFile() {
@@ -306,6 +454,10 @@ export function SetPreferredEditor(arg1) {
   return window['go']['main']['App']['SetPreferredEditor'](arg1);
 }
 
+export function SilentDownload(arg1) {
+  return window['go']['main']['App']['SilentDownload'](arg1);
+}
+
 export function StartTaskScheduler(arg1) {
   return window['go']['main']['App']['StartTaskScheduler'](arg1);
 }
@@ -318,12 +470,24 @@ export function ToggleMCPServer(arg1, arg2) {
   return window['go']['main']['App']['ToggleMCPServer'](arg1, arg2);
 }
 
+export function ToggleModelConfig(arg1, arg2) {
+  return window['go']['main']['App']['ToggleModelConfig'](arg1, arg2);
+}
+
 export function ToggleTask(arg1, arg2) {
   return window['go']['main']['App']['ToggleTask'](arg1, arg2);
 }
 
 export function UnarchiveSession(arg1) {
   return window['go']['main']['App']['UnarchiveSession'](arg1);
+}
+
+export function UpdateModelConfig(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
+  return window['go']['main']['App']['UpdateModelConfig'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+}
+
+export function UpdateProjectInstructions(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProjectInstructions'](arg1, arg2);
 }
 
 export function UpdateSetting(arg1, arg2) {
@@ -336,6 +500,18 @@ export function UpdateSkill(arg1, arg2, arg3, arg4) {
 
 export function UpdateSlashCommand(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateSlashCommand'](arg1, arg2, arg3, arg4);
+}
+
+export function UpdateTask(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UpdateTask'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ValidateCommand(arg1) {
+  return window['go']['main']['App']['ValidateCommand'](arg1);
+}
+
+export function ValidatePath(arg1, arg2) {
+  return window['go']['main']['App']['ValidatePath'](arg1, arg2);
 }
 
 export function WindowClose() {

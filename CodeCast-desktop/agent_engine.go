@@ -209,20 +209,21 @@ func (pool *AgentPool) runAgentLoop(agent *SubAgent) {
 		{Role: "user", Content: "请开始执行任务。"},
 	}
 
-	// Get API key
-	apiKey := pool.app.settings.APIKey
-	if apiKey == "" {
-		apiKey = pool.app.config.Model.APIKey
-	}
-	if apiKey == "" {
+	// Get API credentials
+	pool.app.mu.Lock()
+	creds, credErr := pool.app.resolveCredentialsLocked("")
+	pool.app.mu.Unlock()
+	if credErr != nil {
 		pool.mu.Lock()
 		agent.Status = AgentStatusFailed
-		agent.Error = "API Key 未配置"
+		agent.Error = credErr.Error()
 		agent.UpdatedAt = time.Now()
 		pool.mu.Unlock()
 		pool.emitEvent(agent, "status")
 		return
 	}
+	apiKey := creds.APIKey
+	apiURL := creds.APIURL
 
 	// Main execution loop
 	for {
@@ -250,7 +251,7 @@ func (pool *AgentPool) runAgentLoop(agent *SubAgent) {
 		}
 
 		// Call LLM
-		resp, err := pool.callLLM(agentCtx, agent, apiKey)
+		resp, err := pool.callLLM(agentCtx, agent, apiKey, apiURL)
 		if err != nil {
 			// Check if it's a context cancellation
 			if agentCtx.Err() != nil {
@@ -340,8 +341,8 @@ func getLastAssistantContent(messages []AgentMessage) string {
 
 // ==================== LLM API Call ====================
 
-// callLLM calls the DeepSeek API with the agent's message history
-func (pool *AgentPool) callLLM(ctx context.Context, agent *SubAgent, apiKey string) (*LLMResponse, error) {
+// callLLM calls the LLM API with the agent's message history
+func (pool *AgentPool) callLLM(ctx context.Context, agent *SubAgent, apiKey string, apiURL string) (*LLMResponse, error) {
 	// Build API messages array
 	apiMessages := make([]map[string]interface{}, 0, len(agent.Messages))
 
@@ -402,7 +403,7 @@ func (pool *AgentPool) callLLM(ctx context.Context, agent *SubAgent, apiKey stri
 	}
 
 	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", pool.app.llmConfig.APIURL+"/chat/completions", bytes.NewReader(bodyBytes))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL+"/chat/completions", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}

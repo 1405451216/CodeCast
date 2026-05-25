@@ -1,0 +1,340 @@
+/* ===== Design System - Typography & Spacing ===== */
+
+/* ===== 1. Font Family System ===== */
+:root {
+    /* Display fonts - for headings and large text */
+    --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    
+    /* Body fonts - for UI elements and content */
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    
+    /* Mono fonts - for code */
+    --font-mono: 'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace;
+}
+
+/* Apply font families */
+body,
+.font-body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6,
+.font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+}
+
+code, pre, .font-mono {
+    font-family: var(--font-mono);
+    font-feature-settings: 'liga' 1, 'calt' 1;  /* Enable ligatures */
+}
+
+/* ===== 2. Type Scale (Major Third - 1.25) ===== */
+:root {
+    /* Font sizes */
+    --text-xs: 0.75rem;      /* 12px */
+    --text-sm: 0.875rem;     /* 14px */
+    --text-base: 1rem;       /* 16px */
+    --text-lg: 1.125rem;     /* 18px */
+    --text-xl: 1.25rem;      /* 20px */
+    --text-2xl: 1.5rem;      /* 24px */
+    --text-3xl: 1.875rem;    /* 30px */
+    --text-4xl: 2.25rem;     /* 36px */
+    --text-5xl: 3rem;        /* 48px */
+    
+    /* Font weights */
+    --font-normal: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+    --font-bold: 700;
+    --font-extrabold: 800;
+    
+    /* Line heights */
+    --leading-none: 1;
+    --leading-tight: 1.25;
+    --leading-snug: 1.375;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.625;
+    --leading-loose: 2;
+    
+    /* Letter spacing */
+    --tracking-tighter: -0.05em;
+    --tracking-tight: -0.025em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.025em;
+    --tracking-wider: 0.05em;
+    --tracking-widest: 0.1em;
+}
+
+/* Typography utility classes */
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+.text-2xl { font-size: var(--text-2xl); }
+.text-3xl { font-size: var(--text-3xl); }
+.text-4xl { font-size: var(--text-4xl); }
+.text-5xl { font-size: var(--text-5xl); }
+
+.font-normal { font-weight: var(--font-normal); }
+.font-medium { font-weight: var(--font-medium); }
+.font-semibold { font-weight: var(--font-semibold); }
+.font-bold { font-weight: var(--font-bold); }
+.font-extrabold { font-weight: var(--font-extrabold); }
+
+.leading-none { line-height: var(--leading-none); }
+.leading-tight { line-height: var(--leading-tight); }
+.leading-snug { line-height: var(--leading-snug); }
+.leading-normal { line-height: var(--leading-normal); }
+.leading-relaxed { line-height: var(--leading-relaxed); }
+.leading-loose { line-height: var(--leading-loose); }
+
+.tracking-tighter { letter-spacing: var(--tracking-tighter); }
+.tracking-tight { letter-spacing: var(--tracking-tight); }
+.tracking-normal { letter-spacing: var(--tracking-normal); }
+.tracking-wide { letter-spacing: var(--tracking-wide); }
+.tracking-wider { letter-spacing: var(--tracking-wider); }
+.tracking-widest { letter-spacing: var(--tracking-widest); }
+
+/* ===== 3. Spacing Scale (8px Base) ===== */
+:root {
+    --space-0: 0;
+    --space-px: 1px;
+    --space-0-5: 2px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-7: 28px;
+    --space-8: 32px;
+    --space-9: 36px;
+    --space-10: 40px;
+    --space-11: 44px;
+    --space-12: 48px;
+    --space-14: 56px;
+    --space-16: 64px;
+    --space-20: 80px;
+    --space-24: 96px;
+    --space-32: 128px;
+}
+
+/* Spacing utility classes */
+.m-0 { margin: var(--space-0); }
+.m-1 { margin: var(--space-1); }
+.m-2 { margin: var(--space-2); }
+.m-3 { margin: var(--space-3); }
+.m-4 { margin: var(--space-4); }
+.m-5 { margin: var(--space-5); }
+.m-6 { margin: var(--space-6); }
+.m-8 { margin: var(--space-8); }
+.m-10 { margin: var(--space-10); }
+.m-12 { margin: var(--space-12); }
+
+.p-0 { padding: var(--space-0); }
+.p-1 { padding: var(--space-1); }
+.p-2 { padding: var(--space-2); }
+.p-3 { padding: var(--space-3); }
+.p-4 { padding: var(--space-4); }
+.p-5 { padding: var(--space-5); }
+.p-6 { padding: var(--space-6); }
+.p-8 { padding: var(--space-8); }
+.p-10 { padding: var(--space-10); }
+.p-12 { padding: var(--space-12); }
+
+.gap-1 { gap: var(--space-1); }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+.gap-5 { gap: var(--space-5); }
+.gap-6 { gap: var(--space-6); }
+.gap-8 { gap: var(--space-8); }
+
+/* ===== 4. Color System Enhancements ===== */
+:root {
+    /* Primary accent palette */
+    --accent-50: #f5f3ff;
+    --accent-100: #ede9fe;
+    --accent-200: #ddd6fe;
+    --accent-300: #c4b5fd;
+    --accent-400: #a78bfa;
+    --accent-500: #7c7cff;   /* Main accent */
+    --accent-600: #6d5cff;
+    --accent-700: #5b4df5;
+    --accent-800: #4c3ed9;
+    --accent-900: #3d33a7;
+    
+    /* Secondary accent (Blue) */
+    --blue-50: #eff6ff;
+    --blue-100: #dbeafe;
+    --blue-200: #bfdbfe;
+    --blue-300: #93c5fd;
+    --blue-400: #60a5fa;
+    --blue-500: #64d2ff;   /* Secondary accent */
+    --blue-600: #3b82f6;
+    --blue-700: #2563eb;
+    --blue-800: #1d4ed8;
+    --blue-900: #1e40af;
+    
+    /* Semantic colors with shades */
+    --success-light: rgba(52, 211, 153, 0.15);
+    --success-default: #34d399;
+    --success-dark: #10b981;
+    
+    --warning-light: rgba(251, 191, 36, 0.15);
+    --warning-default: #fbbf24;
+    --warning-dark: #d97706;
+    
+    --error-light: rgba(248, 113, 113, 0.15);
+    --error-default: #f87171;
+    --error-dark: #dc2626;
+    
+    --info-light: rgba(96, 165, 250, 0.15);
+    --info-default: #60a5fa;
+    --info-dark: #2563eb;
+    
+    /* Text color scale */
+    --text-primary: #f0f0f0;
+    --text-secondary: #b8b8b8;
+    --text-tertiary: #888888;
+    --text-muted: #666666;
+    --text-disabled: #444444;
+    --text-inverse: #1a1a1a;
+    
+    /* Border color scale */
+    --border-subtle: #252525;
+    --border-default: #2e2e2e;
+    --border-strong: #3a3a3a;
+    --border-focus: var(--accent);
+    --border-error: var(--error-default);
+}
+
+/* Color utility classes */
+.text-accent { color: var(--accent); }
+.text-accent-hover { color: var(--accent-hover); }
+.text-success { color: var(--success-default); }
+.text-warning { color: var(--warning-default); }
+.text-error { color: var(--error-default); }
+.text-info { color: var(--info-default); }
+.text-muted { color: var(--text-muted); }
+.text-disabled { color: var(--text-disabled); }
+
+.bg-accent { background-color: var(--accent); }
+.bg-success { background-color: var(--success-bg); }
+.bg-warning { background-color: var(--warning-bg); }
+.bg-error { background-color: var(--error-bg); }
+.bg-info { background-color: var(--info-bg); }
+
+/* ===== 5. Enhanced Gradient Library ===== */
+:root {
+    /* Primary gradients */
+    --gradient-primary: linear-gradient(135deg, var(--accent), #a78bfa);
+    --gradient-secondary: linear-gradient(135deg, #64d2ff, #60a5fa);
+    --gradient-warm: linear-gradient(135deg, #f87171, #fbbf24);
+    --gradient-cool: linear-gradient(135deg, #64d2ff, #a78bfa);
+    
+    /* Subtle gradients */
+    --gradient-subtle-primary: linear-gradient(135deg, rgba(124,124,255,0.08), rgba(167,139,250,0.04));
+    --gradient-subtle-secondary: linear-gradient(135deg, rgba(100,210,255,0.08), rgba(96,165,250,0.04));
+    
+    /* Mesh gradients for backgrounds */
+    --gradient-mesh-dark: 
+        radial-gradient(at 40% 20%, rgba(124,124,255,0.15) 0px, transparent 50%),
+        radial-gradient(at 80% 0%, rgba(100,210,255,0.1) 0px, transparent 50%),
+        radial-gradient(at 0% 50%, rgba(167,139,250,0.1) 0px, transparent 50%),
+        radial-gradient(at 80% 50%, rgba(248,113,113,0.05) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(52,211,153,0.05) 0px, transparent 50%);
+        
+    --gradient-mesh-light:
+        radial-gradient(at 40% 20%, rgba(90,90,238,0.1) 0px, transparent 50%),
+        radial-gradient(at 80% 0%, rgba(96,165,250,0.08) 0px, transparent 50%),
+        radial-gradient(at 0% 50%, rgba(139,92,246,0.08) 0px, transparent 50%);
+    
+    /* Glassmorphism enhancements */
+    --glass-strong: rgba(30, 30, 35, 0.95);
+    --glass-medium: rgba(30, 30, 35, 0.8);
+    --glass-light: rgba(30, 30, 35, 0.6);
+    --glass-ultra-light: rgba(255, 255, 255, 0.03);
+}
+
+/* Gradient text utility */
+.gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.gradient-text-cool {
+    background: var(--gradient-cool);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* ===== 6. Shadow System Enhancement ===== */
+:root {
+    /* Colored shadows */
+    --shadow-accent: 0 4px 20px rgba(124, 124, 255, 0.25);
+    --shadow-accent-lg: 0 8px 32px rgba(124, 124, 255, 0.35);
+    --shadow-blue: 0 4px 20px rgba(100, 210, 255, 0.2);
+    --shadow-success: 0 4px 20px rgba(52, 211, 153, 0.2);
+    --shadow-error: 0 4px 20px rgba(248, 113, 113, 0.2);
+    
+    /* Inner shadows */
+    --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-inner-strong: inset 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== 7. Border Radius Utilities ===== */
+.rounded-none { border-radius: 0; }
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.rounded-full { border-radius: 9999px; }
+
+/* ===== 8. Transition Utilities ===== */
+.transition-none { transition: none; }
+.transition-all { transition: all 0.15s ease; }
+.transition-fast { transition: all 0.1s ease; }
+.transition-normal { transition: all 0.2s ease; }
+.transition-slow { transition: all 0.3s ease; }
+.transition-colors { transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
+.transition-opacity { transition: opacity 0.15s ease; }
+.transition-transform { transition: transform 0.2s ease; }
+.transition-shadow { transition: box-shadow 0.2s ease; }
+
+/* ===== 9. Visibility & Display ===== */
+.visible { visibility: visible; }
+.invisible { visibility: hidden; }
+.block { display: block; }
+.inline-block { display: inline-block; }
+.inline { display: inline; }
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.grid { display: grid; }
+.hidden { display: none; }
+
+/* ===== 10. Position & Z-index ===== */
+.relative { position: relative; }
+.absolute { position: absolute; }
+.fixed { position: fixed; }
+.sticky { position: sticky; }
+.static { position: static; }
+
+.z-0 { z-index: 0; }
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-30 { z-index: 30; }
+.z-40 { z-index: 40; }
+.z-50 { z-index: 50; }
+.z-modal { z-index: 1000; }
+.z-popover { z-index: 1100; }
+.z-tooltip { z-index: 1200; }
+.z-max { z-index: 9999; }

@@ -3,13 +3,15 @@ module github.com/example/codecast
 go 1.25.0
 
 require (
+	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3
 	github.com/google/uuid v1.6.0
 	github.com/wailsapp/wails/v2 v2.12.0
-	modernc.org/sqlite v1.50.1
+	golang.org/x/sync v0.20.0
+	gopkg.in/yaml.v3 v3.0.1
+	modernc.org/sqlite v1.37.0
 )
 
 require (
-	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

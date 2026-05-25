@@ -2,11 +2,72 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>CodeCast</title>
+    
+    <!-- PWA: Web App Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- PWA: Theme Color -->
+    <meta name="theme-color" content="#7c7cff" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#7c7cff" media="(prefers-color-scheme: light)">
+    
+    <!-- PWA: Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CodeCast">
+    
+    <!-- PWA: Microsoft Tile -->
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
+    
+    <!-- PWA: Description -->
+    <meta name="description" content="AI驱动的智能代码助手 - CodeCast">
+    <meta name="application-name" content="CodeCast">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Performance: Preconnect to font sources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Performance: Preload critical fonts -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" as="style">
+    
+    <!-- Critical CSS inline (optional for above-the-fold content) -->
+    <style>
+        /* Minimal critical styles to prevent FOUC */
+        #root {
+            min-height: 100vh;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #root.loaded {
+            opacity: 1;
+        }
+        .loading-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg-primary, #1a1a2e);
+            color: var(--text-secondary, #888);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+    </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root">
+        <div class="loading-initial">正在加载 CodeCast...</div>
+    </div>
     <script type="module" src="./src/main.tsx"></script>
+    <script>
+        // Mark app as loaded after React mounts
+        window.addEventListener('load', () => {
+            const root = document.getElementById('root');
+            if (root) root.classList.add('loaded');
+        });
+    </script>
 </body>
 </html>

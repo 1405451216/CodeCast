@@ -215,6 +215,8 @@ func (pool *AgentPool) toolRunCommand(agent *SubAgent, argsJSON string) ToolResu
 		return ToolResult{Content: fmt.Sprintf("命令被拒绝: %v", err), IsError: true}
 	}
 
+	args.Command = sanitizeCommandForExecution(args.Command)
+
 	workDir := args.WorkingDir
 	if workDir == "" {
 		pool.app.mu.Lock()

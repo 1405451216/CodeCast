@@ -94,29 +94,36 @@ func (a *App) assembleSections(sections []ContextSection) string {
 	return strings.Join(parts, "\n\n")
 }
 
+// estimateTokens 估算文本的 token 数量。
+// 对英文文本约 4 字符/token，对中文约 1.5-2 字符/token。
+// 混合文本按 ASCII 比例加权。
 func estimateTokens(text string) int {
 	runes := []rune(text)
-	var tokens int
+	if len(runes) == 0 {
+		return 0
+	}
+
+	asciiCount := countASCII(text)
+	cjkCount := 0
 	for _, r := range runes {
 		if r >= 0x4E00 && r <= 0x9FFF ||
 			r >= 0x3400 && r <= 0x4DBF ||
 			r >= 0x3000 && r <= 0x303F ||
 			r >= 0xFF00 && r <= 0xFFEF {
-			tokens += 1
-		} else if r <= 127 {
-			tokens += 1
-		} else {
-			tokens += 1
+			cjkCount++
 		}
 	}
+
+	// ASCII 部分：约 4 字符 = 1 token
+	// CJK 部分：约 1 字符 = 1.5 token (大部分汉字在 tokenizer 中占 1-2 token)
+	// 其他 Unicode：约 2 字符 = 1 token
+	otherCount := len(runes) - asciiCount - cjkCount
+	tokens := asciiCount/4 + cjkCount*3/2 + otherCount/2
+
 	if tokens == 0 {
-		return utf8.RuneCountInString(text) * 3 / 2
+		return 1
 	}
-	asciiRatio := float64(countASCII(text)) / float64(len(runes))
-	if asciiRatio > 0.8 {
-		return len(runes) / 4
-	}
-	return tokens * 3 / 2
+	return tokens
 }
 
 func countASCII(text string) int {
@@ -200,14 +207,15 @@ func (a *App) compactHistory(msgs []Message, keepRecent int) ([]Message, string)
 
 func (a *App) generateCompactionSummary(msgs []Message) string {
 	a.mu.Lock()
-	apiKey := a.settings.APIKey
-	apiURL := a.llmConfig.APIURL
-	modelName := a.config.Model.Model
+	creds, credErr := a.resolveCredentialsLocked("")
 	a.mu.Unlock()
 
-	if apiKey == "" {
+	if credErr != nil {
 		return fallbackSummary(msgs)
 	}
+	apiKey := creds.APIKey
+	apiURL := creds.APIURL
+	modelName := creds.Model
 
 	var sb strings.Builder
 	sb.WriteString("请将以下对话历史压缩为一段简洁的摘要。保留：\n")
@@ -238,6 +246,10 @@ func (a *App) generateCompactionSummary(msgs []Message) string {
 	flashModel := modelName
 	if strings.Contains(modelName, "deepseek") {
 		flashModel = "deepseek-v4-flash"
+	} else if strings.Contains(modelName, "moonshot") {
+		flashModel = "moonshot-v1-auto"
+	} else if strings.Contains(modelName, "glm") {
+		flashModel = "glm-4-flash"
 	} else if strings.Contains(modelName, "gpt") {
 		flashModel = "gpt-4o-mini"
 	}
@@ -247,7 +259,7 @@ func (a *App) generateCompactionSummary(msgs []Message) string {
 		{Role: "user", Content: sb.String()},
 	}
 
-	resp, err := a.callAPIEx(reqMessages, apiKey, apiURL, flashModel, false, false, "_compaction")
+	resp, err := a.callAPIEx(reqMessages, apiKey, apiURL, flashModel, false, false, "_compaction", nil)
 	if err != nil {
 		slog.Warn("摘要生成失败，使用降级方案", "error", err)
 		return fallbackSummary(msgs)

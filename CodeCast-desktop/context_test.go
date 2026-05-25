@@ -315,7 +315,7 @@ func TestCompactHistoryAtThreshold(t *testing.T) {
 
 func TestCompactHistoryOverThreshold(t *testing.T) {
 	app := &App{
-		settings:  &Settings{APIKey: ""},
+		settings:  &Settings{},
 		llmConfig: LLMProviderConfig{APIURL: "https://api.test.com/v1", Model: "test"},
 		config:     &Config{App: AppConfig{Name: "CodeCast"}, Model: ModelConfig{Model: "test-model"}},
 	}
@@ -339,7 +339,7 @@ func TestCompactHistoryOverThreshold(t *testing.T) {
 
 func TestCompactHistoryPreservesRecentOrder(t *testing.T) {
 	app := &App{
-		settings:  &Settings{APIKey: ""},
+		settings:  &Settings{},
 		llmConfig: LLMProviderConfig{APIURL: "https://api.test.com/v1", Model: "test"},
 		config:     &Config{App: AppConfig{Name: "CodeCast"}, Model: ModelConfig{Model: "test"}},
 	}

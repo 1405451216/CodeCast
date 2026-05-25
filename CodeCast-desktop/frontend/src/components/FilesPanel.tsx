@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAppStore, TodoItem, ChangedFile, AppState } from '../store';
+import type { SubAgent } from '../store/types';
 import { shallow } from 'zustand/shallow';
 
 // ─── Status helpers ─────────────────────────────────────────────
@@ -48,15 +49,39 @@ const fileStatusClass = (status: ChangedFile['status']): string => {
 
 // ─── Component ─────────────────────────────────────────────────
 
+const agentStatusIcon = (status: SubAgent['status']) => {
+  switch (status) {
+    case 'running':
+      return <span className="fp-agent-icon running">🔄</span>;
+    case 'queued':
+      return <span className="fp-agent-icon queued">⏳</span>;
+    case 'completed':
+      return <span className="fp-agent-icon completed">✅</span>;
+    case 'failed':
+      return <span className="fp-agent-icon failed">❌</span>;
+    case 'cancelled':
+      return <span className="fp-agent-icon cancelled">⛔</span>;
+    default:
+      return null;
+  }
+};
+
 const FilesPanel: React.FC<{ style?: React.CSSProperties }> = ({ style }) => {
   const filesPanelVisible = useAppStore((s: AppState) => s.filesPanelVisible);
   const todoItems = useAppStore((s: AppState) => s.todoItems, shallow);
   const contextCompression = useAppStore((s: AppState) => s.contextCompression);
   const changedFiles = useAppStore((s: AppState) => s.changedFiles, shallow);
+  const agents = useAppStore((s) => s.agents, shallow) as SubAgent[];
+  const currentSessionId = useAppStore((s: AppState) => s.currentSessionId);
 
   if (!filesPanelVisible) {
     return null;
   }
+
+  // Filter agents for current session
+  const sessionAgents = agents.filter((a) => a.sessionId === currentSessionId);
+  const activeAgents = sessionAgents.filter((a) => a.status === 'running' || a.status === 'queued');
+  const completedAgents = sessionAgents.filter((a) => a.status === 'completed' || a.status === 'failed' || a.status === 'cancelled');
 
   // Calculate TODO progress
   const totalTodos = todoItems.length;
@@ -101,7 +126,44 @@ const FilesPanel: React.FC<{ style?: React.CSSProperties }> = ({ style }) => {
         </div>
       </div>
 
-      {/* ─── Section 2: Context Compression ─── */}
+      {/* ─── Section 2: Sub-tasks (Agents) ─── */}
+      {sessionAgents.length > 0 && (
+        <div className="fp-section fp-section-agents">
+          <div className="fp-section-header">
+            <span className="fp-section-title">子任务</span>
+            <span className="fp-section-badge">
+              {completedAgents.length}/{sessionAgents.length}
+            </span>
+          </div>
+          <div className="fp-section-body">
+            {activeAgents.length > 0 && (
+              <div className="fp-agents-group">
+                {activeAgents.map((agent) => (
+                  <div key={agent.id} className="fp-agent-item">
+                    {agentStatusIcon(agent.status)}
+                    <span className="fp-agent-title">{agent.title}</span>
+                    <span className="fp-agent-progress">
+                      {agent.status === 'running' ? `${agent.turn}/${agent.maxTurns}` : '等待中'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {completedAgents.length > 0 && (
+              <div className="fp-agents-group">
+                {completedAgents.map((agent) => (
+                  <div key={agent.id} className="fp-agent-item done">
+                    {agentStatusIcon(agent.status)}
+                    <span className="fp-agent-title">{agent.title}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Section 3: Context Compression ─── */}
       <div className="fp-section fp-section-context">
         <div className="fp-section-header">
           <span className="fp-section-title">上下文</span>
@@ -126,7 +188,7 @@ const FilesPanel: React.FC<{ style?: React.CSSProperties }> = ({ style }) => {
         </div>
       </div>
 
-      {/* ─── Section 3: Changed Files ─── */}
+      {/* ─── Section 4: Changed Files ─── */}
       <div className="fp-section fp-section-files">
         <div className="fp-section-header">
           <span className="fp-section-title">更改的文件</span>

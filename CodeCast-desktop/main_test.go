@@ -544,7 +544,7 @@ func TestIsPathAllowed(t *testing.T) {
 func TestIsPathAllowedNoProjects(t *testing.T) {
 	app := &App{
 		projects: []Project{},
-		mu:       sync.Mutex{},
+		mu:       sync.RWMutex{},
 	}
 
 	err := app.isPathAllowed("/some/path")
@@ -556,16 +556,10 @@ func TestIsPathAllowedNoProjects(t *testing.T) {
 func TestSyncSettingsToConfig(t *testing.T) {
 	app := NewApp()
 
-	originalKey := app.settings.APIKey
-	originalBaseURL := app.config.Model.BaseURL
-	originalModel := app.config.Model.Model
-
-	app.settings.APIKey = "test-api-key-12345"
+	// Test default provider (deepseek) sync
+	app.settings.LLMProvider = "deepseek"
 	app.syncSettingsToConfig()
 
-	if app.config.Model.APIKey != "test-api-key-12345" {
-		t.Error("APIKey not synced to config")
-	}
 	if app.config.Model.BaseURL != "https://api.deepseek.com" {
 		t.Errorf("Expected BaseURL 'https://api.deepseek.com', got '%s'", app.config.Model.BaseURL)
 	}
@@ -573,10 +567,13 @@ func TestSyncSettingsToConfig(t *testing.T) {
 		t.Errorf("Expected Model 'deepseek-v4-flash', got '%s'", app.config.Model.Model)
 	}
 
-	app.settings.APIKey = originalKey
+	// Test switching to kimi provider
+	app.settings.LLMProvider = "kimi"
 	app.syncSettingsToConfig()
-	app.config.Model.BaseURL = originalBaseURL
-	app.config.Model.Model = originalModel
+
+	if app.config.Model.BaseURL != "https://api.moonshot.cn/v1" {
+		t.Errorf("Expected BaseURL 'https://api.moonshot.cn/v1', got '%s'", app.config.Model.BaseURL)
+	}
 }
 
 func TestGetConfig(t *testing.T) {
@@ -1268,14 +1265,23 @@ func TestEncryptionIntegration(t *testing.T) {
 	settings := Settings{
 		WorkMode: "daily",
 		Theme:   "dark",
-		APIKey:  "sk-secure-api-key-for-testing",
+		ModelConfigs: []ModelConfigItem{
+			{
+				ID:       "mc_test",
+				Provider: "deepseek",
+				Model:    "deepseek-chat",
+				APIKey:   "sk-secure-api-key-for-testing",
+				Enabled:  true,
+			},
+		},
 	}
 
-	encryptedKey, err := encryptAPIKey(settings.APIKey, key)
+	// Encrypt the model config API key
+	encryptedKey, err := encryptAPIKey(settings.ModelConfigs[0].APIKey, key)
 	if err != nil {
 		t.Fatalf("Failed to encrypt API key: %v", err)
 	}
-	settings.APIKey = encryptedKey
+	settings.ModelConfigs[0].APIKey = encryptedKey
 
 	data, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
@@ -1297,11 +1303,11 @@ func TestEncryptionIntegration(t *testing.T) {
 		t.Fatalf("Failed to unmarshal settings: %v", err)
 	}
 
-	if !isEncrypted(loadedSettings.APIKey) {
+	if !isEncrypted(loadedSettings.ModelConfigs[0].APIKey) {
 		t.Error("API key should be encrypted in file")
 	}
 
-	decryptedKey, err := decryptAPIKey(loadedSettings.APIKey, key)
+	decryptedKey, err := decryptAPIKey(loadedSettings.ModelConfigs[0].APIKey, key)
 	if err != nil {
 		t.Fatalf("Failed to decrypt API key: %v", err)
 	}
@@ -1315,10 +1321,19 @@ func TestBackwardCompatibilityMigration(t *testing.T) {
 	tmpDir := t.TempDir()
 	settingsPath := filepath.Join(tmpDir, "settings.json")
 
+	// Simulate old settings with unencrypted model config API key
 	unencryptedSettings := `{
 		"work_mode": "daily",
 		"theme": "dark",
-		"api_key": "sk-old-unencrypted-key"
+		"model_configs": [
+			{
+				"id": "mc_old",
+				"provider": "deepseek",
+				"model": "deepseek-chat",
+				"api_key": "sk-old-unencrypted-key",
+				"enabled": true
+			}
+		]
 	}`
 
 	err := os.WriteFile(settingsPath, []byte(unencryptedSettings), 0644)
@@ -1331,12 +1346,12 @@ func TestBackwardCompatibilityMigration(t *testing.T) {
 	app.encryptionKey, _ = generateKey()
 	app.loadSettings()
 
-	if app.settings.APIKey != "sk-old-unencrypted-key" {
-		t.Errorf("API key should be loaded as-is for migration, got '%s'", app.settings.APIKey)
+	if app.settings.ModelConfigs[0].APIKey != "sk-old-unencrypted-key" {
+		t.Errorf("API key should be loaded as-is for migration, got '%s'", app.settings.ModelConfigs[0].APIKey)
 	}
 
-	if !migrationNeeded {
-		t.Error("migrationNeeded should be set to true for unencrypted keys")
+	if !app.migrationPending {
+		t.Error("migrationPending should be set to true for unencrypted keys")
 	}
 
 	err = app.saveSettingsToFile()
@@ -1355,7 +1370,7 @@ func TestBackwardCompatibilityMigration(t *testing.T) {
 		t.Fatalf("Failed to unmarshal saved settings: %v", err)
 	}
 
-	if !isEncrypted(savedSettings.APIKey) {
+	if !isEncrypted(savedSettings.ModelConfigs[0].APIKey) {
 		t.Error("After migration, API key should be encrypted in file")
 	}
 }

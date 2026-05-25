@@ -1,0 +1,57 @@
+.pwa-offline-banner {
+  animation: slideDown 0.3s ease-out;
+}
+
+.pwa-install-banner {
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.pwa-install-banner button:first-child {
+  transition: all 0.2s ease;
+}
+
+.pwa-install-banner button:first-child:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 124, 255, 0.35);
+}
+
+.pwa-install-banner button:first-child:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 639px) {
+  .pwa-install-banner {
+    bottom: 70px !important;
+    max-width: calc(100vw - 32px) !important;
+    border-radius: 14px !important;
+    padding: 16px 20px !important;
+  }
+}
+
+@media (display-mode: standalone) {
+  .pwa-install-banner {
+    display: none !important;
+  }
+}

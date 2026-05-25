@@ -155,6 +155,30 @@ const InputArea = forwardRef<InputAreaHandle, InputAreaProps>(({ onSend, placeho
   );
 
   const handleSelectSlashCommand = useCallback((cmd: SlashCommand) => {
+    // 处理内置斜杠命令
+    const builtinHandlers: Record<string, () => void> = {
+      '/theme': () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('codecast_theme', next);
+        api.updateSetting('theme', next).catch((e) => console.error('[slash] 切换主题失败:', e));
+      },
+      '/clear': () => {
+        setText('');
+        setSlashMenuVisible(false);
+        // 触发清空对话
+        window.dispatchEvent(new CustomEvent('clear-session'));
+      },
+    };
+
+    const handler = builtinHandlers[cmd.name];
+    if (handler) {
+      handler();
+      return;
+    }
+
+    // 自定义命令：填充 fillText 到输入框
     const fill = cmd.fill_text || ('/' + cmd.name) || '';
     setText(fill + ' ');
     setSlashMenuVisible(false);

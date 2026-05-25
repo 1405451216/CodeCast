@@ -21,6 +21,10 @@ export interface SettingsData {
   font_size?: string;
   api_key?: string;
   context_1m?: boolean;
+  long_context?: boolean;
+  llm_provider?: string;
+  llm_api_url?: string;
+  llm_model?: string;
   personality?: string;
   custom_instructions?: string;
   memory_self?: boolean;

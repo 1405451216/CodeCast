@@ -28,6 +28,8 @@ export function formatContent(content: string): string {
       'tr', 'th', 'td', 'hr', 'del', 'sup', 'sub', 'span', 'div',
     ],
     ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'rel'],
+    // Block javascript: and data: URI schemes to prevent XSS
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|ftp):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
     // Force links to open in new tab
     ADD_ATTR: ['target'],
   });

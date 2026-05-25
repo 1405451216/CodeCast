@@ -30,11 +30,15 @@
     font-size: 12px;
     color: var(--text-dim);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.12s ease;
 }
 
 .model-selector:hover {
     background: var(--sidebar-hover);
+}
+
+.model-selector:active {
+    transform: scale(0.95);
 }
 
 .model-dropdown-wrap {
@@ -101,19 +105,94 @@
     position: absolute;
     bottom: calc(100% + 4px);
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(6px);
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 4px;
-    min-width: 180px;
+    min-width: 200px;
+    max-height: 320px;
+    overflow-y: auto;
     box-shadow: var(--shadow);
     z-index: 100;
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    pointer-events: none;
 }
 
 .model-dropdown-menu.show {
-    display: block;
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+/* Provider tabs in model selector */
+.model-provider-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 4px 4px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+}
+
+.model-provider-tab {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-align: center;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.model-provider-tab:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
+}
+
+.model-provider-tab.active {
+    background: var(--accent);
+    color: var(--btn-primary-text);
+}
+
+.model-list {
+    padding: 4px 0;
+}
+
+.model-list-empty {
+    padding: 16px 12px;
+    text-align: center;
+}
+
+.model-list-empty-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+
+.model-list-empty-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.model-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 6px 10px 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.model-group + .model-group {
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+    padding-top: 4px;
 }
 
 .model-option {

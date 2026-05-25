@@ -21,7 +21,7 @@ const keys = [];
 const arrayKeys = [];
 let inSettings = false;
 
-const arrayTypePatterns = ['[]MCPServer', '[]EnvVar', '[]SlashCommand', '[]string'];
+const arrayTypePatterns = ['[]MCPServer', '[]EnvVar', '[]SlashCommand', '[]string', '[]ModelConfigItem'];
 
 for (const line of src.split('\n')) {
   if (line.includes('type Settings struct')) {

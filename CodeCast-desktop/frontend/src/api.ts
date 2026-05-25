@@ -60,12 +60,13 @@ interface GoAppMethods {
   GetNoProjectMode(): Promise<boolean>;
   SetCurrentProject(id: string): Promise<void>;
   GetCurrentProject(): Promise<GoProject>;
+  UpdateProjectInstructions(id: string, instructions: string): Promise<void>;
 
   // Files
   ListFiles(path: string): Promise<GoFileEntry[]>;
   ReadFile(path: string): Promise<string>;
   WriteFile(path: string, content: string): Promise<void>;
-  GetWorkspaceFiles(dirPath: string): Promise<string[]>;
+  GetWorkspaceFiles(dirPath: string): Promise<GoFileEntry[]>;
   ReadFileContent(filePath: string): Promise<string>;
 
   // Config
@@ -111,6 +112,17 @@ interface GoAppMethods {
   UpdateSlashCommand(id: string, name: string, description: string, fillText: string): Promise<void>;
   RemoveSlashCommand(id: string): Promise<void>;
 
+  // Providers
+  GetProviders(): Promise<ProviderPreset[]>;
+  GetProviderModels(providerId: string): Promise<string[]>;
+
+  // Model Configs
+  GetModelConfigs(): Promise<ModelConfigItem[]>;
+  AddModelConfig(name: string, provider: string, model: string, apiKey: string, apiURL: string, maxContext: number, toolRounds: number, multimodal: boolean): Promise<ModelConfigItem>;
+  UpdateModelConfig(id: string, name: string, provider: string, model: string, apiKey: string, apiURL: string, maxContext: number, toolRounds: number, multimodal: boolean): Promise<void>;
+  RemoveModelConfig(id: string): Promise<void>;
+  ToggleModelConfig(id: string, enabled: boolean): Promise<void>;
+
   // MCP Servers
   AddMCPServer(name: string, url: string): Promise<void>;
   AddMCPServerStdio(name: string, command: string, args: string[]): Promise<void>;
@@ -134,6 +146,13 @@ interface GoAppMethods {
   PopoutWindow(): Promise<void>;
   WindowSetAlwaysOnTop(onTop: boolean): Promise<void>;
 
+  // Auto-update
+  GetCurrentVersion(): Promise<string>;
+  CheckForUpdate(): Promise<UpdateInfo>;
+  DownloadUpdate(downloadURL: string): Promise<string>;
+  OpenDownloadedFile(filePath: string): Promise<void>;
+  OpenReleasePage(): Promise<void>;
+
   // File selection
   SelectFile(): Promise<string>;
   SelectMultipleFiles(): Promise<string[]>;
@@ -153,6 +172,29 @@ interface GoAppMethods {
 
   // Popout
   GetPopoutState(): Promise<PopoutState>;
+}
+
+// Provider preset interface (matches Go ProviderPreset)
+export interface ProviderPreset {
+  id: string;
+  name: string;
+  api_url: string;
+  default_model: string;
+  models: string[];
+}
+
+// Model Config item interface
+export interface ModelConfigItem {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  api_key: string;
+  api_url: string;
+  enabled: boolean;
+  max_context: number;
+  tool_rounds: number;
+  multimodal: boolean;
 }
 
 // Auxiliary result interfaces for complex return types
@@ -189,6 +231,23 @@ interface SeleniumStatus {
 interface PopoutState {
   active: boolean;
   windowId?: string;
+}
+
+// Update info from auto-updater
+export interface UpdateInfo {
+  has_update: boolean;
+  current_version: string;
+  latest_version: string;
+  release_notes: string;
+  download_url: string;
+  published_at: string;
+  file_size: number;
+}
+
+export interface UpdateProgress {
+  phase: 'checking' | 'downloading' | 'installing' | 'done' | 'error';
+  percent: number;
+  message: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +325,8 @@ export const setNoProjectMode = (enabled: boolean) => callGo('SetNoProjectMode',
 export const getNoProjectMode = () => callGo('GetNoProjectMode');
 export const setCurrentProject = (id: string) => callGo('SetCurrentProject', id);
 export const getCurrentProject = () => callGo('GetCurrentProject');
+export const updateProjectInstructions = (id: string, instructions: string) =>
+  callGo('UpdateProjectInstructions', id, instructions);
 
 // Files
 export const listFiles = (path: string) => callGo('ListFiles', path);
@@ -369,3 +430,27 @@ export const getDomainRules = () => callGo('GetDomainRules');
 
 // Popout
 export const getPopoutState = () => callGo('GetPopoutState');
+
+// Providers
+export const getProviders = () => callGo('GetProviders');
+export const getProviderModels = (providerId: string) => callGo('GetProviderModels', providerId);
+
+// Model Configs
+export const getModelConfigs = () => callGo('GetModelConfigs');
+export const addModelConfig = (
+  name: string, provider: string, model: string, apiKey: string, apiURL: string,
+  maxContext: number, toolRounds: number, multimodal: boolean
+) => callGo('AddModelConfig', name, provider, model, apiKey, apiURL, maxContext, toolRounds, multimodal);
+export const updateModelConfig = (
+  id: string, name: string, provider: string, model: string, apiKey: string, apiURL: string,
+  maxContext: number, toolRounds: number, multimodal: boolean
+) => callGo('UpdateModelConfig', id, name, provider, model, apiKey, apiURL, maxContext, toolRounds, multimodal);
+export const removeModelConfig = (id: string) => callGo('RemoveModelConfig', id);
+export const toggleModelConfig = (id: string, enabled: boolean) => callGo('ToggleModelConfig', id, enabled);
+
+// Auto-update
+export const getCurrentVersion = () => callGo('GetCurrentVersion');
+export const checkForUpdate = () => callGo('CheckForUpdate');
+export const downloadUpdate = (downloadURL: string) => callGo('DownloadUpdate', downloadURL);
+export const openDownloadedFile = (filePath: string) => callGo('OpenDownloadedFile', filePath);
+export const openReleasePage = () => callGo('OpenReleasePage');

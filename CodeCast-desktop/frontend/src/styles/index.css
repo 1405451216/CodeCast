@@ -1,5 +1,15 @@
 @import './variables.css';
 @import './base.css';
+@import './design-system.css';
+@import './accessibility.css';
+@import './skeleton.css';
+@import './responsive.css';
+@import './animations.css';
+@import './animations-enhanced.css';
+@import './command-palette.css';
+@import './theme-switcher.css';
+@import './responsive-image.css';
+@import './pwa.css';
 @import './titlebar.css';
 @import './layout.css';
 @import './sidebar.css';
@@ -12,7 +22,6 @@
 @import './preview.css';
 @import './files-panel.css';
 @import './settings.css';
-@import './animations.css';
 @import './misc.css';
 @import './plugins.css';
 @import './automation.css';
@@ -22,3 +31,24 @@
 @import './reasoning.css';
 @import './agents.css';
 @import './mode-selector.css';
+
+/* 主题切换过渡动画 */
+:root,
+[data-theme="light"],
+[data-theme="dark"],
+[data-theme="system"] {
+  transition: background-color 0.3s ease,
+              color 0.3s ease,
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+
+/* 减少动效偏好支持 */
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  [data-theme="light"],
+  [data-theme="dark"],
+  [data-theme="system"] {
+    transition: none;
+  }
+}

@@ -14,14 +14,17 @@ import (
 // ==================== Project ====================
 
 type Project struct {
-	ID   string `json:"id"`
-	Path string `json:"path"`
-	Name string `json:"name"`
+	ID               string `json:"id"`
+	Path             string `json:"path"`
+	Name             string `json:"name"`
+	CreatedAt        int64  `json:"created_at"`
+	LastAccessedAt   int64  `json:"last_accessed_at"`
+	CustomInstructions string `json:"custom_instructions,omitempty"`
 }
 
 func (a *App) GetProjects() []Project {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	result := make([]Project, len(a.projects))
 	copy(result, a.projects)
@@ -41,7 +44,15 @@ func (a *App) AddProject(path string) (Project, error) {
 	}
 
 	name := filepath.Base(path)
-	project := Project{ID: fmt.Sprintf("proj_%d", time.Now().UnixNano()), Path: path, Name: name}
+	now := time.Now().Unix()
+	project := Project{
+		ID:                 fmt.Sprintf("proj_%d", time.Now().UnixNano()),
+		Path:               path,
+		Name:               name,
+		CreatedAt:          now,
+		LastAccessedAt:     now,
+		CustomInstructions: "",
+	}
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -91,6 +102,10 @@ func (a *App) loadProjectsFromDisk() []Project {
 		projects[i].Path = filepath.Clean(projects[i].Path)
 		if projects[i].ID == "" {
 			projects[i].ID = fmt.Sprintf("proj_%d_%d", time.Now().UnixNano(), i)
+		}
+		// 兼容旧版 projects.json：缺少时间戳字段时跳过，避免前端显示 1970 年
+		if projects[i].CreatedAt == 0 {
+			projects[i].CreatedAt = projects[i].LastAccessedAt
 		}
 	}
 	return projects
@@ -357,12 +372,33 @@ func (a *App) SetCurrentProject(id string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.currentProjectID = id
+	// 更新最后访问时间
+	for i, p := range a.projects {
+		if p.ID == id {
+			a.projects[i].LastAccessedAt = time.Now().Unix()
+			break
+		}
+	}
 }
 
 func (a *App) GetCurrentProject() *Project {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.getCurrentProjectLocked()
+}
+
+// UpdateProjectInstructions 更新项目的自定义指令
+func (a *App) UpdateProjectInstructions(id, instructions string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.getCurrentProjectLocked()
+
+	for i, p := range a.projects {
+		if p.ID == id {
+			a.projects[i].CustomInstructions = instructions
+			return a.saveProjectsToDisk(a.projects)
+		}
+	}
+	return fmt.Errorf("项目不存在: %s", id)
 }
 
 // getCurrentProjectLocked does the same as GetCurrentProject but assumes caller holds a.mu.

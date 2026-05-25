@@ -131,13 +131,25 @@ func (pool *AgentPool) AcquireFileLock(absPath string) {
 }
 
 // ReleaseFileLock releases the write lock for a file path.
+// Implementation note: The mutex is unlocked BEFORE the existence check to prevent any
+// potential deadlock or lock leakage. This ensures:
+//   1. The map read (lines 137-138) is protected by the lock
+//   2. The lock is always released, regardless of whether the path exists
+//   3. No early return can cause a lock leak (unlock happens at line 139)
+//
+// Flow:
+//   - Lock → Read map → Unlock (always executes)
+//   - If exists: Unlock file lock → Lock → Delete from map → Unlock
 func (pool *AgentPool) ReleaseFileLock(absPath string) {
 	pool.fileLocksMu.Lock()
-	if lk, exists := pool.fileLocks[absPath]; exists {
-		delete(pool.fileLocks, absPath)
-		pool.fileLocksMu.Unlock()
+	lk, exists := pool.fileLocks[absPath]
+	pool.fileLocksMu.Unlock() // Lock released here - safe for both exists/non-exists paths
+
+	if exists {
 		lk.Unlock()
-	} else {
+
+		pool.fileLocksMu.Lock()
+		delete(pool.fileLocks, absPath)
 		pool.fileLocksMu.Unlock()
 	}
 }

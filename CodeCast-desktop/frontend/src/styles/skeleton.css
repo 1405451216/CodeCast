@@ -1,0 +1,331 @@
+/* ===== Skeleton Loading System ===== */
+
+/* ===== 1. Base Skeleton Animation ===== */
+@keyframes skeleton-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
+@keyframes skeleton-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--input-bg);
+    border-radius: var(--radius-sm);
+    
+    /* Shimmer effect */
+    background-image: linear-gradient(
+        90deg,
+        var(--input-bg) 0%,
+        var(--sidebar-hover) 50%,
+        var(--input-bg) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    
+    /* Pulse fallback */
+    @supports not (background-image: linear-gradient(...)) {
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
+    }
+}
+
+/* Disable animation for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .skeleton {
+        animation: none;
+        background: var(--input-bg);
+    }
+}
+
+/* ===== 2. Skeleton Variants ===== */
+
+/* Text skeleton */
+.skeleton-text {
+    height: 14px;
+    margin-bottom: 8px;
+}
+
+.skeleton-text:last-child {
+    margin-bottom: 0;
+}
+
+.skeleton-text-xs { height: 10px; width: 40%; }
+.skeleton-text-sm { height: 12px; width: 60%; }
+.skeleton-text-md { height: 14px; width: 80%; }
+.skeleton-text-lg { height: 16px; width: 95%; }
+.skeleton-text-xl { height: 18px; width: 100%; }
+
+/* Title skeleton */
+.skeleton-title {
+    height: 24px;
+    width: 50%;
+    margin-bottom: 12px;
+    border-radius: var(--radius-md);
+}
+
+/* Avatar skeleton */
+.skeleton-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.skeleton-avatar-sm { width: 28px; height: 28px; }
+.skeleton-avatar-lg { width: 48px; height: 48px; }
+
+/* Image/Thumbnail skeleton */
+.skeleton-image {
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    border-radius: var(--radius-md);
+}
+
+.skeleton-image-square {
+    padding-bottom: 100%;
+}
+
+.skeleton-image-portrait {
+    padding-bottom: 133.33%; /* 3:4 aspect ratio */
+}
+
+/* Button skeleton */
+.skeleton-button {
+    height: 36px;
+    width: 80px;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.skeleton-button-lg {
+    height: 44px;
+    width: 120px;
+}
+
+/* Input skeleton */
+.skeleton-input {
+    height: 44px;
+    width: 100%;
+    border-radius: 12px;
+}
+
+/* Card skeleton */
+.skeleton-card {
+    padding: 16px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+}
+
+/* Code block skeleton */
+.skeleton-code {
+    font-family: 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 12px;
+    background: var(--code-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+}
+
+/* ===== 3. Component-Specific Skeletons ===== */
+
+/* Message skeleton */
+.message-skeleton {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 4px 0;
+    animation: fadeInUp 0.3s ease-out both;
+}
+
+.message-skeleton .skeleton-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.message-skeleton .skeleton-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.message-skeleton .skeleton-role {
+    height: 12px;
+    width: 60px;
+    border-radius: 4px;
+}
+
+.message-skeleton .skeleton-time {
+    height: 10px;
+    width: 50px;
+    border-radius: 4px;
+    margin-left: auto;
+}
+
+/* Sidebar item skeleton */
+.sidebar-item-skeleton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+}
+
+.sidebar-item-skeleton .skeleton-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.sidebar-item-skeleton .skeleton-label {
+    height: 14px;
+    width: 70%;
+    border-radius: 4px;
+}
+
+/* Welcome card skeleton */
+.welcome-card-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--bg2);
+}
+
+.welcome-card-skeleton .skeleton-icon-large {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+}
+
+.welcome-card-skeleton .skeleton-title {
+    height: 18px;
+    width: 50%;
+}
+
+.welcome-card-skeleton .skeleton-desc {
+    height: 13px;
+    width: 80%;
+}
+
+/* Typing indicator - Enhanced */
+.typing-indicator-enhanced {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    background: var(--gradient-ai-bubble);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--glass-border);
+    max-width: fit-content;
+}
+
+.typing-indicator-enhanced .dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: typing-bounce 1.4s infinite ease-in-out;
+}
+
+.typing-indicator-enhanced .dot:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.typing-indicator-enhanced .dot:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes typing-bounce {
+    0%, 60%, 100% {
+        transform: scale(0.7);
+        opacity: 0.4;
+    }
+    30% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Loading spinner */
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.spinner-sm {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+}
+
+.spinner-lg {
+    width: 48px;
+    height: 48px;
+    border-width: 4px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--bg-rgb, 26, 26, 26), 0.8);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+}
+
+/* Progress bar skeleton */
+.progress-bar-skeleton {
+    height: 4px;
+    width: 100%;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-bar-skeleton::after {
+    content: '';
+    display: block;
+    width: 30%;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-indeterminate {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(400%);
+    }
+}

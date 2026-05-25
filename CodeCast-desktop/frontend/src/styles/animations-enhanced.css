@@ -1,0 +1,501 @@
+/* ===== Enhanced Animation System ===== */
+
+/* ===== 1. Staggered Animation Utilities ===== */
+
+/* Base stagger delays */
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 50ms; }
+.stagger-3 { animation-delay: 100ms; }
+.stagger-4 { animation-delay: 150ms; }
+.stagger-5 { animation-delay: 200ms; }
+.stagger-6 { animation-delay: 250ms; }
+.stagger-7 { animation-delay: 300ms; }
+.stagger-8 { animation-delay: 350ms; }
+.stagger-9 { animation-delay: 400ms; }
+.stagger-10 { animation-delay: 450ms; }
+
+/* ===== 2. Message List Staggered Animation ===== */
+
+#messagesList > .message {
+    opacity: 0;
+    animation: fadeInUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Auto-stagger messages (up to 10) */
+#messagesList > .message:nth-child(1) { animation-delay: 0ms; }
+#messagesList > .message:nth-child(2) { animation-delay: 40ms; }
+#messagesList > .message:nth-child(3) { animation-delay: 80ms; }
+#messagesList > .message:nth-child(4) { animation-delay: 120ms; }
+#messagesList > .message:nth-child(5) { animation-delay: 160ms; }
+#messagesList > .message:nth-child(6) { animation-delay: 200ms; }
+#messagesList > .message:nth-child(7) { animation-delay: 240ms; }
+#messagesList > .message:nth-child(8) { animation-delay: 280ms; }
+#messagesList > .message:nth-child(9) { animation-delay: 320ms; }
+#messagesList > .message:nth-child(n+10) { animation-delay: 360ms; }
+
+/* ===== 3. Welcome Page Staggered Animation ===== */
+
+.welcome-brand {
+    animation: fadeInDown 0.5s ease-out both;
+}
+
+.welcome-cards {
+    display: grid;
+    gap: 16px;
+    /* Grid columns handled by responsive.css */
+}
+
+.welcome-cards > .welcome-card {
+    opacity: 0;
+    animation: 
+        fadeInScale 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+        card-lift 0.3s ease-out 0.4s forwards;
+}
+
+.welcome-cards > .welcome-card:nth-child(1) { animation-delay: 100ms, 400ms; }
+.welcome-cards > .welcome-card:nth-child(2) { animation-delay: 200ms, 450ms; }
+.welcome-cards > .welcome-card:nth-child(3) { animation-delay: 300ms, 500ms; }
+.welcome-cards > .welcome-card:nth-child(4) { animation-delay: 400ms, 550ms; }
+.welcome-cards > .welcome-card:nth-child(5) { animation-delay: 500ms, 600ms; }
+.welcome-cards > .welcome-card:nth-child(6) { animation-delay: 600ms, 650ms; }
+
+@keyframes card-lift {
+    from {
+        transform: translateY(8px);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.welcome-input-area {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease-out both;
+    animation-delay: 350ms;
+}
+
+.welcome-recent {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease-out both;
+    animation-delay: 450ms;
+}
+
+/* ===== 4. Sidebar Staggered Animation ===== */
+
+.sidebar-items > .sidebar-item,
+.sidebar-list > .sidebar-item {
+    opacity: 0;
+    animation: slideInLeft 0.25s ease-out forwards;
+}
+
+/* Auto-stagger sidebar items */
+.sidebar-items > .sidebar-item:nth-child(1),
+.sidebar-list > .sidebar-item:nth-child(1) { animation-delay: 0ms; }
+.sidebar-items > .sidebar-item:nth-child(2),
+.sidebar-list > .sidebar-item:nth-child(2) { animation-delay: 30ms; }
+.sidebar-items > .sidebar-item:nth-child(3),
+.sidebar-list > .sidebar-item:nth-child(3) { animation-delay: 60ms; }
+.sidebar-items > .sidebar-item:nth-child(4),
+.sidebar-list > .sidebar-item:nth-child(4) { animation-delay: 90ms; }
+.sidebar-items > .sidebar-item:nth-child(5),
+.sidebar-list > .sidebar-item:nth-child(5) { animation-delay: 120ms; }
+.sidebar-items > .sidebar-item:nth-child(6),
+.sidebar-list > .sidebar-item:nth-child(6) { animation-delay: 150ms; }
+.sidebar-items > .sidebar-item:nth-child(n+7),
+.sidebar-list > .sidebar-item:nth-child(n+7) { animation-delay: 180ms; }
+
+/* ===== 5. Page Transition Animations ===== */
+
+/* Fade transition */
+.page-transition-enter {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.page-transition-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+}
+
+.page-transition-exit {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.page-transition-exit-active {
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity 0.2s ease-in, transform 0.2s ease-in;
+}
+
+/* Slide from right (for panels) */
+.panel-slide-right {
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panel-slide-right.open {
+    transform: translateX(0);
+}
+
+/* Slide from left (for sidebar on mobile) */
+.panel-slide-left {
+    transform: translateX(-100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panel-slide-left.open {
+    transform: translateX(0);
+}
+
+/* Scale up (for modals/dialogs) */
+.modal-scale-up {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.25s ease-out, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-scale-up.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Overlay fade */
+.overlay-fade {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s;
+}
+
+.overlay-fade.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ===== 6. Settings Panel Animation ===== */
+
+.settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    z-index: 999;
+}
+
+.settings-overlay:not(.hidden) {
+    animation: overlayFadeIn 0.25s ease-out both;
+}
+
+.settings-overlay.hidden {
+    animation: overlayFadeOut 0.2s ease-in both;
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes overlayFadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+.settings-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 480px;
+    max-width: 90vw;
+    background: var(--bg);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+}
+
+.settings-panel:not(.hidden) {
+    animation: slideFromRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.settings-panel.hidden {
+    animation: slideToRight 0.25s ease-in both;
+}
+
+@keyframes slideFromRight {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideToRight {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(100%);
+    }
+}
+
+/* ===== 7. Micro-interactions Enhancements ===== */
+
+/* Button press effect */
+.btn-press-effect {
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.btn-press-effect:hover {
+    transform: translateY(-1px);
+}
+
+.btn-press-effect:active {
+    transform: scale(0.96);
+}
+
+/* Ripple effect for buttons */
+.ripple-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.ripple-container::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 50%;
+    left: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ripple-container:active::after {
+    animation: ripple-effect 0.5s ease-out;
+}
+
+@keyframes ripple-effect {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+    }
+}
+
+/* Hover glow effect */
+.hover-glow {
+    position: relative;
+    transition: box-shadow 0.3s ease;
+}
+
+.hover-glow::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    border-radius: inherit;
+    opacity: 0;
+    z-index: -1;
+    filter: blur(8px);
+    transition: opacity 0.3s ease;
+}
+
+.hover-glow:hover::before {
+    opacity: 0.5;
+}
+
+/* Card hover lift */
+.card-hover {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+/* Icon rotation on hover */
+.icon-rotate-hover {
+    transition: transform 0.3s ease;
+}
+
+.icon-rotate-hover:hover {
+    transform: rotate(90deg);
+}
+
+/* Text gradient animation */
+.text-gradient-animate {
+    background: linear-gradient(
+        135deg,
+        var(--accent),
+        var(--accent-hover),
+        #64d2ff,
+        var(--accent)
+    );
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradient-shift 4s ease infinite;
+}
+
+@keyframes gradient-shift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+/* Border gradient animation */
+.border-gradient-animate {
+    position: relative;
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    z-index: 0;
+}
+
+.border-gradient-animate::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(
+        135deg,
+        var(--accent),
+        #64d2ff,
+        var(--accent-hover),
+        var(--accent)
+    );
+    background-size: 300% 300%;
+    border-radius: inherit;
+    z-index: -1;
+    animation: gradient-shift 4s ease infinite;
+    mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    padding: 1px;
+}
+
+/* ===== 8. Notification/Toast Animations ===== */
+
+.toast-enter {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+}
+
+.toast-enter-active {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast-exit {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.toast-exit-active {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+    transition: all 0.2s ease-in;
+}
+
+/* ===== 9. Scroll-triggered Animations ===== */
+
+/* Fade in on scroll */
+.scroll-fade-in {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.scroll-fade-in.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Scale in on scroll */
+.scroll-scale-in {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.scroll-scale-in.is-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ===== 10. Loading States Animation ===== */
+
+/* Pulse ring */
+.pulse-ring {
+    position: relative;
+}
+
+.pulse-ring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 2px solid var(--accent);
+    animation: pulse-ring-expand 1.5s ease-out infinite;
+}
+
+@keyframes pulse-ring-expand {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+/* Dots bounce with color change */
+.dots-bounce-colorful .dot {
+    animation: dot-bounce-colorful 1.4s infinite ease-in-out;
+}
+
+.dots-bounce-colorful .dot:nth-child(1) {
+    animation-delay: 0s;
+    background: var(--accent);
+}
+
+.dots-bounce-colorful .dot:nth-child(2) {
+    animation-delay: 0.2s;
+    background: var(--accent-hover);
+}
+
+.dots-bounce-colorful .dot:nth-child(3) {
+    animation-delay: 0.4s;
+    background: #64d2ff;
+}
+
+@keyframes dot-bounce-colorful {
+    0%, 60%, 100% {
+        transform: scale(0.7) translateY(0);
+        opacity: 0.4;
+    }
+    30% {
+        transform: scale(1) translateY(-8px);
+        opacity: 1;
+    }
+}

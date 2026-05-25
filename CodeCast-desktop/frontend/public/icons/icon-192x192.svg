@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c7cff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="#1a1a2e"/>
+  <text x="96" y="120" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="110" font-weight="700" fill="url(#grad)" text-anchor="middle">C</text>
+  <circle cx="150" cy="45" r="15" fill="#34d399" opacity="0.9"/>
+</svg>

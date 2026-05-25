@@ -106,7 +106,13 @@ func (m *MemoryStore) RecallEpisodes(query string, limit int) (string, error) {
 		return "", nil
 	}
 
-	searchQuery := `"` + strings.ReplaceAll(strings.TrimSpace(query), `"`, `""`) + `"`
+	// Sanitize FTS5 query: escape quotes and strip potentially dangerous operators/wildcards
+	sanitized := strings.TrimSpace(query)
+	sanitized = strings.ReplaceAll(sanitized, `"`, `""`)
+	sanitized = strings.ReplaceAll(sanitized, `*`, ``)
+	sanitized = strings.ReplaceAll(sanitized, `(`, ``)
+	sanitized = strings.ReplaceAll(sanitized, `)`, ``)
+	searchQuery := `"` + sanitized + `"`
 	rows, err := m.db.Query(`
 		SELECT e.timestamp, e.summary, e.content, e.topics, rank
 		FROM episodes e
@@ -286,14 +292,15 @@ func (a *App) ExtractSummaryAsync(sessionID string, userContent, assistantConten
 		}()
 
 		a.mu.Lock()
-		apiKey := a.settings.APIKey
-		apiURL := a.config.Model.BaseURL
-		modelName := a.config.Model.Model
+		creds, credErr := a.resolveCredentialsLocked("")
 		a.mu.Unlock()
 
-		if apiKey == "" {
+		if credErr != nil {
 			return
 		}
+		apiKey := creds.APIKey
+		apiURL := creds.APIURL
+		modelName := creds.Model
 
 		promptText := fmt.Sprintf(`请用一句话概括以下对话的核心内容，并提取关键词标签。
 
@@ -312,11 +319,15 @@ AI回复：%s
 		flashModel := modelName
 		if strings.Contains(modelName, "deepseek") {
 			flashModel = "deepseek-v4-flash"
+		} else if strings.Contains(modelName, "moonshot") {
+			flashModel = "moonshot-v1-auto"
+		} else if strings.Contains(modelName, "glm") {
+			flashModel = "glm-4-flash"
 		} else if strings.Contains(modelName, "gpt") {
 			flashModel = "gpt-4o-mini"
 		}
 
-		resp, err := a.callAPIEx(messages, apiKey, apiURL, flashModel, false, false, sessionID+"_summary")
+		resp, err := a.callAPIEx(messages, apiKey, apiURL, flashModel, false, false, sessionID+"_summary", nil)
 		if err != nil {
 			fmt.Printf("[Memory] 摘要提取API调用失败: %v\n", err)
 			return
@@ -359,4 +370,242 @@ AI回复：%s
 			fmt.Printf("[Memory] 摘要已更新: %s (标签: %s)\n", summary, topics)
 		}
 	}()
+}
+
+// ==================== 扩展查询方法 ====================
+
+// MemoryEntry 表示单条记忆条目
+type MemoryEntry struct {
+	ID         int64   `json:"id"`
+	SessionID  string  `json:"session_id"`
+	Timestamp  int64   `json:"timestamp"`
+	Role       string  `json:"role"`
+	Content    string  `json:"content"`
+	Summary    string  `json:"summary,omitempty"`
+	Topics     string  `json:"topics,omitempty"`
+	Importance float64 `json:"importance"`
+}
+
+// GetMemoriesByTag 根据主题标签过滤记忆
+// tag 参数会在 topics 字段中进行模糊匹配
+func (m *MemoryStore) GetMemoriesByTag(tag string, limit int) ([]MemoryEntry, error) {
+	if strings.TrimSpace(tag) == "" {
+		return nil, fmt.Errorf("标签不能为空")
+	}
+
+	rows, err := m.db.Query(`
+		SELECT id, session_id, timestamp, role, content,
+			COALESCE(summary, ''), COALESCE(topics, ''), importance
+		FROM episodes
+		WHERE topics LIKE ?
+		ORDER BY timestamp DESC
+		LIMIT ?
+	`, "%"+tag+"%", limit)
+	if err != nil {
+		return nil, fmt.Errorf("按标签查询记忆失败: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []MemoryEntry
+	for rows.Next() {
+		var e MemoryEntry
+		if err := rows.Scan(&e.ID, &e.SessionID, &e.Timestamp, &e.Role,
+			&e.Content, &e.Summary, &e.Topics, &e.Importance); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// GetMemoriesBySession 获取指定会话的所有记忆
+func (m *MemoryStore) GetMemoriesBySession(sessionID string) ([]MemoryEntry, error) {
+	if strings.TrimSpace(sessionID) == "" {
+		return nil, fmt.Errorf("会话ID不能为空")
+	}
+
+	rows, err := m.db.Query(`
+		SELECT id, session_id, timestamp, role, content,
+			COALESCE(summary, ''), COALESCE(topics, ''), importance
+		FROM episodes
+		WHERE session_id = ?
+		ORDER BY timestamp ASC
+	`, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("按会话查询记忆失败: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []MemoryEntry
+	for rows.Next() {
+		var e MemoryEntry
+		if err := rows.Scan(&e.ID, &e.SessionID, &e.Timestamp, &e.Role,
+			&e.Content, &e.Summary, &e.Topics, &e.Importance); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// SetImportance 手动设置指定记忆的重要性评分
+// importance 值范围为 0.0 到 1.0
+func (m *MemoryStore) SetImportance(episodeID int64, importance float64) error {
+	if importance < 0.0 || importance > 1.0 {
+		return fmt.Errorf("重要性评分必须在 0.0 到 1.0 之间，当前值: %f", importance)
+	}
+
+	result, err := m.db.Exec(
+		"UPDATE episodes SET importance = ? WHERE id = ?",
+		importance, episodeID,
+	)
+	if err != nil {
+		return fmt.Errorf("设置重要性评分失败: %w", err)
+	}
+
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		return fmt.Errorf("未找到 ID 为 %d 的记忆条目", episodeID)
+	}
+	return nil
+}
+
+// GetImportantMemories 获取重要性评分高于指定阈值的记忆
+func (m *MemoryStore) GetImportantMemories(threshold float64, limit int) ([]MemoryEntry, error) {
+	if threshold < 0.0 || threshold > 1.0 {
+		return nil, fmt.Errorf("阈值必须在 0.0 到 1.0 之间，当前值: %f", threshold)
+	}
+
+	rows, err := m.db.Query(`
+		SELECT id, session_id, timestamp, role, content,
+			COALESCE(summary, ''), COALESCE(topics, ''), importance
+		FROM episodes
+		WHERE importance >= ?
+		ORDER BY importance DESC, timestamp DESC
+		LIMIT ?
+	`, threshold, limit)
+	if err != nil {
+		return nil, fmt.Errorf("查询重要记忆失败: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []MemoryEntry
+	for rows.Next() {
+		var e MemoryEntry
+		if err := rows.Scan(&e.ID, &e.SessionID, &e.Timestamp, &e.Role,
+			&e.Content, &e.Summary, &e.Topics, &e.Importance); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// ExportMemories 导出所有记忆为 JSON 格式字符串
+func (m *MemoryStore) ExportMemories() (string, error) {
+	rows, err := m.db.Query(`
+		SELECT id, session_id, timestamp, role, content,
+			COALESCE(summary, ''), COALESCE(topics, ''), importance
+		FROM episodes
+		ORDER BY timestamp ASC
+	`)
+	if err != nil {
+		return "", fmt.Errorf("导出记忆失败: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []MemoryEntry
+	for rows.Next() {
+		var e MemoryEntry
+		if err := rows.Scan(&e.ID, &e.SessionID, &e.Timestamp, &e.Role,
+			&e.Content, &e.Summary, &e.Topics, &e.Importance); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+
+	// 手动构建 JSON 以避免引入 encoding/json 依赖（如已引入可替换）
+	var b strings.Builder
+	b.WriteString("[\n")
+	for i, e := range entries {
+		b.WriteString(fmt.Sprintf(`  {"id":%d,"session_id":"%s","timestamp":%d,"role":"%s","content":"%s","summary":"%s","topics":"%s","importance":%.2f}`,
+			e.ID,
+			jsonEscape(e.SessionID),
+			e.Timestamp,
+			jsonEscape(e.Role),
+			jsonEscape(e.Content),
+			jsonEscape(e.Summary),
+			jsonEscape(e.Topics),
+			e.Importance,
+		))
+		if i < len(entries)-1 {
+			b.WriteString(",")
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("]")
+	return b.String(), nil
+}
+
+// jsonEscape 对字符串进行 JSON 转义
+func jsonEscape(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	s = strings.ReplaceAll(s, "\n", `\n`)
+	s = strings.ReplaceAll(s, "\r", `\r`)
+	s = strings.ReplaceAll(s, "\t", `\t`)
+	return s
+}
+
+// MemoryTimelineGroup 表示按日期分组的记忆
+type MemoryTimelineGroup struct {
+	Date    string        `json:"date"`
+	Entries []MemoryEntry `json:"entries"`
+}
+
+// GetMemoryTimeline 获取按日期分组的记忆时间线
+func (m *MemoryStore) GetMemoryTimeline(days int) ([]MemoryTimelineGroup, error) {
+	if days <= 0 {
+		days = 7
+	}
+
+	since := time.Now().AddDate(0, 0, -days).Unix()
+
+	rows, err := m.db.Query(`
+		SELECT id, session_id, timestamp, role, content,
+			COALESCE(summary, ''), COALESCE(topics, ''), importance
+		FROM episodes
+		WHERE timestamp >= ?
+		ORDER BY timestamp ASC
+	`, since)
+	if err != nil {
+		return nil, fmt.Errorf("查询记忆时间线失败: %w", err)
+	}
+	defer rows.Close()
+
+	groupMap := make(map[string][]MemoryEntry)
+	var dateOrder []string
+
+	for rows.Next() {
+		var e MemoryEntry
+		if err := rows.Scan(&e.ID, &e.SessionID, &e.Timestamp, &e.Role,
+			&e.Content, &e.Summary, &e.Topics, &e.Importance); err != nil {
+			continue
+		}
+
+		dateKey := time.Unix(e.Timestamp, 0).Format("2006-01-02")
+		if _, exists := groupMap[dateKey]; !exists {
+			dateOrder = append(dateOrder, dateKey)
+		}
+		groupMap[dateKey] = append(groupMap[dateKey], e)
+	}
+
+	var timeline []MemoryTimelineGroup
+	for _, date := range dateOrder {
+		timeline = append(timeline, MemoryTimelineGroup{
+			Date:    date,
+			Entries: groupMap[date],
+		})
+	}
+	return timeline, nil
 }

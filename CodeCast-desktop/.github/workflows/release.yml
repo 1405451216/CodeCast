@@ -43,13 +43,13 @@ jobs:
 
       - name: Package .app as zip
         working-directory: CodeCast-desktop/build/bin
-        run: zip -r ../../CodeCast-v3.0.0-macOS-${{ matrix.name }}.zip CodeCast.app
+        run: zip -r "../../CodeCast-${GITHUB_REF_NAME}-macOS-${{ matrix.name }}.zip" CodeCast.app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CodeCast-v3.0.0-macOS-${{ matrix.name }}
-          path: CodeCast-desktop/CodeCast-v3.0.0-macOS-${{ matrix.name }}.zip
+          name: CodeCast-${{ github.ref_name }}-macOS-${{ matrix.name }}
+          path: CodeCast-desktop/CodeCast-${{ github.ref_name }}-macOS-${{ matrix.name }}.zip
           retention-days: 30
 
   build-windows:
@@ -82,7 +82,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CodeCast-v3.0.0-Windows-x64
+          name: CodeCast-${{ github.ref_name }}-Windows-x64
           path: CodeCast-desktop/build/bin/CodeCast.exe
           retention-days: 30
 

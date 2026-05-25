@@ -56,6 +56,7 @@ export function useAppInit() {
       const data = await api.getSessions();
       setSessions((data || []).map(toSession));
     } catch (e) {
+      console.error('[useAppInit] 加载会话列表失败，使用空列表:', e);
       setSessions([]);
     }
 
@@ -65,7 +66,7 @@ export function useAppInit() {
         setProjects(Array.isArray(data) ? data : []);
       }
     } catch (e) {
-      console.error('Failed to load projects:', e);
+      console.error('[useAppInit] 加载项目列表失败:', e);
     }
   }
 }

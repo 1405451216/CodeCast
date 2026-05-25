@@ -40,14 +40,14 @@ type App struct {
 	activeSessionID string
 	memoryCleanupStop chan struct{}
 	taskSchedulerStop  chan struct{}
-	agentPool     *AgentPool
-	llmConfig     LLMProviderConfig
-	mu            sync.Mutex
+	agentPool        *AgentPool
+	llmConfig        LLMProviderConfig
+	migrationPending bool
+	mu               sync.RWMutex
 }
 
 func NewApp() *App {
 	cfg := DefaultConfig
-	loadEnv(&cfg)
 
 	app := &App{
 		config:    &cfg,
@@ -59,17 +59,18 @@ func NewApp() *App {
 	}
 
 	app.initSettings()
+	app.initProjects()
 	app.initDefaultSkills()
 
 	app.syncSettingsToConfig()
 
-	if migrationNeeded && app.encryptionKey != nil {
+	if app.migrationPending && app.encryptionKey != nil {
 		fmt.Println("migrating unencrypted API key to encrypted format...")
 		if err := app.saveSettingsToFile(); err != nil {
 			fmt.Printf("warning: failed to migrate API key to encrypted storage: %v\n", err)
 		} else {
 			fmt.Println("API key migration completed successfully")
-			migrationNeeded = false
+			app.migrationPending = false
 		}
 	}
 
@@ -118,6 +119,12 @@ func (a *App) startup(ctx context.Context) {
 	a.agentPool = NewAgentPool(a, DefaultMaxConcurrency)
 	slog.Info("子 Agent 并发池已启动", "max_concurrency", DefaultMaxConcurrency)
 	go cleanupOldAgents()
+
+	// 从磁盘恢复持久化的 sessions
+	a.loadPersistedSessions()
+
+	// 后台自动检查更新
+	go a.autoCheckUpdate()
 }
 
 func (a *App) domReady(ctx context.Context) {

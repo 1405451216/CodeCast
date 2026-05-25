@@ -2,6 +2,9 @@ export interface GoProject {
   id: string;
   path: string;
   name: string;
+  created_at?: number;
+  last_accessed_at?: number;
+  custom_instructions?: string;
 }
 
 export interface GoSession {

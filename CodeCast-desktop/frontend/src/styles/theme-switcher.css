@@ -1,0 +1,89 @@
+.theme-switcher-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-toggle-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 124, 255, 0.2);
+}
+
+.theme-panel {
+  animation: themePanelIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes themePanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.theme-panel .theme-mode-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-panel .theme-mode-btn:hover:not(.active) {
+  background: rgba(124, 124, 255, 0.08);
+  border-color: rgba(124, 124, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.theme-panel .theme-mode-btn.active {
+  box-shadow: 0 4px 12px rgba(124, 124, 255, 0.15);
+}
+
+.theme-panel .accent-btn {
+  transition: all 0.25s ease;
+}
+
+.theme-panel .accent-btn:hover {
+  transform: scale(1.25) rotate(10deg);
+  box-shadow: 0 6px 20px currentColor;
+}
+
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg2: #f8fafc;
+  --sidebar-bg: #f1f5f9;
+  --sidebar-hover: #e2e8f0;
+  --sidebar-active: #cbd5e1;
+  --border: #cbd5e1;
+  --text: #0f172a;
+  --text-dim: #475569;
+  --text-muted: #94a3b8;
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --input-border-focus: #94a3b8;
+  --btn-primary: #0f172a;
+  --btn-primary-text: #ffffff;
+  --msg-user-bg: #f1f5f9;
+  --msg-ai-bg: transparent;
+  --code-bg: #f1f5f9;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --scrollbar: #e2e8f0;
+  --scrollbar-thumb: #94a3b8;
+
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-hover: rgba(0, 0, 0, 0.04);
+
+  --success-bg: rgba(52, 211, 153, 0.12);
+  --warning-bg: rgba(251, 191, 36, 0.12);
+  --error-bg: rgba(248, 113, 113, 0.12);
+  --info-bg: rgba(96, 165, 250, 0.12);
+}
+
+@media (max-width: 639px) {
+  .theme-panel {
+    width: calc(100vw - 32px) !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+  }
+}

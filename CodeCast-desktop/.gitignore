@@ -1,0 +1,32 @@
+# Build output
+build/
+dist/
+bin/
+
+# Dependencies
+node_modules/
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.local
+.encryption_key
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Debug
+*.log

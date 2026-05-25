@@ -1,8 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TabProps, renderToggle, renderSelect, renderRadioGroup } from './settingsHelpers';
 import { S } from '../../settingsKeys';
+import * as api from '../../api';
+import { UpdateInfo, UpdateProgress } from '../../api';
+import { EventsOn } from '../../../wailsjs/runtime/runtime';
 
 const GeneralTab: React.FC<TabProps> = ({ settings, updateAndSave, isDarwin, modKey }) => {
+  const [version, setVersion] = useState('');
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState<UpdateProgress | null>(null);
+
+  useEffect(() => {
+    api.getCurrentVersion().then(setVersion).catch(() => {});
+    const unsub = EventsOn('update-progress', (data: UpdateProgress) => {
+      setProgress(data);
+    });
+    return unsub;
+  }, []);
+
+  const handleCheckUpdate = async () => {
+    setChecking(true);
+    setUpdateInfo(null);
+    try {
+      const info = await api.checkForUpdate();
+      setUpdateInfo(info);
+    } catch (e: any) {
+      setProgress({ phase: 'error', percent: 0, message: e?.message || '检查失败' });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!updateInfo?.download_url) return;
+    setDownloading(true);
+    try {
+      const filePath = await api.downloadUpdate(updateInfo.download_url);
+      await api.openDownloadedFile(filePath);
+    } catch (e: any) {
+      setProgress({ phase: 'error', percent: 0, message: e?.message || '下载失败' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="stab-panel">
       <div className="settings-section-title">常规</div>
@@ -104,6 +147,79 @@ const GeneralTab: React.FC<TabProps> = ({ settings, updateAndSave, isDarwin, mod
         ], '轮次完成通知', updateAndSave)}
         {renderToggle(S.notification_permission, settings.notification_permission ?? true, '权限通知', updateAndSave, '权限请求时发送通知')}
         {renderToggle(S.notification_question, settings.notification_question ?? true, '问题通知', updateAndSave, '需要用户输入时发送通知')}
+      </div>
+
+      {/* ─── 软件更新 ───────────────────────── */}
+      <div className="settings-group">
+        <div className="settings-group-title">软件更新</div>
+        <div className="settings-row">
+          <div className="settings-row-left">
+            <div className="settings-row-title">当前版本</div>
+            <div className="settings-row-desc">v{version || '...'}</div>
+          </div>
+          <button
+            className="settings-add-btn"
+            onClick={handleCheckUpdate}
+            disabled={checking}
+          >
+            {checking ? '检查中...' : '检查更新'}
+          </button>
+        </div>
+
+        {/* 更新进度 */}
+        {progress && progress.phase !== 'done' && (
+          <div className="settings-row" style={{ borderBottom: 'none' }}>
+            <div className="settings-row-left" style={{ width: '100%' }}>
+              <div className="settings-row-desc" style={{ color: progress.phase === 'error' ? 'var(--error)' : 'var(--text-dim)' }}>
+                {progress.message}
+              </div>
+              {progress.phase === 'downloading' && progress.percent > 0 && (
+                <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: 'var(--border)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${progress.percent}%`, background: 'var(--accent)', transition: 'width 0.3s' }} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 发现新版本 */}
+        {updateInfo?.has_update && (
+          <div className="settings-row">
+            <div className="settings-row-left">
+              <div className="settings-row-title">新版本 v{updateInfo.latest_version}</div>
+              <div className="settings-row-desc">
+                {updateInfo.release_notes?.slice(0, 100) || '新版本已发布'}
+                {updateInfo.file_size > 0 && ` (${(updateInfo.file_size / 1048576).toFixed(1)} MB)`}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                className="settings-add-btn"
+                onClick={handleDownload}
+                disabled={downloading}
+              >
+                {downloading ? '下载中...' : '下载更新'}
+              </button>
+              <button
+                className="settings-add-btn"
+                onClick={() => api.openReleasePage()}
+              >
+                查看
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 已是最新 */}
+        {updateInfo && !updateInfo.has_update && (
+          <div className="settings-row" style={{ borderBottom: 'none' }}>
+            <div className="settings-row-left">
+              <div className="settings-row-desc" style={{ color: 'var(--success, #4caf50)' }}>
+                ✓ 当前已是最新版本
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
