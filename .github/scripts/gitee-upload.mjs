@@ -5,7 +5,7 @@ import path from 'path';
 
 const GITEE_TOKEN = process.env.GITEE_TOKEN;
 const GITEE_OWNER = process.env.GITEE_OWNER || 'CodeCast';
-const GITEE_REPO = process.env.GITEE_REPO_NAME || 'code-cast';
+const GITEE_REPO = process.env.GITEE_REPO_NAME || 'CodeCast';
 const TAG = process.env.TAG || 'v0.2.0';
 const FILES_DIR = process.env.FILES_DIR || './dist';
 
@@ -47,7 +47,7 @@ async function getOrCreateRelease() {
     access_token: GITEE_TOKEN,
     tag_name: TAG,
     name: `CodeCast ${TAG}`,
-    target_commitish: 'master',
+    target_commitish: 'main',
     body: [
       `## CodeCast ${TAG}`,
       '',

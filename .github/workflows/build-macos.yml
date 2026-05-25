@@ -28,7 +28,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.25'
           cache: true
           cache-dependency-path: CodeCast-desktop/go.sum
 
@@ -103,20 +103,31 @@ jobs:
 
       - name: Create Universal Binary
         run: |
-          # 提取两个架构的可执行文件并合并
-          INTEL_BIN="intel/CodeCast-desktop/build/bin/CodeCast.app/Contents/MacOS/CodeCast"
-          ARM64_BIN="arm64/CodeCast-desktop/build/bin/CodeCast.app/Contents/MacOS/CodeCast"
+          # 列出下载内容以调试路径
+          echo "=== Intel artifact contents ==="
+          find intel -name "CodeCast" -type f || true
+          echo "=== ARM64 artifact contents ==="
+          find arm64 -name "CodeCast" -type f || true
 
-          if [ -f "$INTEL_BIN" ] && [ -f "$ARM64_BIN" ]; then
+          # 动态查找可执行文件路径
+          INTEL_BIN=$(find intel -path "*/Contents/MacOS/CodeCast" -type f | head -1)
+          ARM64_BIN=$(find arm64 -path "*/Contents/MacOS/CodeCast" -type f | head -1)
+          ARM64_APP=$(find arm64 -name "CodeCast.app" -type d | head -1)
+
+          if [ -n "$INTEL_BIN" ] && [ -n "$ARM64_BIN" ] && [ -n "$ARM64_APP" ]; then
             # 以 arm64 版本为基础
-            cp -R arm64/CodeCast-desktop/build/bin/CodeCast.app ./CodeCast.app
+            cp -R "$ARM64_APP" ./CodeCast.app
             # 使用 lipo 合并
             lipo -create "$INTEL_BIN" "$ARM64_BIN" -output ./CodeCast.app/Contents/MacOS/CodeCast
             echo "Universal binary created successfully"
             file ./CodeCast.app/Contents/MacOS/CodeCast
           else
-            echo "Warning: Could not find both architecture binaries"
-            ls -la intel/ arm64/
+            echo "Error: Could not find architecture binaries"
+            echo "INTEL_BIN=$INTEL_BIN"
+            echo "ARM64_BIN=$ARM64_BIN"
+            echo "ARM64_APP=$ARM64_APP"
+            find intel arm64 -type f | head -20
+            exit 1
           fi
 
       - name: Create Universal DMG

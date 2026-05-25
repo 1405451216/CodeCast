@@ -34,7 +34,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.25'
           cache: true
           cache-dependency-path: CodeCast-desktop/go.sum
 
@@ -146,7 +146,7 @@ jobs:
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           GITEE_OWNER: ${{ vars.GITEE_OWNER || 'CodeCast' }}
-          GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'code-cast' }}
+          GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'CodeCast' }}
         run: |
           echo "🔄 同步代码到 Gitee..."
           git clone --bare https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git repo.git
@@ -159,7 +159,7 @@ jobs:
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           GITEE_OWNER: ${{ vars.GITEE_OWNER || 'CodeCast' }}
-          GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'code-cast' }}
+          GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'CodeCast' }}
           TAG: ${{ steps.version.outputs.tag }}
           FILES_DIR: dist
         working-directory: .github/scripts
