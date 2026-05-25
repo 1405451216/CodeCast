@@ -88,7 +88,7 @@ async function uploadAttachment(releaseId, filePath) {
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
         headers: { ...form.getHeaders() },
-        timeout: 120000,
+        timeout: 600000,
       }
     );
 
