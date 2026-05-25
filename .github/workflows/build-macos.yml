@@ -57,16 +57,19 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         working-directory: CodeCast-desktop/build/bin
         run: |
-          # 使用 hdiutil 创建 DMG
-          APP_NAME="CodeCast.app"
+          # 使用 hdiutil 创建 DMG（app名称可能是小写 codecast.app）
+          APP_NAME=$(find . -maxdepth 1 -name "*.app" -type d | head -1)
           DMG_NAME="CodeCast-macOS-${{ matrix.platform.arch }}.dmg"
 
-          if [ -d "$APP_NAME" ]; then
+          if [ -n "$APP_NAME" ] && [ -d "$APP_NAME" ]; then
             mkdir -p dmg-staging
-            cp -R "$APP_NAME" dmg-staging/
+            cp -R "$APP_NAME" dmg-staging/CodeCast.app
             ln -s /Applications dmg-staging/Applications
             hdiutil create -volname "CodeCast" -srcfolder dmg-staging -ov -format UDZO "$DMG_NAME"
             rm -rf dmg-staging
+          else
+            echo "Warning: No .app bundle found, skipping DMG creation"
+            ls -la
           fi
 
       - name: List build output
@@ -109,10 +112,10 @@ jobs:
           echo "=== ARM64 artifact contents ==="
           find arm64 -name "CodeCast" -type f || true
 
-          # 动态查找可执行文件路径
+          # 动态查找可执行文件路径（app名称可能是小写 codecast.app）
           INTEL_BIN=$(find intel -path "*/Contents/MacOS/CodeCast" -type f | head -1)
           ARM64_BIN=$(find arm64 -path "*/Contents/MacOS/CodeCast" -type f | head -1)
-          ARM64_APP=$(find arm64 -name "CodeCast.app" -type d | head -1)
+          ARM64_APP=$(find arm64 -name "*.app" -type d | head -1)
 
           if [ -n "$INTEL_BIN" ] && [ -n "$ARM64_BIN" ] && [ -n "$ARM64_APP" ]; then
             # 以 arm64 版本为基础
