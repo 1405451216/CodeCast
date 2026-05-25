@@ -161,6 +161,6 @@ jobs:
           GITEE_OWNER: ${{ vars.GITEE_OWNER || 'CodeCast' }}
           GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'CodeCast' }}
           TAG: ${{ steps.version.outputs.tag }}
-          FILES_DIR: dist
+          FILES_DIR: ${{ github.workspace }}/dist
         working-directory: .github/scripts
         run: node gitee-upload.mjs
