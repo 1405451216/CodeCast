@@ -1,9 +1,17 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAppStore, Message, AppState } from '../store';
 import { shallow } from 'zustand/shallow';
 import { formatContent } from '../utils';
+import { performanceMonitor, cacheManager } from '../utils/performance';
+import InteractiveMessage from './InteractiveMessage';
+import * as api from '../api';
 import { Skeleton, SkeletonContainer } from './Skeleton';
+
+const LINE_HEIGHT = 24;
+const BASE_HEIGHT = 100;
+const MAX_CONTENT_HEIGHT = 300;
+const IMAGE_HEIGHT_ESTIMATE = 250;
 
 const ReasoningBlock: React.FC<{ reasoning: string }> = ({ reasoning }) => {
   const [expanded, setExpanded] = useState(false);
@@ -54,10 +62,48 @@ const formatTime = (timestamp?: number): string => {
   return `${hh}:${mm}`;
 };
 
+const estimateMessageHeight = useCallback((message: Message): number => {
+  if (!message || !message.content) return BASE_HEIGHT;
+
+  let height = BASE_HEIGHT;
+
+  const contentLength = message.content.length;
+  const lineCount = (message.content.match(/\n/g) || []).length;
+  const imageCount = (message.content.match(/!\[.*?\]\(.*?\)/g) || []).length;
+  const codeBlockCount = (message.content.match(/```[\s\S]*?```/g) || []).length;
+  const hasReasoning = !!message.reasoning && message.reasoning.length > 0;
+
+  height += Math.min(contentLength / 8, MAX_CONTENT_HEIGHT);
+  height += lineCount * LINE_HEIGHT;
+  height += imageCount * IMAGE_HEIGHT_ESTIMATE;
+  height += codeBlockCount * 150;
+
+  if (hasReasoning) {
+    height += Math.min(message.reasoning!.length / 10, 200);
+  }
+
+  return Math.max(BASE_HEIGHT, Math.min(height, 800));
+}, []);
+
 const MessageItem: React.FC<{ message: Message; index?: number }> = React.memo(({ message, index = 0 }) => {
   const isUser = message.role === 'user';
+  const isAI = !isUser;
   const messageClass = `message ${isUser ? 'message-user' : 'message-ai'} stagger-${Math.min(index + 1, 10)}`;
   const avatarClass = isUser ? 'user-avatar' : 'ai-avatar';
+
+  const formattedContent = useMemo(() => {
+    if (!message.content) return '';
+    return formatContent(message.content);
+  }, [message.content]);
+
+  const handleApplyChange = useCallback(async (filePath: string, newContent: string) => {
+    try {
+      await api.writeFile(filePath, newContent);
+    } catch (error) {
+      console.error(`[MessagesView] Failed to update ${filePath}:`, error);
+      throw error;
+    }
+  }, []);
 
   return (
     <article
@@ -78,10 +124,18 @@ const MessageItem: React.FC<{ message: Message; index?: number }> = React.memo((
         {!isUser && message.reasoning && (
           <ReasoningBlock reasoning={message.reasoning} />
         )}
-        <div
-          className="msg-content"
-          dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
-        />
+        {isAI ? (
+          <InteractiveMessage
+            content={formattedContent}
+            isUser={false}
+            onApplyChange={handleApplyChange}
+          />
+        ) : (
+          <div
+            className="msg-content"
+            dangerouslySetInnerHTML={{ __html: formattedContent }}
+          />
+        )}
       </div>
     </article>
   );
@@ -110,12 +164,36 @@ const MessagesView: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (messages.length > 0 && messages.length % 10 === 0) {
+      cacheManager.set(
+        `messages-preview-${messages.length}`,
+        {
+          lastMessageId: messages[messages.length - 1]?.id,
+          count: messages.length,
+          timestamp: Date.now()
+        },
+        10 * 60 * 1000
+      );
+    }
+  }, [messages]);
 
   const virtualizer = useVirtualizer({
     count: messages.length + (isLoading ? 1 : 0),
     getScrollElement: () => containerRef.current,
-    estimateSize: () => 80,
+    estimateSize: (index) => {
+      if (index >= messages.length) return 60;
+      const msg = messages[index];
+      if (!msg) return BASE_HEIGHT;
+      return estimateMessageHeight(msg);
+    },
     overscan: 5,
+    measureElement: (el) => {
+      if (!el) return -1;
+      return el.getBoundingClientRect().height;
+    },
   });
 
   useEffect(() => {
@@ -126,18 +204,32 @@ const MessagesView: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
   }, [messages.length, isLoading]);
 
   useEffect(() => {
-    if (!userScrolledUp && messages.length > 0) {
+    if (!userScrolledUp && messages.length > 0 && virtualizer) {
       virtualizer.scrollToIndex(messages.length - 1 + (isLoading ? 1 : 0), { align: 'end' });
     }
-  }, [messages.length, isLoading, userScrolledUp]);
+  }, [messages.length, isLoading, userScrolledUp, virtualizer]);
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    const threshold = 80;
-    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-    setUserScrolledUp(!isNearBottom);
+
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    scrollTimeoutRef.current = setTimeout(() => {
+      const threshold = 80;
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+      setUserScrolledUp(!isNearBottom);
+    }, 50);
   }, []);
+
+  const scrollToBottom = useCallback(() => {
+    if (virtualizer && messages.length > 0) {
+      virtualizer.scrollToIndex(messages.length - 1 + (isLoading ? 1 : 0), { align: 'end' });
+      setUserScrolledUp(false);
+    }
+  }, [virtualizer, messages.length, isLoading]);
 
   const items = virtualizer.getVirtualItems();
 
@@ -155,7 +247,7 @@ const MessagesView: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
     <div
       id="messagesView"
       ref={containerRef}
-      style={{ flex: 1, overflowY: 'auto', padding: '20px' }}
+      style={{ flex: 1, overflowY: 'auto', padding: '20px', position: 'relative' }}
       onScroll={handleScroll}
       role="log"
       aria-live="polite"
@@ -191,7 +283,7 @@ const MessagesView: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
               </div>
             );
           }
-          
+
           const m = messages[virtualRow.index];
           return (
             <div
@@ -210,13 +302,50 @@ const MessagesView: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
             </div>
           );
         })}
-        
+
         {messages.length === 0 && !isLoading && (
           <div className="empty-hint" role="status">
             还没有消息，开始输入吧
           </div>
         )}
       </div>
+
+      {userScrolledUp && messages.length > 0 && (
+        <button
+          onClick={scrollToBottom}
+          className="scroll-to-bottom-btn"
+          aria-label="滚动到底部"
+          style={{
+            position: 'absolute',
+            bottom: '20px',
+            right: '20px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--accent, #7c7cff)',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            transition: 'all 0.2s ease',
+            zIndex: 1000,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+          }}
+        >
+          ↓
+        </button>
+      )}
     </div>
   );
 };

@@ -1,0 +1,645 @@
+.checkpoint-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-secondary, #1a1a2e);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--border-color, #2d2d44);
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.checkpoint-panel.compact {
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 12px;
+  background: var(--bg-tertiary, #16213e);
+  border: 1px solid var(--border-color, #2d2d44);
+  border-radius: var(--radius-md, 8px);
+}
+
+.compact-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #a0a0b8);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted, #6b6b80);
+  transition: all 0.3s ease;
+}
+
+.pulse-dot.active {
+  background: #ffc107;
+  animation: pulse-dot-glow 1.5s infinite;
+}
+
+@keyframes pulse-dot-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 193, 7, 0);
+    transform: scale(1.15);
+  }
+}
+
+.compact-approve-all {
+  padding: 5px 14px;
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.compact-approve-all:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.35);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(74, 158, 255, 0.08), rgba(139, 92, 246, 0.08));
+  border-bottom: 1px solid var(--border-color, #2d2d44);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary, #e4e4ed);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  font-size: 1.2rem;
+}
+
+.header-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.stat-badge.pending {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.stat-badge.approved {
+  background: rgba(40, 167, 69, 0.15);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.stat-badge.rejected {
+  background: rgba(220, 53, 69, 0.15);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.batch-actions {
+  display: flex;
+  gap: 10px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid var(--border-color, #2d2d44);
+}
+
+.batch-btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.batch-btn.approve-all {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.25);
+}
+
+.batch-btn.approve-all:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(40, 167, 69, 0.4);
+}
+
+.batch-btn.skip-all {
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: white;
+}
+
+.batch-btn.skip-all:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(108, 117, 125, 0.4);
+}
+
+.checkpoint-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-behavior: smooth;
+}
+
+.checkpoint-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.checkpoint-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.checkpoint-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.empty-checkpoints {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  gap: 12px;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  opacity: 0.5;
+}
+
+.empty-checkpoints p {
+  margin: 0;
+  color: var(--text-secondary, #a0a0b8);
+  font-size: 0.95rem;
+}
+
+.empty-sub {
+  font-size: 0.85rem !important;
+  color: var(--text-muted, #6b6b80) !important;
+}
+
+.checkpoint-card {
+  background: var(--bg-primary, #0f0f23);
+  border: 1px solid var(--border-color, #2d2d44);
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-left: 4px solid transparent;
+}
+
+.checkpoint-card.risk-low {
+  border-left-color: #28a745;
+}
+
+.checkpoint-card.risk-medium {
+  border-left-color: #ffc107;
+}
+
+.checkpoint-card.risk-high {
+  border-left-color: #fd7e14;
+}
+
+.checkpoint-card.risk-critical {
+  border-left-color: #dc3545;
+  animation: critical-pulse 2s infinite;
+}
+
+@keyframes critical-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+  50% { box-shadow: 0 0 16px 2px rgba(220, 53, 69, 0.2); }
+}
+
+.checkpoint-card:hover {
+  border-color: var(--accent-primary, #4a9eff);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.checkpoint-card.slide-in {
+  animation: slide-in-checkpoint 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slide-in-checkpoint {
+  from {
+    opacity: 0;
+    transform: translateX(-30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.operation-icon {
+  font-size: 1.4rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md, 8px);
+  flex-shrink: 0;
+}
+
+.card-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tool-name {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-primary, #4a9eff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.risk-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.risk-info {
+  background: rgba(108, 117, 125, 0.2);
+  color: #6c757d;
+}
+
+.risk-low {
+  background: rgba(40, 167, 69, 0.15);
+  color: #28a745;
+}
+
+.risk-medium {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+}
+
+.risk-high {
+  background: rgba(253, 126, 20, 0.15);
+  color: #fd7e14;
+}
+
+.risk-critical {
+  background: rgba(220, 53, 69, 0.15);
+  color: #dc3545;
+  animation: risk-critical-blink 1.5s infinite;
+}
+
+@keyframes risk-critical-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.time-ago {
+  font-size: 0.75rem;
+  color: var(--text-muted, #6b6b80);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.target-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.path-label {
+  color: var(--text-muted, #6b6b80);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.path-value {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  color: var(--text-primary, #e4e4ed);
+  background: rgba(74, 158, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.description {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #a0a0b8);
+  line-height: 1.5;
+}
+
+.diff-preview {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  animation: diff-expand 0.25s ease;
+}
+
+@keyframes diff-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 400px;
+  }
+}
+
+.diff-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary, #a0a0b8);
+}
+
+.diff-stats {
+  display: flex;
+  gap: 10px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.78rem;
+}
+
+.added-count {
+  color: #28a745;
+}
+
+.removed-count {
+  color: #dc3545;
+}
+
+.diff-content {
+  margin: 0;
+  padding: 12px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-secondary, #a0a0b8);
+  max-height: 250px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.no-diff {
+  color: var(--text-muted, #6b6b80);
+  font-style: italic;
+}
+
+.auto-approve-note {
+  padding: 8px 12px;
+  background: rgba(40, 167, 69, 0.08);
+  border-left: 3px solid #28a745;
+  border-radius: 0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0;
+  font-size: 0.82rem;
+  color: #28a745;
+}
+
+.timeout-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b6b80);
+  padding: 6px 10px;
+  background: rgba(255, 193, 7, 0.06);
+  border-radius: var(--radius-sm, 4px);
+  width: fit-content;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  font-size: 0.83rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.action-btn.approve {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+}
+
+.action-btn.approve:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(40, 167, 69, 0.35);
+}
+
+.action-btn.reject {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+}
+
+.action-btn.reject:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(220, 53, 69, 0.35);
+}
+
+.action-btn.view-diff {
+  background: rgba(74, 158, 255, 0.12);
+  color: var(--accent-primary, #4a9eff);
+  border: 1px solid rgba(74, 158, 255, 0.25);
+}
+
+.action-btn.view-diff:hover:not(:disabled) {
+  background: rgba(74, 158, 255, 0.22);
+  border-color: rgba(74, 158, 255, 0.4);
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--border-color, #2d2d44);
+}
+
+.progress-ring-container {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.progress-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring-bg {
+  stroke: rgba(255, 255, 255, 0.08);
+}
+
+.ring-fill {
+  stroke: #28a745;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.5s ease;
+}
+
+.ring-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary, #a0a0b8);
+}
+
+.footer-text {
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b6b80);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkpoint-card.slide-in,
+  .pulse-dot.active,
+  .checkpoint-card.risk-critical,
+  .risk-badge.risk-critical,
+  .diff-preview {
+    animation: none !important;
+  }
+
+  .action-btn:hover,
+  .batch-btn:hover,
+  .compact-approve-all:hover,
+  .checkpoint-card:hover {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-stats {
+    width: 100%;
+  }
+
+  .batch-actions {
+    flex-direction: column;
+  }
+
+  .batch-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .card-actions {
+    flex-direction: column;
+  }
+
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .time-ago {
+    width: 100%;
+    text-align: right;
+  }
+}

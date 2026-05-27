@@ -78,6 +78,10 @@ export function ClearBrowserData() {
   return window['go']['main']['App']['ClearBrowserData']();
 }
 
+export function ClearCompletionCache() {
+  return window['go']['main']['App']['ClearCompletionCache']();
+}
+
 export function ClearMemory() {
   return window['go']['main']['App']['ClearMemory']();
 }
@@ -156,6 +160,14 @@ export function GetAvailableEditors() {
 
 export function GetChangelog(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetChangelog'](arg1, arg2, arg3);
+}
+
+export function GetCodeCompletions(arg1) {
+  return window['go']['main']['App']['GetCodeCompletions'](arg1);
+}
+
+export function GetCompletionStats() {
+  return window['go']['main']['App']['GetCompletionStats']();
 }
 
 export function GetConfig() {
@@ -354,6 +366,10 @@ export function ReadFileContent(arg1) {
   return window['go']['main']['App']['ReadFileContent'](arg1);
 }
 
+export function RecordCompletionUsage(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['RecordCompletionUsage'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function RemoveAllowedDomain(arg1) {
   return window['go']['main']['App']['RemoveAllowedDomain'](arg1);
 }
@@ -460,6 +476,10 @@ export function SilentDownload(arg1) {
 
 export function StartTaskScheduler(arg1) {
   return window['go']['main']['App']['StartTaskScheduler'](arg1);
+}
+
+export function StreamCodeCompletions(arg1) {
+  return window['go']['main']['App']['StreamCodeCompletions'](arg1);
 }
 
 export function TestMCPServerConnection(arg1) {

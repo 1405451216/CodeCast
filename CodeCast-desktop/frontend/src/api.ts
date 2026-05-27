@@ -172,6 +172,13 @@ interface GoAppMethods {
 
   // Popout
   GetPopoutState(): Promise<PopoutState>;
+
+  // Code Completion (Level 5 AI)
+  GetCodeCompletions(req: CompletionRequest): Promise<CompletionResponse>;
+  StreamCodeCompletions(req: CompletionRequest): Promise<void>;
+  RecordCompletionUsage(prefix: string, acceptedText: string, source: string, model: string, latencyMs: number): Promise<void>;
+  GetCompletionStats(): Promise<{ total_requests: number; total_suggestions: number; accept_rate: number; avg_latency_ms: number; cache_hit_rate: number }>;
+  ClearCompletionCache(): Promise<void>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -454,3 +461,110 @@ export const checkForUpdate = () => callGo('CheckForUpdate');
 export const downloadUpdate = (downloadURL: string) => callGo('DownloadUpdate', downloadURL);
 export const openDownloadedFile = (filePath: string) => callGo('OpenDownloadedFile', filePath);
 export const openReleasePage = () => callGo('OpenReleasePage');
+
+// Code Completion (Level 5 AI)
+export interface CompletionRequest {
+  filepath: string;
+  language: string;
+  line: number;
+  column: number;
+  line_content: string;
+  prefix: string;
+  context: string;
+  max_results: number;
+  model: string;
+}
+
+export interface CompletionSuggestion {
+  text: string;
+  display_text: string;
+  type: 'code' | 'comment' | 'import' | 'function';
+  confidence: number;
+  documentation?: string;
+  insert_text?: string;
+}
+
+export interface CompletionResponse {
+  suggestions: CompletionSuggestion[];
+  model: string;
+  latency_ms: number;
+  tokens_used: number;
+}
+
+export interface StreamCompletionEvent {
+  type: 'start' | 'delta' | 'done' | 'error';
+  suggestion?: CompletionSuggestion;
+  delta?: string;
+  error?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export const GetCodeCompletions = async (req: CompletionRequest): Promise<CompletionResponse> => {
+  return callGo('GetCodeCompletions', req);
+};
+
+export const StreamCodeCompletions = async (
+  req: CompletionRequest,
+  onEvent: (event: StreamCompletionEvent) => void
+): Promise<void> => {
+  // Listen for streaming events from Go backend
+  const go = getGo();
+  
+  if (!go) {
+    console.warn('[dev] Code completion not available in browser mode');
+    onEvent({
+      type: 'error',
+      error: 'Wails bridge not available'
+    });
+    return;
+  }
+
+  try {
+    await go.StreamCodeCompletions(req);
+    
+    // Set up event listener for streaming events
+    if ((window as any).wails) {
+      const listener = (event: StreamCompletionEvent) => {
+        onEvent(event);
+
+        // Auto-cleanup when stream is done or errored
+        if (event.type === 'done' || event.type === 'error') {
+          setTimeout(() => {
+            (window as any).wails.EventsOff('completion:event', listener);
+          }, 1000);
+        }
+      };
+
+      (window as any).wails.EventsOn('completion:event', listener);
+    }
+  } catch (error) {
+    onEvent({
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+export const RecordCompletionUsage = (
+  prefix: string,
+  acceptedText: string,
+  source: string,
+  model: string,
+  latencyMs: number
+): Promise<void> => {
+  return callGo('RecordCompletionUsage', prefix, acceptedText, source, model, latencyMs);
+};
+
+export const GetCompletionStats = async (): Promise<{
+  total_requests: number;
+  total_suggestions: number;
+  accept_rate: number;
+  avg_latency_ms: number;
+  cache_hit_rate: number;
+}> => {
+  return callGo('GetCompletionStats');
+};
+
+export const ClearCompletionCache = (): Promise<void> => {
+  return callGo('ClearCompletionCache');
+};

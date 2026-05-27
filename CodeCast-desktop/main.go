@@ -43,6 +43,7 @@ type App struct {
 	agentPool        *AgentPool
 	llmConfig        LLMProviderConfig
 	migrationPending bool
+	completor       *CodeCompletor
 	mu               sync.RWMutex
 }
 

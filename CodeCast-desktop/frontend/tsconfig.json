@@ -19,5 +19,6 @@
     "resolveJsonModule": true,
     "esModuleInterop": true
   },
-  "include": ["src", "wailsjs"]
+  "include": ["src", "wailsjs"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/__tests__/**", "src/plugins/BuiltinPlugins/**", "src/test/setup.ts"]
 }

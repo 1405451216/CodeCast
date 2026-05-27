@@ -41,6 +41,8 @@ export function CheckSeleniumInstalled():Promise<Record<string, any>>;
 
 export function ClearBrowserData():Promise<void>;
 
+export function ClearCompletionCache():Promise<void>;
+
 export function ClearMemory():Promise<void>;
 
 export function ConfirmGitCommit(arg1:string):Promise<void>;
@@ -80,6 +82,10 @@ export function GetArchivedSessions():Promise<Array<main.Session>>;
 export function GetAvailableEditors():Promise<Array<main.EditorInfo>>;
 
 export function GetChangelog(arg1:string,arg2:string,arg3:string):Promise<main.Changelog>;
+
+export function GetCodeCompletions(arg1:main.CompletionRequest):Promise<main.CompletionResponse>;
+
+export function GetCompletionStats():Promise<main.CompletionStats>;
 
 export function GetConfig():Promise<Record<string, any>>;
 
@@ -179,6 +185,8 @@ export function ReadFile(arg1:string):Promise<string>;
 
 export function ReadFileContent(arg1:string):Promise<string>;
 
+export function RecordCompletionUsage(arg1:string,arg2:string,arg3:string,arg4:string,arg5:number):Promise<void>;
+
 export function RemoveAllowedDomain(arg1:string):Promise<void>;
 
 export function RemoveBlockedDomain(arg1:string):Promise<void>;
@@ -232,6 +240,8 @@ export function SetPreferredEditor(arg1:string):Promise<void>;
 export function SilentDownload(arg1:string):Promise<void>;
 
 export function StartTaskScheduler(arg1:any):Promise<any>;
+
+export function StreamCodeCompletions(arg1:main.CompletionRequest):Promise<void>;
 
 export function TestMCPServerConnection(arg1:string):Promise<Record<string, any>>;
 

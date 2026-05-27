@@ -43,10 +43,10 @@ export default defineConfig({
       },
       output: {
         manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-virtual': ['@tanstack/react-virtual'],
+          'vendor-react': ['react', 'react-dom', 'react-dom/client'],
+          'vendor-markdown': ['marked', 'highlight.js', 'katex', 'mermaid', 'dompurify'],
           'vendor-state': ['zustand'],
-          'vendor-utils': ['dompurify', 'marked'],
+          'vendor-virtual': ['@tanstack/react-virtual'],
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',

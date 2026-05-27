@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
 type AccentColor = 'purple' | 'blue' | 'green' | 'orange' | 'pink' | 'cyan';
+type FontSize = 'small' | 'medium' | 'large';
 
 interface ThemeConfig {
   mode: ThemeMode;
   accentColor: AccentColor;
+  fontSize: FontSize;
 }
 
 const ACCENT_COLORS: Record<AccentColor, { primary: string; hover: string; gradient: string }> = {
@@ -17,12 +19,18 @@ const ACCENT_COLORS: Record<AccentColor, { primary: string; hover: string; gradi
   cyan: { primary: '#22d3ee', hover: '#67e8f9', gradient: 'linear-gradient(135deg, #22d3ee, #06b6d4)' }
 };
 
+const FONT_SIZES: Record<FontSize, { label: string; scale: number }> = {
+  small: { label: '小', scale: 0.9 },
+  medium: { label: '中', scale: 1 },
+  large: { label: '大', scale: 1.15 }
+};
+
 const ThemeSwitcher: React.FC = () => {
   const [theme, setTheme] = useState<ThemeConfig>(() => {
     const saved = localStorage.getItem('codecast-theme');
 
     if (!saved) {
-      return { mode: 'dark' as ThemeMode, accentColor: 'purple' as AccentColor };
+      return { mode: 'dark' as ThemeMode, accentColor: 'purple' as AccentColor, fontSize: 'medium' as FontSize };
     }
 
     try {
@@ -38,7 +46,8 @@ const ThemeSwitcher: React.FC = () => {
       ) {
         return {
           mode: parsed.mode as ThemeMode,
-          accentColor: parsed.accentColor as AccentColor
+          accentColor: parsed.accentColor as AccentColor,
+          fontSize: (parsed.fontSize || 'medium') as FontSize
         };
       }
 
@@ -49,7 +58,7 @@ const ThemeSwitcher: React.FC = () => {
       localStorage.removeItem('codecast-theme');
     }
 
-    return { mode: 'dark' as ThemeMode, accentColor: 'purple' as AccentColor };
+    return { mode: 'dark' as ThemeMode, accentColor: 'purple' as AccentColor, fontSize: 'medium' as FontSize };
   });
   
   const [isOpen, setIsOpen] = useState(false);
@@ -83,22 +92,30 @@ const ThemeSwitcher: React.FC = () => {
     root.classList.toggle('dark', isDark);
     root.setAttribute('data-theme', config.mode);
     root.setAttribute('data-accent', config.accentColor);
+    root.setAttribute('data-font-size', config.fontSize);
 
     const accent = ACCENT_COLORS[config.accentColor];
     root.style.setProperty('--accent', accent.primary);
     root.style.setProperty('--accent-hover', accent.hover);
     root.style.setProperty('--gradient-accent', accent.gradient);
 
+    const fontScale = FONT_SIZES[config.fontSize].scale;
+    root.style.setProperty('--font-scale', String(fontScale));
+    root.style.fontSize = `${fontScale * 16}px`;
+
     localStorage.setItem('codecast-theme', JSON.stringify(config));
   }, []);
 
   const toggleMode = (mode: ThemeMode) => {
     setTheme(prev => ({ ...prev, mode }));
-    setIsOpen(false);
   };
 
   const changeAccent = (color: AccentColor) => {
     setTheme(prev => ({ ...prev, accentColor: color }));
+  };
+
+  const changeFontSize = (size: FontSize) => {
+    setTheme(prev => ({ ...prev, fontSize: size }));
   };
 
   const currentAccent = ACCENT_COLORS[theme.accentColor];
@@ -188,7 +205,7 @@ const ThemeSwitcher: React.FC = () => {
               style={{
                 border: 'none',
                 padding: 0,
-                marginBottom: '20px'
+                marginBottom: '18px'
               }}
             >
               <legend
@@ -265,7 +282,8 @@ const ThemeSwitcher: React.FC = () => {
             <fieldset
               style={{
                 border: 'none',
-                padding: 0
+                padding: 0,
+                marginBottom: '18px'
               }}
             >
               <legend
@@ -319,6 +337,68 @@ const ThemeSwitcher: React.FC = () => {
               </div>
             </fieldset>
 
+            <fieldset
+              style={{
+                border: 'none',
+                padding: 0
+              }}
+            >
+              <legend
+                style={{
+                  fontSize: 'var(--text-sm, 14px)',
+                  fontWeight: 500,
+                  color: 'var(--text-secondary, var(--text-dim))',
+                  marginBottom: '12px'
+                }}
+              >
+                字体大小
+              </legend>
+
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '8px'
+                }}
+              >
+                {(Object.keys(FONT_SIZES) as FontSize[]).map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => changeFontSize(size)}
+                    role="menuitemradio"
+                    aria-checked={theme.fontSize === size}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '10px',
+                      border: theme.fontSize === size
+                        ? `2px solid ${currentAccent.primary}`
+                        : '1px solid var(--border-color, var(--border))',
+                      background: theme.fontSize === size
+                        ? `${currentAccent.primary}15`
+                        : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      fontSize: `${FONT_SIZES[size].scale * 14}px`,
+                      fontWeight: theme.fontSize === size ? 600 : 400,
+                      color: 'var(--text-secondary, var(--text-dim))'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (theme.fontSize !== size) {
+                        e.currentTarget.style.background = 'var(--sidebar-hover, rgba(255,255,255,0.05))';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (theme.fontSize !== size) {
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    {FONT_SIZES[size].label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
             <div
               style={{
                 marginTop: '16px',
@@ -330,7 +410,7 @@ const ThemeSwitcher: React.FC = () => {
                 fontSize: 'var(--text-xs, 12px)',
                 color: 'var(--text-muted, #555555)'
               }}>
-              <span>当前: {theme.mode === 'dark' ? '🌙 深色' : theme.mode === 'light' ? '☀️ 浅色' : '💻 跟随系统'}</span>
+              <span>{theme.mode === 'dark' ? '🌙 深色' : theme.mode === 'light' ? '☀️ 浅色' : '💻 跟随系统'} · 字体: {FONT_SIZES[theme.fontSize].label}</span>
               <span
                 style={{
                   display: 'inline-block',
@@ -349,5 +429,5 @@ const ThemeSwitcher: React.FC = () => {
 };
 
 export default ThemeSwitcher;
-export type { ThemeMode, AccentColor, ThemeConfig };
-export { ACCENT_COLORS };
+export type { ThemeMode, AccentColor, ThemeConfig, FontSize };
+export { ACCENT_COLORS, FONT_SIZES };

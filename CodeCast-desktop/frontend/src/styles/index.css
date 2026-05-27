@@ -29,8 +29,21 @@
 @import './notifications.css';
 @import './dialogs.css';
 @import './reasoning.css';
+
+/* Highlight.js Theme - GitHub Dark Dimmed */
+@import 'highlight.js/styles/github-dark-dimmed.css';
 @import './agents.css';
 @import './mode-selector.css';
+@import './terminal.css';
+@import './diff.css';
+@import './agent-loop.css';
+@import './code-workspace.css';
+@import './inline-code-editor.css';
+@import './smart-autocomplete.css';
+@import './git-workflow.css';
+@import './checkpoint.css';
+@import './test-visualizer.css';
+@import './auto-fix-pipeline.css';
 
 /* 主题切换过渡动画 */
 :root,

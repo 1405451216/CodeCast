@@ -9,7 +9,7 @@ import (
 )
 
 // ==================== Linux 增强安全测试 ====================
-// 
+//
 // 目标: 验证并加固 Linux/macOS 环境下的命令注入防护
 // 覆盖范围: bash/zsh 特有攻击向量、进程替换、算术扩展等
 
@@ -251,15 +251,15 @@ func TestLinux_EnhancedSecurity_AllAttackVectors(t *testing.T) {
 	t.Log(fmt.Sprintf("📋 攻击向量矩阵: %d 个场景\n", len(attackVectors)))
 
 	stats := struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}{total: len(attackVectors)}
 
 	for i, vector := range attackVectors {
@@ -308,7 +308,11 @@ func TestLinux_EnhancedSecurity_AllAttackVectors(t *testing.T) {
 		})
 	}
 
-	printLinuxSecurityReport(t, stats, attackVectors)
+	vectors := make([]interface{}, len(attackVectors))
+	for i, v := range attackVectors {
+		vectors[i] = v
+	}
+	printLinuxSecurityReport(t, stats, vectors)
 }
 
 func TestLinux_Advanced_AttackScenarios(t *testing.T) {
@@ -441,10 +445,10 @@ func TestLinux_ChainOperators_CompleteCoverage(t *testing.T) {
 	t.Log("\n🔍 完整链式操作符覆盖率测试\n")
 
 	testCases := []struct {
-		char       string
-		pattern    string
+		char        string
+		pattern     string
 		shouldMatch bool
-		desc       string
+		desc        string
 	}{
 		{"$", "$(cmd)", true, "命令替换开始"},
 		{"$", "${VAR}", true, "变量扩展"},
@@ -465,7 +469,7 @@ func TestLinux_ChainOperators_CompleteCoverage(t *testing.T) {
 	allPassed := true
 	for _, tc := range testCases {
 		matched := chainOperators.MatchString(tc.pattern)
-		
+
 		if tc.shouldMatch {
 			if matched {
 				t.Logf("✅ %-8s → 已覆盖: %-25s 示例: %s", tc.char, tc.desc, tc.pattern)
@@ -492,126 +496,126 @@ func printLinuxSecurityReport(t *testing.T, stats interface{}, vectors []interfa
 	t.Log("📊 Linux 安全防护完整报告")
 	t.Log(strings.Repeat("=", 80))
 	t.Log("")
-	
+
 	t.Log("📈 统计摘要:")
 	t.Log(fmt.Sprintf("   总测试向量:    %d", stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).total))
 	t.Log(fmt.Sprintf("   已防护数量:    %d", stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).blocked))
 	t.Log(fmt.Sprintf("   存在漏洞:      %d", stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).vulnerable))
 	t.Log("")
-	
+
 	t.Log("🎯 风险等级分布:")
 	t.Log(fmt.Sprintf("   🔴 致命 (Critical):  %d", stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).critical))
 	t.Log(fmt.Sprintf("   🟠 高危 (High):     %d", stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).high))
 	t.Log(fmt.Sprintf("   🟡 中危 (Medium):   %d", stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).medium))
 	t.Log(fmt.Sprintf("   🟢 低危 (Low):      %d", stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).low))
 	t.Log(fmt.Sprintf("   ✅ 安全 (Safe):     %d", stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).safe))
 	t.Log("")
-	
+
 	defenseRate := float64(stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).blocked) / float64(stats.(struct {
-		total       int
-		blocked     int
-		allowed     int
-		critical    int
-		high        int
-		medium      int
-		low         int
-		safe        int
-		vulnerable  int
+		total      int
+		blocked    int
+		allowed    int
+		critical   int
+		high       int
+		medium     int
+		low        int
+		safe       int
+		vulnerable int
 	}).total) * 100
-	
+
 	t.Log(fmt.Sprintf("🛡️  整体防护率: %.1f%%", defenseRate))
 	t.Log("")
-	
+
 	if defenseRate >= 90 {
 		t.Log("🏆 评级: 优秀 (Excellent)")
 		t.Log("💪 Linux 环境下安全防护机制非常有效!")
@@ -625,6 +629,6 @@ func printLinuxSecurityReport(t *testing.T, stats interface{}, vectors []interfa
 		t.Error("🚨 评级: 差 (Poor)")
 		t.Error("⚠️  Linux 环境存在严重安全隐患，需要立即修复!")
 	}
-	
+
 	t.Log("\n" + strings.Repeat("=", 80) + "\n")
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -250,27 +249,27 @@ func TestConfigSystem_Validation(t *testing.T) {
 	
 	invalidConfigs := []struct {
 		name   string
-		modify func(*AppConfig)
+		modify func(*SystemConfig)
 		expect int
 	}{
 		{
 			name: "并发数过大",
-			modify: func(c *AppConfig) { c.Server.MaxConcurrency = 999 },
+			modify: func(c *SystemConfig) { c.Server.MaxConcurrency = 999 },
 			expect: 1,
 		},
 		{
 			name: "Token预算过小",
-			modify: func(c *AppConfig) { c.Context.TokenBudget = 100 },
+			modify: func(c *SystemConfig) { c.Context.TokenBudget = 100 },
 			expect: 1,
 		},
 		{
 			name: "日志级别无效",
-			modify: func(c *AppConfig) { c.Logging.Level = "invalid" },
+			modify: func(c *SystemConfig) { c.Logging.Level = "invalid" },
 			expect: 1,
 		},
 		{
 			name: "多个问题",
-			modify: func(c *AppConfig) { 
+			modify: func(c *SystemConfig) { 
 				c.Server.MaxConcurrency = 0
 				c.Context.TokenBudget = 0
 				c.Logging.Level = "debug_extra"
@@ -470,7 +469,7 @@ func TestMemoryManagement_ContextAssembly(t *testing.T) {
 		if i%2 == 0 {
 			role = "assistant"
 		}
-		session.Messages = append(session.Message, Message{
+		session.Messages = append(session.Messages, Message{
 			Role:    role,
 			Content: fmt.Sprintf("这是第 %d 条消息，包含一些示例内容用于测试上下文组装的内存使用情况。", i+1),
 		})
@@ -515,10 +514,6 @@ func TestContextCompaction_Quality(t *testing.T) {
 	
 	app := createTestApp()
 	app.settings = &Settings{MessageHistoryLimit: 10}
-	app.llmConfig = LLMProviderConfig{
-		APIURL: "https://api.test.com/v1",
-		Model:  "test-model",
-	}
 	
 	messages := make([]Message, 40)
 	for i := range messages {
@@ -691,77 +686,4 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 	GetCommandAudit().Close()
 	
 	t.Log("\n🎉 集成测试完成！所有子系统协同工作正常")
-}
-
-func isRetryableError(statusCode int) bool {
-	return statusCode == 429 || statusCode >= 500
-}
-
-var httpClient = &http.Client{}
-
-type LLMResponse struct {
-	Content   string     `json:"content"`
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
-}
-
-type ToolCall struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Args string `json:"args"`
-}
-
-type ToolResult struct {
-	ToolCallID string `json:"tool_call_id"`
-	Content    string `json:"content"`
-	IsError    bool   `json:"is_error"`
-}
-
-type Session struct {
-	ID          string
-	Messages    []Message
-}
-
-type Message struct {
-	Role    string
-	Content string
-}
-
-type Settings struct {
-	ComputerControl    bool
-	MessageHistoryLimit int
-}
-
-type LLMProviderConfig struct {
-	APIURL string
-	Model  string
-}
-
-func createTestApp() *App {
-	return &App{
-		settings: &Settings{},
-		config: &Config{},
-	}
-}
-
-func (a *App) buildContextAssembly(session *Session, input string, longContext bool, systemPrompt string) []Message {
-	return session.Messages[:min(len(session.Messages), a.settings.MessageHistoryLimit)]
-}
-
-func (a *App) compactHistory(msgs []Message, keepRecent int) ([]Message, string) {
-	if len(msgs) <= keepRecent {
-		return msgs, "(早期对话内容已压缩)"
-	}
-	
-	recent := msgs[len(msgs)-keepRecent:]
-	oldMsgs := msgs[:len(msgs)-keepRecent]
-	
-	summary := fmt.Sprintf("(早期对话内容已压缩: 共 %d 条消息)", len(oldMsgs))
-	return recent, summary
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

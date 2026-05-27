@@ -68,7 +68,7 @@ function getOptimalQuality(
   };
 }
 
-const ResponsiveImage: React.FC<ResponsiveImageProps> = ({
+const ResponsiveImage: React.FC<ResponsiveImageProps> = React.memo(({
   src,
   alt,
   webpSrc,
@@ -252,7 +252,9 @@ const ResponsiveImage: React.FC<ResponsiveImageProps> = ({
       )}
     </div>
   );
-};
+});
+
+ResponsiveImage.displayName = 'ResponsiveImage';
 
 export default ResponsiveImage;
 

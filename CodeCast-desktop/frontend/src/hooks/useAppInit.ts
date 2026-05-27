@@ -4,12 +4,19 @@ import * as api from '../api';
 import { toSession } from '../api/types';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 
+const isWailsEnvironment = typeof window !== 'undefined' && 'go' in window;
+
 export function useAppInit() {
   const setPlatform = useAppStore((s: AppState) => s.setPlatform);
   const setSessions = useAppStore((s: AppState) => s.setSessions);
   const setProjects = useAppStore((s: AppState) => s.setProjects);
 
   useEffect(() => {
+    if (!isWailsEnvironment) {
+      console.log('[useAppInit] 非 Wails 环境，跳过初始化');
+      return;
+    }
+
     initApp();
 
     const cleanupAgentEvent = EventsOn('agent:event', (event: any) => {

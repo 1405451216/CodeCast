@@ -23,6 +23,35 @@ export interface Attachment {
   path: string;
 }
 
+export interface ImageAttachment {
+  id: string;
+  name: string;
+  dataUrl: string;
+  file?: File;
+  size: number;
+  type: string;
+}
+
+export interface ContextReference {
+  id: string;
+  type: 'message' | 'code' | 'file';
+  title: string;
+  content: string;
+  sourceMessageId?: string;
+  filePath?: string;
+  language?: string;
+}
+
+export interface CommandSuggestion {
+  type: 'clarity' | 'parameters' | 'format' | 'structure';
+  severity: 'info' | 'warning' | 'suggestion';
+  title: string;
+  description: string;
+  originalText: string;
+  suggestedText: string;
+  applied: boolean;
+}
+
 export interface Project {
   id: string;
   name: string;

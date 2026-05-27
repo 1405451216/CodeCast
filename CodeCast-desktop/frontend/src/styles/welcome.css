@@ -105,17 +105,13 @@
     font-weight: 700;
     letter-spacing: 2px;
     margin-bottom: 12px;
-    background: var(--gradient-accent, linear-gradient(135deg, var(--accent), #a78bfa));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    position: relative;
-    display: inline-block;
+    color: var(--accent);
 }
 
 .welcome-subtitle {
     font-size: var(--text-base-plus, 1.071rem);
-    color: var(--text-dim);
+    color: var(--accent);
+    opacity: 0.75;
     margin-bottom: 0;
     line-height: var(--line-height-relaxed, 1.625);
 }

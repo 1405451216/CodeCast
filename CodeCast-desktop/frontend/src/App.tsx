@@ -5,9 +5,11 @@ import { useSessionActions } from './hooks/useSessionActions';
 import { useChatSender } from './hooks/useChatSender';
 import { useCommandPalette } from './hooks/useKeyboardShortcuts';
 import { WebVitalsDashboard, useWebVitals } from './utils/WebVitalsMonitor';
+import { performanceMonitor, cacheManager } from './utils/performance';
 import * as api from './api';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingFallback from './components/LoadingFallback';
+import DemoPreview from './components/DemoPreview';
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -43,6 +45,7 @@ const AutomationPanel = lazy(() => import('./components/AutomationPanel'));
 const ProjectsPanel = lazy(() => import('./components/ProjectsPanel'));
 const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
 const PanelResizer = lazy(() => import('./components/PanelResizer'));
+const CodeModeWorkspace = lazy(() => import('./components/CodeModeWorkspace'));
 
 const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(260);
@@ -57,11 +60,42 @@ const App: React.FC = () => {
     reportInterval: 30000
   });
 
+  useEffect(() => {
+    performanceMonitor.startMonitoring();
+
+    const reportInterval = setInterval(() => {
+      const metrics = performanceMonitor.getCurrentMetrics();
+      console.log(`[Perf] FPS: ${metrics.fps}, Memory: ${metrics.memoryUsage}MB, Render: ${metrics.renderTime}ms`);
+
+      const bottlenecks = performanceMonitor.detectBottlenecks();
+      if (bottlenecks.length > 0) {
+        console.warn('[Perf] Bottlenecks detected:', bottlenecks);
+      }
+    }, import.meta.env.DEV ? 10000 : 60000);
+
+    const cleanupInterval = setInterval(async () => {
+      const cleaned = await cacheManager.cleanup();
+      if (cleaned > 0) {
+        console.log(`[Cache] Cleaned up ${cleaned} expired entries`);
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      performanceMonitor.stopMonitoring();
+      clearInterval(reportInterval);
+      clearInterval(cleanupInterval);
+    };
+  }, []);
+
   const sidebarVisible = useAppStore((s: AppState) => s.sidebarVisible);
   const previewPanelVisible = useAppStore((s: AppState) => s.previewPanelVisible);
   const filesPanelVisible = useAppStore((s: AppState) => s.filesPanelVisible);
   const view = useAppStore((s: AppState) => s.view);
+  const currentSession = useAppStore((s: AppState) => s.currentSessionId);
+  const sessions = useAppStore((s: AppState) => s.sessions);
   const isLoading = useAppStore((s: AppState) => s.isLoading);
+
+  const currentMode = sessions.find(s => s.ID === currentSession)?.Mode || '';
 
   useAppInit();
 
@@ -110,6 +144,12 @@ const App: React.FC = () => {
   const handleFilesResize = useCallback((delta: number) => {
     setFilesWidth((w) => Math.max(160, Math.min(500, w - delta)));
   }, []);
+
+  const isWailsEnvironment = typeof window !== 'undefined' && 'go' in window;
+
+  if (!isWailsEnvironment) {
+    return <DemoPreview />;
+  }
 
   return (
     <ErrorBoundary>
@@ -164,6 +204,12 @@ const App: React.FC = () => {
           {view === 'chat' && (
             <Suspense fallback={<LoadingFallback message="加载输入框..." />}>
               <ChatInput onSend={handleSendMessage} isLoading={isLoading} onStop={handleStop} />
+            </Suspense>
+          )}
+          
+          {currentMode === 'coding' && view === 'chat' && (
+            <Suspense fallback={<LoadingFallback message="加载 Code 工作台..." />}>
+              <CodeModeWorkspace visible mode="coding" />
             </Suspense>
           )}
           

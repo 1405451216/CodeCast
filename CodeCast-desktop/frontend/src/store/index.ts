@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { logger } from '../utils/logger';
 import { createSessionSlice } from './useSessionStore';
 import { createProjectSlice } from './useProjectStore';
 import { createUISlice } from './useUIStore';
@@ -12,6 +13,8 @@ import { createMenuSlice } from './useMenuStore';
 import { createPlatformSlice } from './usePlatformStore';
 import { createMessagesSlice } from './useMessagesStore';
 import { createAgentSlice } from './useAgentStore';
+import { createPerformanceSlice } from './usePerformanceStore';
+import { createPluginSlice } from './usePluginStore';
 
 import type { SessionSlice } from './useSessionStore';
 import type { ProjectSlice } from './useProjectStore';
@@ -25,6 +28,8 @@ import type { MenuSlice } from './useMenuStore';
 import type { PlatformSlice } from './usePlatformStore';
 import type { MessagesSlice } from './useMessagesStore';
 import type { AgentSlice } from './useAgentStore';
+import type { PerformanceSlice } from './usePerformanceStore';
+import type { PluginSlice } from './usePluginStore';
 import type { SliceSet } from './storeTypes';
 
 export interface AppState extends
@@ -39,14 +44,20 @@ export interface AppState extends
   MenuSlice,
   PlatformSlice,
   MessagesSlice,
-  AgentSlice {
+  AgentSlice,
+  PerformanceSlice,
+  PluginSlice {
   isStreaming: boolean;
   setIsStreaming: (val: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set, _get, _api) => {
+  logger.info('Store', '🏗️  Initializing AppState with all slices...');
+  
+  const startTime = performance.now();
+  
   const sliceSet = set as unknown as SliceSet;
-  return {
+  const store = {
     ...createSessionSlice(sliceSet),
     ...createProjectSlice(sliceSet),
     ...createUISlice(sliceSet),
@@ -59,10 +70,28 @@ export const useAppStore = create<AppState>((set, _get, _api) => {
     ...createPlatformSlice(sliceSet),
     ...createMessagesSlice(sliceSet),
     ...createAgentSlice(sliceSet),
+    ...createPerformanceSlice(sliceSet),
+    ...createPluginSlice(sliceSet),
 
     isStreaming: false,
-    setIsStreaming: (val) => set({ isStreaming: val }),
+    setIsStreaming: (val: boolean) => {
+      logger.info('Store', `📡 Streaming state changed: ${val}`, { previousState: useAppStore.getState().isStreaming });
+      set({ isStreaming: val });
+    },
   };
+
+  const endTime = performance.now();
+  logger.info('Store', '✅ AppState initialized successfully', {
+    duration: `${(endTime - startTime).toFixed(2)}ms`,
+    totalSlices: 15,
+    sliceNames: [
+      'Session', 'Project', 'UI', 'Model', 'Attachment',
+      'Todo', 'ChangedFiles', 'SlashCommands', 'Menu', 
+      'Platform', 'Messages', 'Agent', 'Performance', 'Plugin'
+    ]
+  });
+
+  return store;
 });
 
 export * from './types';

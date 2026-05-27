@@ -127,7 +127,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onSend }) => {
       <div className="welcome-brand">
         <h1 className="welcome-title">✦ CodeCast</h1>
         <p className="welcome-subtitle">
-          {effectiveMode === 'coding' ? 'AI 帮你写代码，把想法铸成产物' : 'AI 助手，随时为你解答'}
+          {effectiveMode === 'coding' ? '颠覆世界的产物,将在你手中创造' : '记住每一次对话,懂你的每一个需求'}
         </p>
       </div>
 
