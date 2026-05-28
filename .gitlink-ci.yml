@@ -1,256 +1,132 @@
-name: CodeCast Multi-Platform Build
+version: "2"
+codecast:
+  git_clone:
+    type: git_clone:1.0.0-rc1
+    inputs:
+      remote_url: https://gitlink.org.cn/yangchen123/CodeCast.git
+      ref: main
+      username: yangchen123
+      password: 92dc59a18f7475e68c13c18df27be260741e5878
 
-on:
-  push:
-    branches: [main, develop]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [main, develop]
+  build_windows:
+    type: shell:1.0.1
+    inputs:
+      script: |
+        echo "=== Building CodeCast for Windows ==="
+        cd CodeCast-desktop/frontend
+        npm ci
+        cd ..
+        wails build -clean
+        echo "=== Creating portable package ==="
+        cd build/bin
+        Compress-Archive -Path "CodeCast.exe" -DestinationPath "CodeCast-Windows-amd64-portable.zip"
+        ls -la
+    dependsOn:
+      - git_clone
 
-env:
-  NODE_VERSION: '20'
-  GO_VERSION: '1.25'
-
-stages:
-  - lint
-  - test
-  - build
-  - package
-  - release
-
-variables:
-  PROJECT_NAME: "CodeCast"
-  FRONTEND_DIR: "CodeCast-desktop/frontend"
-  BUILD_DIR: "CodeCast-desktop"
-
-lint-frontend:
-  stage: lint
-  image: node:${NODE_VERSION}-alpine
-  script:
-    - cd ${FRONTEND_DIR}
-    - npm ci
-    - npm run typecheck
-    - npx eslint src/ --ext .ts,.tsx --max-warnings=500 || true
-  only:
-    - main
-    - develop
-    - merge_requests
-
-test-frontend:
-  stage: test
-  image: node:${NODE_VERSION}-alpine
-  dependencies:
-    - lint-frontend
-  script:
-    - cd ${FRONTEND_DIR}
-    - npm ci
-    - npm run test:coverage
-  artifacts:
-    paths:
-      - ${FRONTEND_DIR}/coverage/
-    expire_in: 7 days
-  only:
-    - main
-    - develop
-    - merge_requests
-
-build-windows:
-  stage: build
-  tags:
-    - windows
-  before_script:
-    - choco install -y wails
-    - choco install -y nodejs --version=${NODE_VERSION}
-  script:
-    - cd ${BUILD_DIR}/frontend && npm ci && cd ..
-    - wails build -clean -upx
-    - cd build/bin
-    - Compress-Archive -Path "CodeCast.exe" -DestinationPath "CodeCast-Windows-amd64-portable.zip"
-  artifacts:
-    paths:
-      - ${BUILD_DIR}/build/bin/CodeCast.exe
-      - ${BUILD_DIR}/build/bin/CodeCast-Windows-amd64-portable.zip
-    expire_in: 30 days
-  only:
-    - tags
-    - main
-    - develop
-
-build-macos-intel:
-  stage: build
-  tags:
-    - macos
-    - intel
-  before_script:
-    - brew install wails
-  script:
-    - export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
-    - go install github.com/wailsapp/wails/v2/cmd/wails@latest
-    - cd ${BUILD_DIR}/frontend && npm ci && cd ..
-    - GOARCH=amd64 CGO_ENABLED=1 wails build -platform darwin/amd64 -clean
-    - cd build/bin
-    - |
-      APP_NAME=$(find . -maxdepth 1 -name "*.app" -type d | head -1)
-      if [ -n "$APP_NAME" ] && [ -d "$APP_NAME" ]; then
-        mkdir -p dmg-staging
-        cp -R "$APP_NAME" dmg-staging/CodeCast.app
-        ln -s /Applications dmg-staging/Applications
-        hdiutil create -volname "CodeCast Intel" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-intel.dmg"
-        rm -rf dmg-staging
-      fi
-  artifacts:
-    paths:
-      - ${BUILD_DIR}/build/bin/*.app
-      - ${BUILD_DIR}/build/bin/*intel*.dmg
-    expire_in: 30 days
-  only:
-    - tags
-    - main
-    - develop
-
-build-macos-arm64:
-  stage: build
-  tags:
-    - macos
-    - arm64
-  before_script:
-    - brew install wails
-  script:
-    - export PATH=$PATH:/opt/homebrew/bin:$HOME/go/bin
-    - go install github.com/wailsapp/wails/v2/cmd/wails@latest
-    - cd ${BUILD_DIR}/frontend && npm ci && cd ..
-    - GOARCH=arm64 CGO_ENABLED=1 wails build -platform darwin/arm64 -clean
-    - cd build/bin
-    - |
-      APP_NAME=$(find . -maxdepth 1 -name "*.app" -type d | head -1)
-      if [ -n "$APP_NAME" ] && [ -d "$APP_NAME" ]; then
-        mkdir -p dmg-staging
-        cp -R "$APP_NAME" dmg-staging/CodeCast.app
-        ln -s /Applications dmg-staging/Applications
-        hdiutil create -volname "CodeCast Apple Silicon" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-arm64.dmg"
-        rm -rf dmg-staging
-      fi
-  artifacts:
-    paths:
-      - ${BUILD_DIR}/build/bin/*.app
-      - ${BUILD_DIR}/build/bin/*arm64*.dmg
-    expire_in: 30 days
-  only:
-    - tags
-    - main
-    - develop
-
-create-universal-binary:
-  stage: package
-  image: macos-latest
-  dependencies:
-    - build-macos-intel
-    - build-macos-arm64
-  script:
-    - |
-      echo "=== Creating Universal Binary ==="
-      
-      INTEL_APP=$(find . -path "*intel*.app" -type d | head -1 || find . -name "*.app" -type d | head -1)
-      ARM64_APP=$(find . -path "*arm64*.app" -type d | head -1 || find . -name "*.app" -type d | tail -1)
-      
-      if [ -n "$INTEL_APP" ] && [ -n "$ARM64_APP" ]; then
-        cp -R "$ARM64_APP" ./CodeCast-universal.app
-        
-        INTEL_BIN="$INTEL_APP/Contents/MacOS/CodeCast"
-        ARM64_BIN="$ARM64_APP/Contents/MacOS/CodeCast"
-        
-        if [ -f "$INTEL_BIN" ] && [ -f "$ARM64_BIN" ]; then
-          lipo -create "$INTEL_BIN" "$ARM64_BIN" -output ./CodeCast-universal.app/Contents/MacOS/CodeCast
-          echo "✅ Universal binary created"
-          file ./CodeCast-universal.app/Contents/MacOS/CodeCast
-          
+  build_macos_intel:
+    type: shell:1.0.1
+    inputs:
+      script: |
+        echo "=== Building CodeCast for macOS Intel (amd64) ==="
+        export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+        go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        cd CodeCast-desktop/frontend && npm ci && cd ..
+        GOARCH=amd64 CGO_ENABLED=1 wails build -platform darwin/amd64 -clean
+        cd build/bin
+        APP_NAME=$(find . -maxdepth 1 -name "*.app" -type d | head -1)
+        if [ -n "$APP_NAME" ] && [ -d "$APP_NAME" ]; then
           mkdir -p dmg-staging
-          cp -R CodeCast-universal.app dmg-staging/
+          cp -R "$APP_NAME" dmg-staging/CodeCast.app
           ln -s /Applications dmg-staging/Applications
-          hdiutil create -volname "CodeCast Universal" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-universal.dmg"
+          hdiutil create -volname "CodeCast Intel" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-intel.dmg"
           rm -rf dmg-staging
-        else
-          echo "⚠️ Binary files not found, copying arm64 version"
-          ls -la "$INTEL_APP/Contents/MacOS/" || true
-          ls -la "$ARM64_APP/Contents/MacOS/" || true
+          echo "✅ macOS Intel DMG created successfully"
         fi
-      else
-        echo "⚠️ Could not find both app bundles"
-        echo "INTEL_APP=$INTEL_APP"
-        echo "ARM64_APP=$ARM64_APP"
-        find . -name "*.app" -type d 2>/dev/null || true
-      fi
-  artifacts:
-    paths:
-      - CodeCast-universal.app/
-      - *.dmg
-    expire_in: 30 days
-  only:
-    - tags
+        ls -la
+    dependsOn:
+      - git_clone
 
-release-github:
-  stage: release
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache curl jq git
-  script:
-    - |
-      TAG="${CI_COMMIT_TAG:-latest}"
-      
-      echo "## 🚀 CodeCast Release ${TAG}" > RELEASE_NOTES.md
-      echo "" >> RELEASE_NOTES.md
-      echo "### 📦 构建产物" >> RELEASE_NOTES.md
-      echo "" >> RELEASE_NOTES.md
-      echo "| 平台 | 架构 | 文件 |" >> RELEASE_NOTES.md
-      echo "|------|------|------|" >> RELEASE_NOTES.md
-      echo "| Windows | amd64 | \`CodeCast.exe\` |" >> RELEASE_NOTES.md
-      echo "| Windows | amd64 | \`CodeCast-Windows-amd64-portable.zip\` |" >> RELEASE_NOTES.md
-      echo "| macOS | Intel (amd64) | \`CodeCast-macOS-intel.dmg\` |" >> RELEASE_NOTES.md
-      echo "| macOS | Apple Silicon (arm64) | \`CodeCast-macOS-arm64.dmg\` |" >> RELEASE_NOTES.md
-      echo "| macOS | Universal | \`CodeCast-mos-universal.dmg\` |" >> RELEASE_NOTES.md
-      echo "" >> RELEASE_NOTES.md
-      echo "### 🔧 构建信息" >> RELEASE_NOTES.md
-      echo "- **时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> RELEASE_NOTES.md
-      echo "- **Go**: ${GO_VERSION}" >> RELEASE_NOTES.md
-      echo "- **Node.js**: ${NODE_VERSION}" >> RELEASE_NOTES.md
-      echo "- **Wails**: v2 (最新)" >> RELEASE_NOTES.md
-      echo "- **Commit**: \`${CI_COMMIT_SHA}\`" >> RELEASE_NOTES.md
-      echo "" >> RELEASE_NOTES.md
-      echo "### ✨ 功能特性" >> RELEASE_NOTES.md
-      echo "- 🎬 Cast 工作台 - AI 驱动的开发环境" >> RELEASE_NOTES.md
-      echo "- 🔌 多模型 LLM 支持" >> RELEASE_NOTES.md
-      echo "- 📚 RAG 知识库增强检索" >> RELEASE_NOTES.md
-      echo "- 🛡️ 数据隐私保护模块" >> RELEASE_NOTES.md
-      echo "- ⚡ 虚拟滚动 + 懒加载性能优化" >> RELEASE_NOTES.md
-      
-      if [ -d "dist" ]; then
-        cd dist
-        sha256sum * > SHA256SUMS.txt 2>/dev/null || true
-        cat SHA256SUMS.txt >> ../RELEASE_NOTES.md
-      fi
-  artifacts:
-    paths:
-      - RELEASE_NOTES.md
-      - SHA256SUMS.txt
-    expire_in: 90 days
-  only:
-    - tags
-    - /^v\d+\.\d+\.\d+$/
+  build_macos_arm64:
+    type: shell:1.0.1
+    inputs:
+      script: |
+        echo "=== Building CodeCast for macOS Apple Silicon (arm64) ==="
+        export PATH=$PATH:/opt/homebrew/bin:$HOME/go/bin
+        go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        cd CodeCast-desktop/frontend && npm ci && cd ..
+        GOARCH=arm64 CGO_ENABLED=1 wails build -platform darwin/arm64 -clean
+        cd build/bin
+        APP_NAME=$(find . -maxdepth 1 -name "*.app" -type d | head -1)
+        if [ -n "$APP_NAME" ] && [ -d "$APP_NAME" ]; then
+          mkdir -p dmg-staging
+          cp -R "$APP_NAME" dmg-staging/CodeCast.app
+          ln -s /Applications dmg-staging/Applications
+          hdiutil create -volname "CodeCast Apple Silicon" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-arm64.dmg"
+          rm -rf dmg-staging
+          echo "✅ macOS ARM64 DMG created successfully"
+        fi
+        ls -la
+    dependsOn:
+      - git_clone
 
-notify-success:
-  stage: release
-  image: alpine:latest
-  when: on_success
-  script:
-    - |
-      echo "✅ Build completed successfully!"
-      echo ""
-      echo "📊 Build Summary:"
-      echo "- Platform: Multi-platform (Windows + macOS)"
-      echo "- Architectures: amd64, arm64, universal"
-      echo "- Tag: ${CI_COMMIT_TAG:-$CI_COMMIT_BRANCH}"
-      echo "- Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-  only:
-    - tags
-    - main
+  create_universal:
+    type: shell:1.0.1
+    inputs:
+      script: |
+        echo "=== Creating Universal Binary ==="
+        INTEL_APP=$(find CodeCast-desktop/build/bin -path "*intel*.app" -type d | head -1 || find CodeCast-desktop/build/bin -name "*.app" -type d | head -1)
+        ARM64_APP=$(find CodeCast-desktop/build/bin -path "*arm64*.app" -type d | head -1 || find CodeCast-desktop/build/bin -name "*.app" -type d | tail -1)
+
+        if [ -n "$INTEL_APP" ] && [ -n "$ARM64_APP" ]; then
+          cp -R "$ARM64_APP" ./CodeCast-universal.app
+          INTEL_BIN="$INTEL_APP/Contents/MacOS/CodeCast"
+          ARM64_BIN="$ARM64_APP/Contents/MacOS/CodeCast"
+
+          if [ -f "$INTEL_BIN" ] && [ -f "$ARM64_BIN" ]; then
+            lipo -create "$INTEL_BIN" "$ARM64_BIN" -output ./CodeCast-universal.app/Contents/MacOS/CodeCast
+            echo "✅ Universal binary created"
+            file ./CodeCast-universal.app/Contents/MacOS/CodeCast
+
+            mkdir -p dmg-staging
+            cp -R CodeCast-universal.app dmg-staging/
+            ln -s /Applications dmg-staging/Applications
+            hdiutil create -volname "CodeCast Universal" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-universal.dmg"
+            rm -rf dmg-staging
+            echo "✅ Universal DMG created"
+          else
+            echo "⚠️ Binary files not found"
+          fi
+        else
+          echo "⚠️ Could not find both app bundles"
+        fi
+    dependsOn:
+      - build_macos_intel
+      - build_macos_arm64
+
+  release_notes:
+    type: shell:1.0.1
+    inputs:
+      script: |
+        echo "## 🚀 CodeCast Multi-Platform Release" > RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### 📦 Build Artifacts" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "| Platform | Architecture | File |" >> RELEASE_NOTES.md
+        echo "|----------|---------------|------|" >> RELEASE_NOTES.md
+        echo "| Windows | amd64 | \`CodeCast.exe\` |" >> RELEASE_NOTES.md
+        echo "| Windows | amd64 | \`CodeCast-Windows-portable.zip\` |" >> RELEASE_NOTES.md
+        echo "| macOS | Intel (amd64) | \`CodeCast-macOS-intel.dmg\` |" >> RELEASE_NOTES.md
+        echo "| macOS | Apple Silicon (arm64) | \`CodeCast-macOS-arm64.dmg\` |" >> RELEASE_NOTES.md
+        echo "| macOS | Universal | \`CodeCast-macos-universal.dmg\` |" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### ✨ Features" >> RELEASE_NOTES.md
+        echo "- 🎬 Cast Workspace - AI-powered development environment" >> RELEASE_NOTES.md
+        echo "- 🔌 Multi-model LLM support" >> RELEASE_NOTES.md
+        echo "- 📚 RAG knowledge base enhancement" >> RELEASE_NOTES.md
+        echo "- 🛡️ Data privacy protection module" >> RELEASE_NOTES.md
+        echo "- ⚡ Virtual scrolling + lazy loading optimization" >> RELEASE_NOTES.md
+        cat RELEASE_NOTES.md
+    dependsOn:
+      - build_windows
+      - create_universal
