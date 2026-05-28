@@ -241,9 +241,9 @@ const TabAutocomplete: React.FC<TabAutocompleteProps> = ({
 
   if (!visible || items.length === 0) return null;
 
-  const groupedItems = useMemo(() => {
+  const groupedItems = (() => {
     const groups: Record<string, AutocompleteItem[]> = {};
-    
+
     items.forEach(item => {
       let category = '其他';
       if (item.type === 'code') {
@@ -255,14 +255,14 @@ const TabAutocomplete: React.FC<TabAutocompleteProps> = ({
           });
         }).catch(() => {});
       }
-      
+
       const key = `${item.type}-${category}`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(item);
     });
 
     return groups;
-  }, [items]);
+  })();
 
   let offsetIndex = 0;
 

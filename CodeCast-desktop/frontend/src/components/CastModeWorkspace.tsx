@@ -92,8 +92,8 @@ const CastModeWorkspace: React.FC<CastModeWorkspaceProps> = ({
       })()
     });
     
-    import('../store/useCastLearningStore').then(m => { try { m.useCastLearningStore.getState().loadFromStorage(); } catch {} }).catch(() => {});
-    import('../store/useCastCollabStore').then(m => { try { m.useCastCollabStore.getState().loadFromStorage(); } catch {} }).catch(() => {});
+    import('../store/useCastLearningStore').then(m => { try { m.useCastLearningStore.getState().loadFromStorage(); } catch { /* ignore */ } }).catch(() => { /* ignore */ });
+    import('../store/useCastCollabStore').then(m => { try { m.useCastCollabStore.getState().loadFromStorage(); } catch { /* ignore */ } }).catch(() => { /* ignore */ });
 
     const privacyStore = useCastPrivacyStore.getState();
     if (!privacyStore.isInitialized) {

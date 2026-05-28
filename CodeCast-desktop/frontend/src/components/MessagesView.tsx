@@ -62,7 +62,7 @@ const formatTime = (timestamp?: number): string => {
   return `${hh}:${mm}`;
 };
 
-const estimateMessageHeight = useCallback((message: Message): number => {
+const estimateMessageHeight = ((message: Message): number => {
   if (!message || !message.content) return BASE_HEIGHT;
 
   let height = BASE_HEIGHT;
@@ -83,7 +83,7 @@ const estimateMessageHeight = useCallback((message: Message): number => {
   }
 
   return Math.max(BASE_HEIGHT, Math.min(height, 800));
-}, []);
+});
 
 const MessageItem: React.FC<{ message: Message; index?: number }> = React.memo(({ message, index = 0 }) => {
   const isUser = message.role === 'user';

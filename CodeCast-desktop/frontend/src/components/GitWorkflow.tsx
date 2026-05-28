@@ -506,7 +506,7 @@ ${recentCommits || '(无历史记录)'}
         } catch {
           const fallbackSuggestions = aiResponse
             .split('\n')
-            .map((l: string) => l.replace(/^[\d\.\-\*\#]+\s*/, '').trim())
+            .map((l: string) => l.replace(/^[\d.\-#*]+\s*/, '').trim())
             .filter((l: string) => l.length > 5 && l.length < 100)
             .slice(0, 5);
           setAiCommitSuggestions(fallbackSuggestions.length > 0 ? fallbackSuggestions : [aiResponse.slice(0, 80)]);
@@ -516,7 +516,7 @@ ${recentCommits || '(无历史记录)'}
       } else {
         const fallbackSuggestions = aiResponse
           .split('\n')
-          .map((l: string) => l.replace(/^[\d\.\-\*\#]+\s*/, '').trim())
+          .map((l: string) => l.replace(/^[\d.\-#*]+\s*/, '').trim())
           .filter((l: string) => l.length > 5 && l.length < 100)
           .slice(0, 5);
         setAiCommitSuggestions(fallbackSuggestions.length > 0 ? fallbackSuggestions : [aiResponse.slice(0, 80)]);
