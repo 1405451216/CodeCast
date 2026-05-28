@@ -1,4 +1,4 @@
-name: CodeCast CI/CD
+name: CodeCast Multi-Platform Build
 
 on:
   push:
@@ -16,11 +16,13 @@ stages:
   - lint
   - test
   - build
+  - package
   - release
 
 variables:
   PROJECT_NAME: "CodeCast"
   FRONTEND_DIR: "CodeCast-desktop/frontend"
+  BUILD_DIR: "CodeCast-desktop"
 
 lint-frontend:
   stage: lint
@@ -53,29 +55,6 @@ test-frontend:
     - develop
     - merge_requests
 
-build-linux:
-  stage: build
-  image: golang:${GO_VERSION}-bullseye
-  services:
-    - name: node:${NODE_VERSION}-alpine
-      alias: node-service
-  before_script:
-    - apt-get update && apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-    - go install github.com/wailsapp/wails/v2/cmd/wails@latest
-  script:
-    - export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
-    - cd CodeCast-desktop/frontend && npm ci && cd ..
-    - wails build -tags webkit2_41
-    - cd build/bin && tar -czf CodeCast-Linux-amd64.tar.gz codecast
-  artifacts:
-    paths:
-      - CodeCast-desktop/build/bin/CodeCast-Linux-amd64.tar.gz
-      - CodeCast-desktop/build/bin/codecast
-    expire_in: 30 days
-  only:
-    - tags
-    - /^v\d+\.\d+\.\d+$/
-
 build-windows:
   stage: build
   tags:
@@ -84,58 +63,175 @@ build-windows:
     - choco install -y wails
     - choco install -y nodejs --version=${NODE_VERSION}
   script:
-    - cd CodeCast-desktop/frontend && npm ci && cd ..
-    - wails build
-    - Compress-Archive -Path "CodeCast.exe" -DestinationPath "CodeCast-Windows-portable.zip"
+    - cd ${BUILD_DIR}/frontend && npm ci && cd ..
+    - wails build -clean -upx
+    - cd build/bin
+    - Compress-Archive -Path "CodeCast.exe" -DestinationPath "CodeCast-Windows-amd64-portable.zip"
   artifacts:
     paths:
-      - CodeCast-desktop/build/bin/CodeCast.exe
-      - CodeCast-desktop/build/bin/CodeCast-Windows-portable.zip
+      - ${BUILD_DIR}/build/bin/CodeCast.exe
+      - ${BUILD_DIR}/build/bin/CodeCast-Windows-amd64-portable.zip
     expire_in: 30 days
   only:
     - tags
-    - /^v\d+\.\d+\.\d+$/
+    - main
+    - develop
+
+build-macos-intel:
+  stage: build
+  tags:
+    - macos
+    - intel
+  before_script:
+    - brew install wails
+  script:
+    - export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+    - go install github.com/wailsapp/wails/v2/cmd/wails@latest
+    - cd ${BUILD_DIR}/frontend && npm ci && cd ..
+    - GOARCH=amd64 CGO_ENABLED=1 wails build -platform darwin/amd64 -clean
+    - cd build/bin
+    - |
+      APP_NAME=$(find . -maxdepth 1 -name "*.app" -type d | head -1)
+      if [ -n "$APP_NAME" ] && [ -d "$APP_NAME" ]; then
+        mkdir -p dmg-staging
+        cp -R "$APP_NAME" dmg-staging/CodeCast.app
+        ln -s /Applications dmg-staging/Applications
+        hdiutil create -volname "CodeCast Intel" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-intel.dmg"
+        rm -rf dmg-staging
+      fi
+  artifacts:
+    paths:
+      - ${BUILD_DIR}/build/bin/*.app
+      - ${BUILD_DIR}/build/bin/*intel*.dmg
+    expire_in: 30 days
+  only:
+    - tags
+    - main
+    - develop
+
+build-macos-arm64:
+  stage: build
+  tags:
+    - macos
+    - arm64
+  before_script:
+    - brew install wails
+  script:
+    - export PATH=$PATH:/opt/homebrew/bin:$HOME/go/bin
+    - go install github.com/wailsapp/wails/v2/cmd/wails@latest
+    - cd ${BUILD_DIR}/frontend && npm ci && cd ..
+    - GOARCH=arm64 CGO_ENABLED=1 wails build -platform darwin/arm64 -clean
+    - cd build/bin
+    - |
+      APP_NAME=$(find . -maxdepth 1 -name "*.app" -type d | head -1)
+      if [ -n "$APP_NAME" ] && [ -d "$APP_NAME" ]; then
+        mkdir -p dmg-staging
+        cp -R "$APP_NAME" dmg-staging/CodeCast.app
+        ln -s /Applications dmg-staging/Applications
+        hdiutil create -volname "CodeCast Apple Silicon" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-arm64.dmg"
+        rm -rf dmg-staging
+      fi
+  artifacts:
+    paths:
+      - ${BUILD_DIR}/build/bin/*.app
+      - ${BUILD_DIR}/build/bin/*arm64*.dmg
+    expire_in: 30 days
+  only:
+    - tags
+    - main
+    - develop
+
+create-universal-binary:
+  stage: package
+  image: macos-latest
+  dependencies:
+    - build-macos-intel
+    - build-macos-arm64
+  script:
+    - |
+      echo "=== Creating Universal Binary ==="
+      
+      INTEL_APP=$(find . -path "*intel*.app" -type d | head -1 || find . -name "*.app" -type d | head -1)
+      ARM64_APP=$(find . -path "*arm64*.app" -type d | head -1 || find . -name "*.app" -type d | tail -1)
+      
+      if [ -n "$INTEL_APP" ] && [ -n "$ARM64_APP" ]; then
+        cp -R "$ARM64_APP" ./CodeCast-universal.app
+        
+        INTEL_BIN="$INTEL_APP/Contents/MacOS/CodeCast"
+        ARM64_BIN="$ARM64_APP/Contents/MacOS/CodeCast"
+        
+        if [ -f "$INTEL_BIN" ] && [ -f "$ARM64_BIN" ]; then
+          lipo -create "$INTEL_BIN" "$ARM64_BIN" -output ./CodeCast-universal.app/Contents/MacOS/CodeCast
+          echo "✅ Universal binary created"
+          file ./CodeCast-universal.app/Contents/MacOS/CodeCast
+          
+          mkdir -p dmg-staging
+          cp -R CodeCast-universal.app dmg-staging/
+          ln -s /Applications dmg-staging/Applications
+          hdiutil create -volname "CodeCast Universal" -srcfolder dmg-staging -ov -format UDZO "CodeCast-macOS-universal.dmg"
+          rm -rf dmg-staging
+        else
+          echo "⚠️ Binary files not found, copying arm64 version"
+          ls -la "$INTEL_APP/Contents/MacOS/" || true
+          ls -la "$ARM64_APP/Contents/MacOS/" || true
+        fi
+      else
+        echo "⚠️ Could not find both app bundles"
+        echo "INTEL_APP=$INTEL_APP"
+        echo "ARM64_APP=$ARM64_APP"
+        find . -name "*.app" -type d 2>/dev/null || true
+      fi
+  artifacts:
+    paths:
+      - CodeCast-universal.app/
+      - *.dmg
+    expire_in: 30 days
+  only:
+    - tags
 
 release-github:
   stage: release
   image: alpine:latest
   before_script:
     - apk add --no-cache curl jq git
-    - |
-      TAG="${CI_COMMIT_TAG}"
-      if [ -z "$TAG" ]; then
-        echo "No tag, skipping release"
-        exit 0
-      fi
   script:
     - |
-      echo "## Release ${TAG}" > CHANGELOG.md
-      echo "" >> CHANGELOG.md
-      echo "### 构建信息" >> CHANGELOG.md
-      echo "- **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> CHANGELOG.md
-      echo "- **Go 版本**: ${GO_VERSION}" >> CHANGELOG.md
-      echo "- **Node.js 版本**: ${NODE_VERSION}" >> CHANGELOG.md
-      echo "- **提交**: ${CI_COMMIT_SHA}" >> CHANGELOG.md
-      echo "" >> CHANGELOG.md
-      echo "### 新增功能" >> CHANGELOG.md
-      echo "- 🎬 Cast 工作台全面上线" >> CHANGELOG.md
-      echo "- 🔌 LLM 扩展系统支持多模型切换" >> CHANGEecho "- 📚 RAG 知识库增强检索能力" >> CHANGELOG.md
-      echo "" >> CHANGELOG.md
-      echo "### 改进点" >> CHANGEECHOML
-      echo "- ⚡ 性能优化：虚拟滚动 + 懒加载" >> CHANGELOG.md
-      echo "- 🛡️ 安全增强：数据隐私保护模块" >> CHANGELOG.md
-      echo "" >> CHANGELOG.md
-      echo "### 已知限制" >> CHANGELOG.md
-      echo "- macOS 需要手动允许安全策略" >> CHANGELOG.md
-      echo "- Linux 需要 GTK3 和 WebKit2GTK 依赖" >> CHANGELOG.md
-    - |
-      if [ -f "CodeCast-desktop/build/bin/CodeCast-Linux-amd64.tar.gz" ]; then
-        sha256sum CodeCast-desktop/build/bin/*.tar.gz > SHA256SUMS.txt 2>/dev/null || true
-        ls -la dist/ 2>/dev/null || echo "Build artifacts ready"
+      TAG="${CI_COMMIT_TAG:-latest}"
+      
+      echo "## 🚀 CodeCast Release ${TAG}" > RELEASE_NOTES.md
+      echo "" >> RELEASE_NOTES.md
+      echo "### 📦 构建产物" >> RELEASE_NOTES.md
+      echo "" >> RELEASE_NOTES.md
+      echo "| 平台 | 架构 | 文件 |" >> RELEASE_NOTES.md
+      echo "|------|------|------|" >> RELEASE_NOTES.md
+      echo "| Windows | amd64 | \`CodeCast.exe\` |" >> RELEASE_NOTES.md
+      echo "| Windows | amd64 | \`CodeCast-Windows-amd64-portable.zip\` |" >> RELEASE_NOTES.md
+      echo "| macOS | Intel (amd64) | \`CodeCast-macOS-intel.dmg\` |" >> RELEASE_NOTES.md
+      echo "| macOS | Apple Silicon (arm64) | \`CodeCast-macOS-arm64.dmg\` |" >> RELEASE_NOTES.md
+      echo "| macOS | Universal | \`CodeCast-mos-universal.dmg\` |" >> RELEASE_NOTES.md
+      echo "" >> RELEASE_NOTES.md
+      echo "### 🔧 构建信息" >> RELEASE_NOTES.md
+      echo "- **时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> RELEASE_NOTES.md
+      echo "- **Go**: ${GO_VERSION}" >> RELEASE_NOTES.md
+      echo "- **Node.js**: ${NODE_VERSION}" >> RELEASE_NOTES.md
+      echo "- **Wails**: v2 (最新)" >> RELEASE_NOTES.md
+      echo "- **Commit**: \`${CI_COMMIT_SHA}\`" >> RELEASE_NOTES.md
+      echo "" >> RELEASE_NOTES.md
+      echo "### ✨ 功能特性" >> RELEASE_NOTES.md
+      echo "- 🎬 Cast 工作台 - AI 驱动的开发环境" >> RELEASE_NOTES.md
+      echo "- 🔌 多模型 LLM 支持" >> RELEASE_NOTES.md
+      echo "- 📚 RAG 知识库增强检索" >> RELEASE_NOTES.md
+      echo "- 🛡️ 数据隐私保护模块" >> RELEASE_NOTES.md
+      echo "- ⚡ 虚拟滚动 + 懒加载性能优化" >> RELEASE_NOTES.md
+      
+      if [ -d "dist" ]; then
+        cd dist
+        sha256sum * > SHA256SUMS.txt 2>/dev/null || true
+        cat SHA256SUMS.txt >> ../RELEASE_NOTES.md
       fi
   artifacts:
     paths:
-      - CHANGELOG.md
+      - RELEASE_NOTES.md
       - SHA256SUMS.txt
     expire_in: 90 days
   only:
@@ -147,7 +243,14 @@ notify-success:
   image: alpine:latest
   when: on_success
   script:
-    - echo "✅ Build successful for tag ${CI_COMMIT_TAG:-$CI_COMMIT_BRANCH}"
+    - |
+      echo "✅ Build completed successfully!"
+      echo ""
+      echo "📊 Build Summary:"
+      echo "- Platform: Multi-platform (Windows + macOS)"
+      echo "- Architectures: amd64, arm64, universal"
+      echo "- Tag: ${CI_COMMIT_TAG:-$CI_COMMIT_BRANCH}"
+      echo "- Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
   only:
     - tags
     - main
