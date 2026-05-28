@@ -38,15 +38,42 @@ export function useAppInit() {
       console.error('Failed to detect platform:', e);
     }
 
-    const savedTheme = localStorage.getItem('codecast_theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    // 统一使用 ThemeSwitcher 的存储格式 (codecast-theme)
+    const savedThemeRaw = localStorage.getItem('codecast-theme');
+    let initialMode: string = 'dark';
+    if (savedThemeRaw) {
+      try {
+        const parsed = JSON.parse(savedThemeRaw);
+        if (parsed && typeof parsed.mode === 'string') {
+          initialMode = parsed.mode;
+        }
+      } catch {
+        // 旧格式兼容: codecast_theme 存的是纯字符串
+        const legacyTheme = localStorage.getItem('codecast_theme');
+        if (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'system') {
+          initialMode = legacyTheme;
+        }
+      }
+    }
+    document.documentElement.setAttribute('data-theme', initialMode);
+    document.documentElement.classList.toggle('dark', initialMode === 'dark');
 
     try {
       const settings = await api.getSettings();
       if (settings) {
         if (settings.theme) {
           document.documentElement.setAttribute('data-theme', settings.theme);
-          localStorage.setItem('codecast_theme', settings.theme);
+          document.documentElement.classList.toggle('dark', settings.theme === 'dark');
+          // 同步到新格式
+          const existing = localStorage.getItem('codecast-theme');
+          let themeConfig = { mode: settings.theme, accentColor: 'purple', fontSize: 'medium' };
+          if (existing) {
+            try {
+              const parsed = JSON.parse(existing);
+              themeConfig = { ...parsed, mode: settings.theme };
+            } catch { /* ignore */ }
+          }
+          localStorage.setItem('codecast-theme', JSON.stringify(themeConfig));
         }
         if (settings.font_size) {
           document.documentElement.style.setProperty(

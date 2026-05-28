@@ -100,6 +100,13 @@ var BuiltinProviders = []ProviderPreset{
 		DefaultModel: "glm-5",
 		Models:       []string{"glm-5.1", "glm-5", "glm-5-turbo", "glm-4-plus", "glm-4-air-250414", "glm-4-flashx-250414", "glm-4-flash-250414"},
 	},
+	{
+		ID:           "mimo",
+		Name:         "MiMo (小米)",
+		APIURL:       "https://api.xiaomimimo.com/v1",
+		DefaultModel: "mimo-v2.5-pro",
+		Models:       []string{"mimo-v2.5-pro", "mimo-v2.5", "mimo-v2.5-turbo", "mimo-v2.5-thinking", "mimo-v2.5-thinking-turbo", "mimo-v2-pro", "mimo-v2-flash", "mimo-v2-omni"},
+	},
 }
 
 // GetProviderPreset 根据 provider ID 返回预设配置，找不到时返回 nil

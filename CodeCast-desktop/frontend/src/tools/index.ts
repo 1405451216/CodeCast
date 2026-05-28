@@ -18,6 +18,7 @@ import { gitTools } from './builtin/GitTools';
 import { testTools } from './builtin/TestTools';
 import { webTools } from './builtin/WebTools';
 import { userInteractionTools } from './builtin/UserInteractionTools';
+import castTools from './builtin/CastTools';
 
 const allBuiltinTools = [
   ...fileTools,
@@ -25,7 +26,8 @@ const allBuiltinTools = [
   ...gitTools,
   ...testTools,
   ...webTools,
-  ...userInteractionTools
+  ...userInteractionTools,
+  ...castTools
 ];
 
 function registerAllBuiltinTools(): void {

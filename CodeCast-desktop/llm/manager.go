@@ -175,16 +175,61 @@ func InitializeProviders(config *LLMConfig) error {
 		}
 	}
 
+	// Kimi (Moonshot) Provider
+	if config.Kimi.APIKey != "" {
+		kimi := NewKimiProvider(config.Kimi.APIKey)
+		if config.Kimi.BaseURL != "" {
+			kimi.baseURL = config.Kimi.BaseURL
+		}
+		if err := pm.Register(kimi); err != nil {
+			return fmt.Errorf("failed to register Kimi provider: %w", err)
+		}
+		if config.DefaultProvider == "kimi" {
+			pm.SetDefault("kimi")
+		}
+	}
+
+	// GLM (智谱) Provider
+	if config.GLM.APIKey != "" {
+		glm := NewGLMProvider(config.GLM.APIKey)
+		if config.GLM.BaseURL != "" {
+			glm.baseURL = config.GLM.BaseURL
+		}
+		if err := pm.Register(glm); err != nil {
+			return fmt.Errorf("failed to register GLM provider: %w", err)
+		}
+		if config.DefaultProvider == "glm" {
+			pm.SetDefault("glm")
+		}
+	}
+
+	// MiMo (小米) Provider
+	if config.Mimo.APIKey != "" {
+		mimo := NewMimoProvider(config.Mimo.APIKey)
+		if config.Mimo.BaseURL != "" {
+			mimo.baseURL = config.Mimo.BaseURL
+		}
+		if err := pm.Register(mimo); err != nil {
+			return fmt.Errorf("failed to register MiMo provider: %w", err)
+		}
+		if config.DefaultProvider == "mimo" {
+			pm.SetDefault("mimo")
+		}
+	}
+
 	return nil
 }
 
 // LLMConfig 定义所有 Provider 的配置
 type LLMConfig struct {
-	DefaultProvider string      `json:"default_provider"`
+	DefaultProvider string        `json:"default_provider"`
 	DeepSeek       DeepSeekConfig `json:"deepseek"`
 	OpenAI         OpenAIConfig   `json:"openai"`
 	Anthropic      AnthropicConfig `json:"anthropic"`
 	Ollama         OllamaConfig   `json:"ollama"`
+	Kimi           KimiConfig     `json:"kimi"`
+	GLM            GLMConfig      `json:"glm"`
+	Mimo           MimoConfig     `json:"mimo"`
 }
 
 type DeepSeekConfig struct {
@@ -193,8 +238,8 @@ type DeepSeekConfig struct {
 }
 
 type OpenAIConfig struct {
-	APIKey     string `json:"api_key"`
-	BaseURL    string `json:"base_url,omitempty"`
+	APIKey       string `json:"api_key"`
+	BaseURL      string `json:"base_url,omitempty"`
 	Organization string `json:"organization,omitempty"`
 }
 
@@ -204,6 +249,21 @@ type AnthropicConfig struct {
 
 type OllamaConfig struct {
 	Enabled bool   `json:"enabled"`
+	BaseURL string `json:"base_url,omitempty"`
+}
+
+type KimiConfig struct {
+	APIKey  string `json:"api_key"`
+	BaseURL string `json:"base_url,omitempty"`
+}
+
+type GLMConfig struct {
+	APIKey  string `json:"api_key"`
+	BaseURL string `json:"base_url,omitempty"`
+}
+
+type MimoConfig struct {
+	APIKey  string `json:"api_key"`
 	BaseURL string `json:"base_url,omitempty"`
 }
 
@@ -228,6 +288,12 @@ func (pm *ProviderManager) GetAvailableModels() []ModelInfo {
 			info.Models = []string{"claude-opus-4-20250514", "claude-sonnet-4-20250514", "claude-haiku-3-5-20241022"}
 		case *OllamaProvider:
 			info.Models = []string{"qwen2.5-coder:32b", "codellama:13b", "mistral:7b"}
+		case *KimiProvider:
+			info.Models = []string{"kimi-k2.6", "kimi-k2.5", "kimi-k2-thinking", "kimi-k2-thinking-turbo", "kimi-k2-turbo-preview"}
+		case *GLMProvider:
+			info.Models = []string{"glm-5.1", "glm-5", "glm-5-turbo", "glm-4-plus", "glm-4-air-250414", "glm-4-flashx-250414", "glm-4-flash-250414"}
+		case *MimoProvider:
+			info.Models = []string{"mimo-v2.5-pro", "mimo-v2.5", "mimo-v2.5-turbo", "mimo-v2.5-thinking", "mimo-v2.5-thinking-turbo", "mimo-v2-pro", "mimo-v2-flash", "mimo-v2-omni"}
 		default:
 			info.Models = []string{}
 		}

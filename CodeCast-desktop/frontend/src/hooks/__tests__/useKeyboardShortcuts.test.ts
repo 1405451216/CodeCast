@@ -1,121 +1,334 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { useKeyboardShortcuts, detectShortcutConflicts } from '../useKeyboardShortcuts';
 
-describe('useKeyboardShortcuts - 键盘快捷键 Hook', () => {
+describe('useKeyboardShortcuts', () => {
+  let addEventListenerSpy: ReturnType<typeof vi.spyOn>;
+  let removeEventListenerSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
   });
 
-  it('应正确初始化快捷键', async () => {
-    try {
-      const { useKeyboardShortcuts } = await import('../useKeyboardShortcuts');
-      const shortcuts: any = {
-        'Ctrl+S': vi.fn(),
-        'Ctrl+Z': vi.fn()
-      };
-      
-      const { result } = renderHook(() =>
-        useKeyboardShortcuts(shortcuts)
-      );
-
-      expect(result.current).toBeDefined();
-      expect(typeof result.current === 'object' || typeof result.current === 'function').toBeTruthy();
-    } catch (e: any) {
-      console.log('useKeyboardShortcuts init test:', e?.message || e);
-      expect(e?.message).toBeDefined();
-    }
+  afterEach(() => {
+    addEventListenerSpy.mockRestore();
+    removeEventListenerSpy.mockRestore();
   });
 
-  it('应支持组合键配置格式', async () => {
-    try {
-      const { useKeyboardShortcuts } = await import('../useKeyboardShortcuts');
-      
-      const handlers: any = {
-        'Ctrl+Shift+A': vi.fn(),
-        'Alt+F4': vi.fn(),
-        'Meta+C': vi.fn()
-      };
+  it('should register keyboard event listener on mount', () => {
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save'
+      }
+    ];
 
-      const { result } = renderHook(() => useKeyboardShortcuts(handlers));
+    const { unmount } = renderHook(() =>
+      useKeyboardShortcuts(shortcuts)
+    );
 
-      expect(result.current).toBeDefined();
-      
-      Object.keys(handlers).forEach((shortcut: string) => {
-        expect(handlers[shortcut]).toBeTypeOf('function');
-      });
-    } catch (e: any) {
-      console.log('useKeyboardShortcuts combo test:', e?.message || e);
-      expect(e?.message).toBeDefined();
-    }
+    expect(addEventListenerSpy).toHaveBeenCalledWith(
+      'keydown',
+      expect.any(Function)
+    );
+
+    unmount();
+    expect(removeEventListenerSpy).toHaveBeenCalledWith(
+      'keydown',
+      expect.any(Function)
+    );
   });
 
-  it('应在组件卸载时清理事件监听器', async () => {
-    try {
-      const { useKeyboardShortcuts } = await import('../useKeyboardShortcuts');
-      const handler = vi.fn();
-      const shortcuts: any = { 'Ctrl+S': handler };
+  it('should call handler when shortcut is triggered', () => {
+    const handler = vi.fn();
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler,
+        description: 'Save'
+      }
+    ];
 
-      const { unmount } = renderHook(() =>
-        useKeyboardShortcuts(shortcuts)
-      );
+    renderHook(() => useKeyboardShortcuts(shortcuts));
 
-      unmount();
+    const keydownEvent = new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      shiftKey: false,
+      altKey: false,
+      metaKey: false
+    });
 
-      expect(handler).not.toHaveBeenCalled();
-    } catch (e: any) {
-      console.log('useKeyboardShortcuts cleanup test:', e?.message || e);
-      expect(e?.message).toBeDefined();
-    }
+    act(() => {
+      window.dispatchEvent(keydownEvent);
+    });
+
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 
-  it('应支持动态更新快捷键配置', async () => {
-    try {
-      const { useKeyboardShortcuts } = await import('../useKeyboardShortcuts');
-      const initialHandler = vi.fn();
-      const newHandler = vi.fn();
+  it('should not call handler when shortcut does not match', () => {
+    const handler = vi.fn();
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler,
+        description: 'Save'
+      }
+    ];
 
-      const { rerender } = renderHook(
-        ({ shortcuts }: { shortcuts: any }) => useKeyboardShortcuts(shortcuts),
-        {
-          initialProps: {
-            shortcuts: { 'Ctrl+A': initialHandler }
-          }
-        }
-      );
+    renderHook(() => useKeyboardShortcuts(shortcuts));
 
-      rerender({
-        shortcuts: {
-          'Ctrl+B': newHandler,
-          'Ctrl+A': initialHandler
-        }
-      });
+    const wrongKeyEvent = new KeyboardEvent('keydown', {
+      key: 'a',
+      ctrlKey: true,
+      shiftKey: false,
+      altKey: false,
+      metaKey: false
+    });
 
-      expect(newHandler).toBeTypeOf('function');
-    } catch (e: any) {
-      console.log('useKeyboardShortcuts dynamic test:', e?.message || e);
-      expect(e?.message).toBeDefined();
-    }
+    act(() => {
+      window.dispatchEvent(wrongKeyEvent);
+    });
+
+    expect(handler).not.toHaveBeenCalled();
   });
 
-  it('应处理无效的快捷键格式', async () => {
-    try {
-      const { useKeyboardShortcuts } = await import('../useKeyboardShortcuts');
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const invalidShortcuts: any = {
-        '': vi.fn(),
-        'InvalidFormat': vi.fn(),
-        'Ctrl+': vi.fn()
-      };
+  it('should respect modifier keys', () => {
+    const handler = vi.fn();
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        shift: true,
+        handler,
+        description: 'Save As'
+      }
+    ];
 
-      renderHook(() =>
-        useKeyboardShortcuts(invalidShortcuts)
-      );
+    renderHook(() => useKeyboardShortcuts(shortcuts));
 
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
-    } catch (e: any) {
-      console.log('useKeyboardShortcuts invalid format test:', e?.message || e);
-      expect(e?.message).toBeDefined();
-    }
+    const eventWithoutShift = new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      shiftKey: false,
+      altKey: false,
+      metaKey: false
+    });
+
+    act(() => {
+      window.dispatchEvent(eventWithoutShift);
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+
+    const eventWithShift = new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      shiftKey: true,
+      altKey: false,
+      metaKey: false
+    });
+
+    act(() => {
+      window.dispatchEvent(eventWithShift);
+    });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('should be disabled when enabled is false', () => {
+    const handler = vi.fn();
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler,
+        description: 'Save'
+      }
+    ];
+
+    renderHook(() =>
+      useKeyboardShortcuts(shortcuts, { enabled: false })
+    );
+
+    const keydownEvent = new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      shiftKey: false,
+      altKey: false,
+      metaKey: false
+    });
+
+    act(() => {
+      window.dispatchEvent(keydownEvent);
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('should respect scope option - input scope', () => {
+    const handler = vi.fn();
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler,
+        description: 'Save'
+      }
+    ];
+
+    renderHook(() =>
+      useKeyboardShortcuts(shortcuts, { scope: 'input' })
+    );
+
+    const inputElement = document.createElement('input');
+    document.body.appendChild(inputElement);
+
+    const keydownEvent = new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      shiftKey: false,
+      altKey: false,
+      metaKey: false
+    });
+
+    Object.defineProperty(keydownEvent, 'target', { value: inputElement });
+
+    act(() => {
+      window.dispatchEvent(keydownEvent);
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+
+    document.body.removeChild(inputElement);
+  });
+});
+
+describe('detectShortcutConflicts', () => {
+  it('should detect conflicting shortcuts', () => {
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save'
+      },
+      {
+        key: 's',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save Document'
+      }
+    ];
+
+    const conflicts = detectShortcutConflicts(shortcuts);
+
+    expect(conflicts.size).toBe(1);
+    expect(conflicts.has('ctrl+s')).toBe(true);
+    expect(conflicts.get('ctrl+s')).toHaveLength(2);
+  });
+
+  it('should return empty map when no conflicts', () => {
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save'
+      },
+      {
+        key: 'c',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Copy'
+      }
+    ];
+
+    const conflicts = detectShortcutConflicts(shortcuts);
+
+    expect(conflicts.size).toBe(0);
+  });
+
+  it('should detect multiple conflict groups', () => {
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save 1'
+      },
+      {
+        key: 's',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save 2'
+      },
+      {
+        key: 'c',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Copy 1'
+      },
+      {
+        key: 'c',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Copy 2'
+      }
+    ];
+
+    const conflicts = detectShortcutConflicts(shortcuts);
+
+    expect(conflicts.size).toBe(2);
+    expect(conflicts.has('ctrl+s')).toBe(true);
+    expect(conflicts.has('ctrl+c')).toBe(true);
+  });
+
+  it('should not flag different modifiers as conflicts', () => {
+    const shortcuts = [
+      {
+        key: 's',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save'
+      },
+      {
+        key: 's',
+        ctrl: true,
+        shift: true,
+        handler: vi.fn(),
+        description: 'Save All'
+      }
+    ];
+
+    const conflicts = detectShortcutConflicts(shortcuts);
+
+    expect(conflicts.size).toBe(0);
+  });
+
+  it('should handle case-insensitive key matching', () => {
+    const shortcuts = [
+      {
+        key: 'S',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save uppercase'
+      },
+      {
+        key: 's',
+        ctrl: true,
+        handler: vi.fn(),
+        description: 'Save lowercase'
+      }
+    ];
+
+    const conflicts = detectShortcutConflicts(shortcuts);
+
+    expect(conflicts.size).toBe(1);
   });
 });

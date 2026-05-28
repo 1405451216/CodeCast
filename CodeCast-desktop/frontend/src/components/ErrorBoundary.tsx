@@ -1,5 +1,6 @@
 import React from 'react';
 import { cacheManager, performanceMonitor } from '../utils/performance';
+import { captureException, addBreadcrumb, setContext } from '../utils/sentry';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -39,6 +40,36 @@ class ErrorBoundary extends React.Component<
       memoryUsage: metrics.memoryUsage,
       renderTime: metrics.renderTime,
       componentCount: metrics.componentCount
+    });
+
+    addBreadcrumb({
+      category: 'error',
+      message: `ErrorBoundary caught error #${this.state.errorCount + 1}`,
+      level: 'error',
+      data: {
+        componentStack: errorInfo.componentStack,
+        timestamp: Date.now()
+      }
+    });
+
+    setContext('error_boundary', {
+      errorCount: this.state.errorCount + 1,
+      performance: metrics,
+      userAgent: navigator.userAgent,
+      url: window.location.href
+    });
+
+    captureException(error, {
+      tags: {
+        source: 'ErrorBoundary',
+        errorCount: String(this.state.errorCount + 1),
+        hasRecoveryOption: String(this.shouldAttemptAutoRecovery())
+      },
+      extra: {
+        componentStack: errorInfo.componentStack,
+        performanceContext: metrics
+      },
+      level: this.shouldAttemptAutoRecovery() ? 'fatal' : 'error'
     });
   }
 

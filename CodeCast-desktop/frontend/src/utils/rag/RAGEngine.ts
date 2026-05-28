@@ -95,6 +95,8 @@ export class RAGEngine {
     
     this.isIndexing = true;
     const startTime = performance.now();
+    let indexedCount = 0;
+    let failedFiles: string[] = [];
 
     try {
       await this.initializeStorage();
@@ -104,40 +106,53 @@ export class RAGEngine {
       const vectorDocs: VectorDocument[] = [];
 
       for (const file of files) {
-        const chunks = this.chunker.chunkDocument(
-          file.content, 
-          file.path, 
-          this.detectLanguage(file.path)
-        );
-        
-        fileChunksMap.set(file.path, chunks);
-        allDocuments.push(...chunks.map(c => c.content));
+        try {
+          const chunks = this.chunker.chunkDocument(
+            file.content, 
+            file.path, 
+            this.detectLanguage(file.path)
+          );
+          
+          fileChunksMap.set(file.path, chunks);
+          allDocuments.push(...chunks.map(c => c.content));
 
-        if (this.vectorStore && this.isStoreInitialized) {
-          for (const chunk of chunks) {
-            const embedding = this.vectorizer.vectorize(chunk.content);
-            chunk.vector = embedding;
+          if (this.vectorStore && this.isStoreInitialized) {
+            for (const chunk of chunks) {
+              try {
+                const embedding = this.vectorizer.vectorize(chunk.content);
+                chunk.vector = embedding;
 
-            vectorDocs.push({
-              id: chunk.id,
-              content: chunk.content,
-              embedding: embedding.dimensions,
-              metadata: {
-                source: file.path,
-                language: this.detectLanguage(file.path),
-                chunkIndex: chunks.indexOf(chunk),
-                startLine: chunk.metadata.startLine,
-                endLine: chunk.metadata.endLine,
-                type: chunk.metadata.type,
-                symbols: chunk.metadata.symbols,
-                lastUpdated: new Date().toISOString()
+                vectorDocs.push({
+                  id: chunk.id,
+                  content: chunk.content,
+                  embedding: embedding.dimensions,
+                  metadata: {
+                    source: file.path,
+                    language: this.detectLanguage(file.path),
+                    chunkIndex: chunks.indexOf(chunk),
+                    startLine: chunk.metadata.startLine,
+                    endLine: chunk.metadata.endLine,
+                    type: chunk.metadata.type,
+                    symbols: chunk.metadata.symbols,
+                    lastUpdated: new Date().toISOString()
+                  }
+                });
+              } catch (vectorError) {
+                console.warn(`[RAG] Failed to vectorize chunk in ${file.path}:`, vectorError);
               }
-            });
+            }
           }
+
+          indexedCount++;
+        } catch (fileError) {
+          console.warn(`[RAG] Failed to index file ${file.path}:`, fileError);
+          failedFiles.push(file.path);
         }
       }
 
-      this.vectorizer.buildVocabulary(allDocuments);
+      if (failedFiles.length > 0 && failedFiles.length === files.length) {
+        throw new Error('All files failed to index');
+      }
 
       for (const [filePath, chunks] of fileChunksMap) {
         for (const chunk of chunks) {

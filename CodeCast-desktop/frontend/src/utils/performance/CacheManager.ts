@@ -76,7 +76,7 @@ class CacheManager {
     const cached = this.memoryCache.get(key);
 
     if (cached && Date.now() < cached.expiry) {
-      cached.lastAccess = Date.now();
+      this.touchKey(key, cached);
       this.hitCount++;
       return cached.data as T;
     }
@@ -200,18 +200,16 @@ class CacheManager {
     });
   }
 
+  private touchKey(key: string, entry: CacheEntry<any>): void {
+    entry.lastAccess = Date.now();
+    
+    this.memoryCache.delete(key);
+    this.memoryCache.set(key, entry);
+  }
+
   private evictLRUIfNeeded(): void {
     while (this.getMemorySize() > this.MAX_MEMORY_SIZE && this.memoryCache.size > 0) {
-      let oldestKey: string | null = null;
-      let oldestTime = Infinity;
-
-      for (const [key, value] of this.memoryCache) {
-        if (value.lastAccess < oldestTime) {
-          oldestTime = value.lastAccess;
-          oldestKey = key;
-        }
-      }
-
+      const oldestKey = this.memoryCache.keys().next().value;
       if (oldestKey) {
         this.memoryCache.delete(oldestKey);
       }

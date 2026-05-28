@@ -228,3 +228,25 @@
     font-size: 10px;
   }
 }
+
+/* Streaming Completion */
+.streaming-completion-container {
+  position: absolute;
+  z-index: 1000;
+  background: var(--bg-primary, var(--bg));
+  border: 1px solid var(--border-color, var(--border));
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: var(--font-mono, 'Fira Code', Consolas, monospace);
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 600px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.ghost-text-overlay {
+  color: var(--accent);
+  opacity: 0.6;
+  pointer-events: none;
+}

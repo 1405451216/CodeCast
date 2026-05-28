@@ -301,11 +301,33 @@
 }
 
 .code-block-wrapper pre code {
-    font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
     font-size: 0.875rem;
     line-height: 1.6;
     background: transparent !important;
     padding: 0;
+}
+
+/* Interactive Message */
+.interactive-message {
+    width: 100%;
+}
+
+.user-content {
+    color: var(--text);
+}
+
+.interactive-code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    overflow-x: auto;
+}
+
+.interactive-code-block.editing {
+    border-color: var(--accent);
 }
 
 /* ===== Enhanced Message Bubbles (气泡样式增强) ===== */

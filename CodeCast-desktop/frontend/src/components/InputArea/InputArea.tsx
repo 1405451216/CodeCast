@@ -397,7 +397,17 @@ const InputArea = forwardRef<InputAreaHandle, InputAreaProps>(({ onSend, placeho
         const current = document.documentElement.getAttribute('data-theme') || 'dark';
         const next = current === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('codecast_theme', next);
+        document.documentElement.classList.toggle('dark', next === 'dark');
+        // 同步到统一的存储格式
+        const existing = localStorage.getItem('codecast-theme');
+        let themeConfig = { mode: next, accentColor: 'purple', fontSize: 'medium' };
+        if (existing) {
+          try {
+            const parsed = JSON.parse(existing);
+            themeConfig = { ...parsed, mode: next };
+          } catch { /* ignore */ }
+        }
+        localStorage.setItem('codecast-theme', JSON.stringify(themeConfig));
         api.updateSetting('theme', next).catch((e) => console.error('[slash] 切换主题失败:', e));
       },
       '/clear': () => {

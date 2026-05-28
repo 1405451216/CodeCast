@@ -558,6 +558,438 @@ func (p *AnthropicProvider) Stream(ctx context.Context, req *Request) (<-chan *S
 	return ch, nil
 }
 
+// ==================== Kimi (Moonshot) Provider ====================
+// 月之暗面 Kimi 模型 - OpenAI 兼容 API
+type KimiProvider struct {
+	*BaseProvider
+}
+
+func NewKimiProvider(apiKey string) *KimiProvider {
+	return &KimiProvider{
+		BaseProvider: NewBaseProvider(
+			"https://api.moonshot.cn/v1",
+			apiKey,
+			"kimi-k2.6",
+			60*time.Second,
+		),
+	}
+}
+
+func (p *KimiProvider) GetName() string { return "Kimi (Moonshot)" }
+func (p *KimiProvider) GetID() string   { return "kimi" }
+
+func (p *KimiProvider) Send(ctx context.Context, req *Request) (*Response, error) {
+	if req.Model == "" {
+		req.Model = p.model
+	}
+
+	body, err := p.doRequest(ctx, "POST", "/chat/completions", req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		ID         string  `json:"id"`
+		Model      string  `json:"model"`
+		Choices    []struct {
+			Message      Message `json:"message"`
+			FinishReason string `json:"finish_reason"`
+		} `json:"choices"`
+		Usage Usage `json:"usage"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse Kimi response: %w", err)
+	}
+
+	if len(resp.Choices) == 0 {
+		return nil, fmt.Errorf("no choices in Kimi response")
+	}
+
+	return &Response{
+		ID:          resp.ID,
+		Model:       resp.Model,
+		Content:     resp.Choices[0].Message.Content,
+		Role:        resp.Choices[0].Message.Role,
+		FinishReason: resp.Choices[0].FinishReason,
+		Usage:       resp.Usage,
+	}, nil
+}
+
+func (p *KimiProvider) Stream(ctx context.Context, req *Request) (<-chan *StreamChunk, error) {
+	if req.Model == "" {
+		req.Model = p.model
+	}
+	req.Stream = true
+
+	jsonBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "text/event-stream")
+	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send Kimi request: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, fmt.Errorf("Kimi API error: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	ch := make(chan *StreamChunk, 10)
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
+
+	go func() {
+		defer close(ch)
+		defer resp.Body.Close()
+
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			line = bytes.TrimSpace(line)
+
+			if !bytes.HasPrefix(line, []byte("data: ")) {
+				continue
+			}
+			data := bytes.TrimPrefix(line, []byte("data: "))
+			if bytes.Equal(data, []byte("[DONE]")) {
+				break
+			}
+
+			var chunk struct {
+				ID      string `json:"id"`
+			 Choices []struct {
+					Delta struct {
+						Role    string `json:"role,omitempty"`
+						Content string `json:"content,omitempty"`
+					} `json:"delta"`
+					FinishReason *string `json:"finish_reason"`
+				} `json:"choices"`
+			}
+
+			if err := json.Unmarshal(data, &chunk); err != nil {
+				continue
+			}
+
+			if len(chunk.Choices) > 0 {
+				finishReason := ""
+				if chunk.Choices[0].FinishReason != nil {
+					finishReason = *chunk.Choices[0].FinishReason
+				}
+
+				ch <- &StreamChunk{
+					Content:     chunk.Choices[0].Delta.Content,
+					FinishReason: finishReason,
+				}
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			// 记录日志或忽略流式读取错误
+		}
+	}()
+
+	return ch, nil
+}
+
+// ==================== GLM (智谱清言) Provider ====================
+// 智谱 AI GLM 模型 - OpenAI 兼容 API
+type GLMProvider struct {
+	*BaseProvider
+}
+
+func NewGLMProvider(apiKey string) *GLMProvider {
+	return &GLMProvider{
+		BaseProvider: NewBaseProvider(
+			"https://open.bigmodel.cn/api/paas/v4",
+			apiKey,
+			"glm-5",
+			60*time.Second,
+		),
+	}
+}
+
+func (p *GLMProvider) GetName() string { return "GLM (智谱)" }
+func (p *GLMProvider) GetID() string   { return "glm" }
+
+func (p *GLMProvider) Send(ctx context.Context, req *Request) (*Response, error) {
+	if req.Model == "" {
+		req.Model = p.model
+	}
+
+	body, err := p.doRequest(ctx, "POST", "/chat/completions", req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		ID         string  `json:"id"`
+		Model      string  `json:"model"`
+		Choices    []struct {
+			Message      Message `json:"message"`
+			FinishReason string `json:"finish_reason"`
+		} `json:"choices"`
+		Usage Usage `json:"usage"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse GLM response: %w", err)
+	}
+
+	if len(resp.Choices) == 0 {
+		return nil, fmt.Errorf("no choices in GLM response")
+	}
+
+	return &Response{
+		ID:          resp.ID,
+		Model:       resp.Model,
+		Content:     resp.Choices[0].Message.Content,
+		Role:        resp.Choices[0].Message.Role,
+		FinishReason: resp.Choices[0].FinishReason,
+		Usage:       resp.Usage,
+	}, nil
+}
+
+func (p *GLMProvider) Stream(ctx context.Context, req *Request) (<-chan *StreamChunk, error) {
+	if req.Model == "" {
+		req.Model = p.model
+	}
+	req.Stream = true
+
+	jsonBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "text/event-stream")
+	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send GLM request: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, fmt.Errorf("GLM API error: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	ch := make(chan *StreamChunk, 10)
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
+
+	go func() {
+		defer close(ch)
+		defer resp.Body.Close()
+
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			line = bytes.TrimSpace(line)
+
+			if !bytes.HasPrefix(line, []byte("data: ")) {
+				continue
+			}
+			data := bytes.TrimPrefix(line, []byte("data: "))
+			if bytes.Equal(data, []byte("[DONE]")) {
+				break
+			}
+
+			var chunk struct {
+				ID      string `json:"id"`
+				Choices []struct {
+					Delta struct {
+						Role    string `json:"role,omitempty"`
+						Content string `json:"content,omitempty"`
+					} `json:"delta"`
+					FinishReason *string `json:"finish_reason"`
+				} `json:"choices"`
+			}
+
+			if err := json.Unmarshal(data, &chunk); err != nil {
+				continue
+			}
+
+			if len(chunk.Choices) > 0 {
+				finishReason := ""
+				if chunk.Choices[0].FinishReason != nil {
+					finishReason = *chunk.Choices[0].FinishReason
+				}
+
+				ch <- &StreamChunk{
+					Content:     chunk.Choices[0].Delta.Content,
+					FinishReason: finishReason,
+				}
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			// 记录日志或忽略流式读取错误
+		}
+	}()
+
+	return ch, nil
+}
+
+// ==================== MiMo (小米) Provider ====================
+// 小米 MiMo 模型 - OpenAI 兼容 API（2026年5月降价后超性价比）
+type MimoProvider struct {
+	*BaseProvider
+}
+
+func NewMimoProvider(apiKey string) *MimoProvider {
+	return &MimoProvider{
+		BaseProvider: NewBaseProvider(
+			"https://api.xiaomimimo.com/v1",
+			apiKey,
+			"mimo-v2.5-pro",
+			60*time.Second,
+		),
+	}
+}
+
+func (p *MimoProvider) GetName() string { return "MiMo (小米)" }
+func (p *MimoProvider) GetID() string   { return "mimo" }
+
+func (p *MimoProvider) Send(ctx context.Context, req *Request) (*Response, error) {
+	if req.Model == "" {
+		req.Model = p.model
+	}
+
+	body, err := p.doRequest(ctx, "POST", "/chat/completions", req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		ID         string  `json:"id"`
+		Model      string  `json:"model"`
+		Choices    []struct {
+			Message      Message `json:"message"`
+			FinishReason string `json:"finish_reason"`
+		} `json:"choices"`
+		Usage Usage `json:"usage"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse MiMo response: %w", err)
+	}
+
+	if len(resp.Choices) == 0 {
+		return nil, fmt.Errorf("no choices in MiMo response")
+	}
+
+	return &Response{
+		ID:          resp.ID,
+		Model:       resp.Model,
+		Content:     resp.Choices[0].Message.Content,
+		Role:        resp.Choices[0].Message.Role,
+		FinishReason: resp.Choices[0].FinishReason,
+		Usage:       resp.Usage,
+	}, nil
+}
+
+func (p *MimoProvider) Stream(ctx context.Context, req *Request) (<-chan *StreamChunk, error) {
+	if req.Model == "" {
+		req.Model = p.model
+	}
+	req.Stream = true
+
+	jsonBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "text/event-stream")
+	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send MiMo request: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, fmt.Errorf("MiMo API error: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	ch := make(chan *StreamChunk, 10)
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
+
+	go func() {
+		defer close(ch)
+		defer resp.Body.Close()
+
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			line = bytes.TrimSpace(line)
+
+			if !bytes.HasPrefix(line, []byte("data: ")) {
+				continue
+			}
+			data := bytes.TrimPrefix(line, []byte("data: "))
+			if bytes.Equal(data, []byte("[DONE]")) {
+				break
+			}
+
+			var chunk struct {
+				ID      string `json:"id"`
+				Choices []struct {
+					Delta struct {
+						Role    string `json:"role,omitempty"`
+						Content string `json:"content,omitempty"`
+					} `json:"delta"`
+					FinishReason *string `json:"finish_reason"`
+				} `json:"choices"`
+			}
+
+			if err := json.Unmarshal(data, &chunk); err != nil {
+				continue
+			}
+
+			if len(chunk.Choices) > 0 {
+				finishReason := ""
+				if chunk.Choices[0].FinishReason != nil {
+					finishReason = *chunk.Choices[0].FinishReason
+				}
+
+				ch <- &StreamChunk{
+					Content:     chunk.Choices[0].Delta.Content,
+					FinishReason: finishReason,
+				}
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			// 记录日志或忽略流式读取错误
+		}
+	}()
+
+	return ch, nil
+}
+
 // Ollama 本地模型 Provider
 type OllamaProvider struct {
 	*BaseProvider

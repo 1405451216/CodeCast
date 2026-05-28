@@ -46,6 +46,7 @@ const ProjectsPanel = lazy(() => import('./components/ProjectsPanel'));
 const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
 const PanelResizer = lazy(() => import('./components/PanelResizer'));
 const CodeModeWorkspace = lazy(() => import('./components/CodeModeWorkspace'));
+const CastModeWorkspace = lazy(() => import('./components/CastModeWorkspace'));
 
 const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(260);
@@ -210,6 +211,12 @@ const App: React.FC = () => {
           {currentMode === 'coding' && view === 'chat' && (
             <Suspense fallback={<LoadingFallback message="加载 Code 工作台..." />}>
               <CodeModeWorkspace visible mode="coding" />
+            </Suspense>
+          )}
+
+          {currentMode === 'daily' && view === 'chat' && (
+            <Suspense fallback={<LoadingFallback message="加载 Cast 工作台..." />}>
+              <CastModeWorkspace visible mode="daily" />
             </Suspense>
           )}
           

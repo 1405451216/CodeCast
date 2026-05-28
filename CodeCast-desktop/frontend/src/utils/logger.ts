@@ -1,120 +1,53 @@
-enum LogLevel {
-  DEBUG = 'DEBUG',
-  INFO = 'INFO',
-  WARN = 'WARN',
-  ERROR = 'ERROR'
-}
-
-interface LogEntry {
-  timestamp: string;
-  level: LogLevel;
-  module: string;
-  message: string;
-  data?: any;
+export enum LogLevel {
+  DEBUG = 0,
+  INFO = 1,
+  WARN = 2,
+  ERROR = 3,
+  NONE = 4
 }
 
 class Logger {
-  private enabled: boolean = true;
-  private logLevel: LogLevel = LogLevel.DEBUG;
-  private history: LogEntry[] = [];
-  private maxHistorySize: number = 1000;
+  private static currentLevel = LogLevel.INFO;
 
-  constructor() {
-    this.enabled = import.meta.env?.DEV !== false;
+  static setLevel(level: LogLevel): void {
+    Logger.currentLevel = level;
   }
 
-  private formatTimestamp(): string {
-    return new Date().toISOString();
-  }
-
-  private shouldLog(level: LogLevel): boolean {
-    if (!this.enabled) return false;
-    
-    const levels = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
-    const currentLevelIndex = levels.indexOf(this.logLevel);
-    const messageLevelIndex = levels.indexOf(level);
-    
-    return messageLevelIndex >= currentLevelIndex;
-  }
-
-  private log(level: LogLevel, module: string, message: string, data?: any): void {
-    if (!this.shouldLog(level)) return;
-
-    const entry: LogEntry = {
-      timestamp: this.formatTimestamp(),
-      level,
-      module,
-      message,
-      data
-    };
-
-    this.history.push(entry);
-    
-    if (this.history.length > this.maxHistorySize) {
-      this.history.shift();
-    }
-
-    const prefix = `[${entry.timestamp}] [${level}] [${module}]`;
-    
-    switch (level) {
-      case LogLevel.DEBUG:
-        console.debug(prefix, message, data ? data : '');
-        break;
-      case LogLevel.INFO:
-        console.info(prefix, message, data ? data : '');
-        break;
-      case LogLevel.WARN:
-        console.warn(prefix, message, data ? data : '');
-        break;
-      case LogLevel.ERROR:
-        console.error(prefix, message, data ? data : '');
-        break;
+  static debug(...args: any[]): void {
+    if (Logger.currentLevel <= LogLevel.DEBUG) {
+      console.debug('[CodeCast][DEBUG]', ...args);
     }
   }
 
-  debug(module: string, message: string, data?: any): void {
-    this.log(LogLevel.DEBUG, module, message, data);
-  }
-
-  info(module: string, message: string, data?: any): void {
-    this.log(LogLevel.INFO, module, message, data);
-  }
-
-  warn(module: string, message: string, data?: any): void {
-    this.log(LogLevel.WARN, module, message, data);
-  }
-
-  error(module: string, message: string, error?: Error | any): void {
-    this.log(LogLevel.ERROR, module, message, error);
-  }
-
-  getHistory(filter?: { level?: LogLevel; module?: string }): LogEntry[] {
-    let filtered = [...this.history];
-    
-    if (filter?.level) {
-      filtered = filtered.filter(entry => entry.level === filter.level);
+  static info(...args: any[]): void {
+    if (Logger.currentLevel <= LogLevel.INFO) {
+      console.info('[CodeCast]', ...args);
     }
-    
-    if (filter?.module) {
-      filtered = filtered.filter(entry => entry.module === filter.module);
+  }
+
+  static warn(...args: any[]): void {
+    if (Logger.currentLevel <= LogLevel.WARN) {
+      console.warn('[CodeCast][WARN]', ...args);
     }
-    
-    return filtered;
   }
 
-  clearHistory(): void {
-    this.history = [];
+  static error(...args: any[]): void {
+    if (Logger.currentLevel <= LogLevel.ERROR) {
+      console.error('[CodeCast][ERROR]', ...args);
+    }
   }
 
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-  }
-
-  setLogLevel(level: LogLevel): void {
-    this.logLevel = level;
+  static isProduction(): boolean {
+    return import.meta.env?.MODE === 'production' || 
+           import.meta.env?.NODE_ENV === 'production';
   }
 }
 
-export const logger = new Logger();
-export { LogLevel };
-export type { LogEntry };
+if (Logger.isProduction()) {
+  Logger.setLevel(LogLevel.WARN);
+} else {
+  Logger.setLevel(LogLevel.DEBUG);
+}
+
+export const logger = Logger;
+export { Logger };

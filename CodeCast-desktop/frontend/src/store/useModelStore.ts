@@ -49,11 +49,11 @@ interface ModelSlice extends ModelStoreState {
   clearAllConfigs: () => void;
 }
 
-function loadSettingsFromStorage(): MultiModelSettings | null {
+async function loadSettingsFromStorage(): Promise<MultiModelSettings | null> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const decrypted = StorageEncryption.decrypt(raw);
+    const decrypted = await StorageEncryption.decrypt(raw);
     return JSON.parse(decrypted);
   } catch (e) {
     logger.warn('ModelStore', 'Failed to load settings from storage', { error: e });
@@ -61,9 +61,9 @@ function loadSettingsFromStorage(): MultiModelSettings | null {
   }
 }
 
-function saveSettingsToStorage(settings: MultiModelSettings): void {
+async function saveSettingsToStorage(settings: MultiModelSettings): Promise<void> {
   try {
-    const encrypted = StorageEncryption.encrypt(JSON.stringify(settings));
+    const encrypted = await StorageEncryption.encrypt(JSON.stringify(settings));
     localStorage.setItem(STORAGE_KEY, encrypted);
   } catch (e) {
     logger.error('ModelStore', 'Failed to save settings to storage', { error: e });
@@ -73,7 +73,7 @@ function saveSettingsToStorage(settings: MultiModelSettings): void {
 function encryptApiKey(key: string): string {
   if (!key) return '';
   try {
-    return StorageEncryption.encrypt(key);
+    return StorageEncryption.encryptSync(key);
   } catch {
     return key;
   }
@@ -82,7 +82,7 @@ function encryptApiKey(key: string): string {
 function decryptApiKey(encrypted: string): string {
   if (!encrypted) return '';
   try {
-    const decrypted = StorageEncryption.decrypt(encrypted);
+    const decrypted = StorageEncryption.decryptSync(encrypted);
     if (decrypted && !decrypted.includes(':')) {
       return decrypted;
     }
@@ -154,12 +154,12 @@ const createModelSlice = (set: SliceSet): ModelSlice => {
       logger.debug('ModelStore', `💭 Thinking mode toggled: ${newMode}`);
     },
 
-    initFromStorage: () => {
+    initFromStorage: async () => {
       if (internalState.initialized) return;
 
       logger.info('ModelStore', '📂 Initializing model settings from storage...');
 
-      const savedSettings = loadSettingsFromStorage();
+      const savedSettings = await loadSettingsFromStorage();
       const configs: Record<string, ProviderConfig> = {};
 
       if (savedSettings?.providers) {
@@ -389,6 +389,12 @@ function getTestEndpoint(providerId: string, baseUrl: string): string {
       return `${baseUrl.replace(/\/v1$/, '')}/v1/models`;
     case 'ollama':
       return `${baseUrl}/api/tags`;
+    case 'kimi':
+      return `${baseUrl.replace(/\/v1$/, '')}/v1/models`;
+    case 'glm':
+      return `${baseUrl.replace(/\/v4$/, '')}/v4/models`;
+    case 'mimo':
+      return `${baseUrl.replace(/\/v1$/, '')}/v1/models`;
     default:
       return `${baseUrl}/models`;
   }
@@ -415,18 +421,88 @@ function getCurrentModelInfoInternal(state: ModelStoreState): CurrentModelInfo {
 }
 
 class StorageEncryption {
-  private static getDeviceKey(): string {
-    let key = localStorage.getItem('_dk');
-    if (!key) {
-      key = [...Array(32)].map(() => Math.random().toString(36)[2]).join('');
-      localStorage.setItem('_dk', key);
+  private static readonly ALGORITHM = 'AES-GCM';
+  private static readonly KEY_LENGTH = 256;
+  private static cryptoKey: CryptoKey | null = null;
+
+  private static async getDeviceKey(): Promise<CryptoKey> {
+    if (StorageEncryption.cryptoKey) {
+      return StorageEncryption.cryptoKey;
     }
-    return key;
+
+    let rawKey = localStorage.getItem('_dk');
+    if (!rawKey) {
+      rawKey = crypto.getRandomValues(new Uint8Array(32)).join(',');
+      localStorage.setItem('_dk', rawKey);
+    }
+
+    const keyData = new Uint8Array(rawKey.split(',').map(Number));
+    
+    StorageEncryption.cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: StorageEncryption.ALGORITHM, length: StorageEncryption.KEY_LENGTH },
+      false,
+      ['encrypt', 'decrypt']
+    );
+
+    return StorageEncryption.cryptoKey;
   }
 
-  static encrypt(data: string): string {
+  static async encrypt(data: string): Promise<string> {
     try {
-      const key = StorageEncryption.getDeviceKey();
+      const key = await StorageEncryption.getDeviceKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encoder = new TextEncoder();
+      
+      const encrypted = await crypto.subtle.encrypt(
+        { name: StorageEncryption.ALGORITHM, iv },
+        key,
+        encoder.encode(data)
+      );
+
+      const timestamp = Date.now().toString(36);
+      const result = {
+        t: timestamp,
+        iv: Array.from(iv),
+        data: Array.from(new Uint8Array(encrypted))
+      };
+
+      return btoa(JSON.stringify(result));
+    } catch {
+      return btoa(encodeURIComponent(data));
+    }
+  }
+
+  static async decrypt(encoded: string): Promise<string> {
+    try {
+      const jsonStr = atob(encoded);
+      const { iv, data } = JSON.parse(jsonStr);
+
+      if (!iv || !data) {
+        throw new Error('Invalid format');
+      }
+
+      const key = await StorageEncryption.getDeviceKey();
+      const decrypted = await crypto.subtle.decrypt(
+        { name: StorageEncryption.ALGORITHM, iv: new Uint8Array(iv), length: 128 },
+        key,
+        new Uint8Array(data)
+      );
+
+      return new TextDecoder().decode(decrypted);
+    } catch {
+      try {
+        return decodeURIComponent(atob(encoded));
+      } catch {
+        return encoded;
+      }
+    }
+  }
+
+  static encryptSync(data: string): string {
+    try {
+      const key = localStorage.getItem('_dk') || '';
       const timestamp = Date.now().toString(36);
       let encrypted = '';
 
@@ -435,34 +511,36 @@ class StorageEncryption {
         encrypted += String.fromCharCode(charCode);
       }
 
-      const base64 = btoa(encodeURIComponent(encrypted));
-      return `${timestamp}:${base64}`;
+      return `${timestamp}:${btoa(encodeURIComponent(encrypted))}`;
     } catch {
       return btoa(encodeURIComponent(data));
     }
   }
 
-  static decrypt(encoded: string): string {
+  static decryptSync(encoded: string): string {
     try {
       const parts = encoded.split(':');
-      const base64 = parts.length > 1 ? parts.slice(1).join(':') : encoded;
+      if (parts.length > 1 && parts[0].length < 10) {
+        const base64 = parts.slice(1).join(':');
+        const decoded = decodeURIComponent(atob(base64));
+        const key = localStorage.getItem('_dk') || '';
+        let decrypted = '';
 
-      const decoded = decodeURIComponent(atob(base64));
-      const key = StorageEncryption.getDeviceKey();
-      let decrypted = '';
+        for (let i = 0; i < decoded.length; i++) {
+          const charCode = decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+          decrypted += String.fromCharCode(charCode);
+        }
 
-      for (let i = 0; i < decoded.length; i++) {
-        const charCode = decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length);
-        decrypted += String.fromCharCode(charCode);
+        return decrypted;
       }
 
-      return decrypted;
-    } catch {
       try {
         return decodeURIComponent(atob(encoded));
       } catch {
         return encoded;
       }
+    } catch {
+      return encoded;
     }
   }
 }

@@ -61,6 +61,53 @@ const dailyActions = [
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>
+    ),
+    title: '翻译',
+    desc: '多语言互译',
+    prompt: '翻译以下内容为',
+  },
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+    ),
+    title: '日程',
+    desc: '待办、提醒、计划',
+    prompt: '帮我安排今天的任务：',
+  },
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+      </svg>
+    ),
+    title: '知识库',
+    desc: '笔记、搜索、整理',
+    prompt: '帮我记录一条笔记：',
+  },
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+        <polyline points="22,6 12,13 2,6"></polyline>
+      </svg>
+    ),
+    title: '邮件',
+    desc: '起草、模板、润色',
+    prompt: '帮我写一封邮件给',
+  },
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
         <line x1="12" y1="17" x2="12.01" y2="17"></line>
       </svg>
@@ -68,21 +115,6 @@ const dailyActions = [
     title: '问答',
     desc: '知识、分析、建议',
     prompt: '我想了解',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m5 8 6 6"></path>
-        <path d="m4 14 6-6 2-3"></path>
-        <path d="M2 5h12"></path>
-        <path d="M7 2h1"></path>
-        <path d="m22 22-5-10-5 10"></path>
-        <path d="M14 18h6"></path>
-      </svg>
-    ),
-    title: '翻译',
-    desc: '多语言互译',
-    prompt: '翻译以下内容为',
   },
 ];
 

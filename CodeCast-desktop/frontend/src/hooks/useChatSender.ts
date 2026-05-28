@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useAppStore, Message, AppState } from '../store';
 import * as api from '../api';
 import { toSession, toMessage } from '../api/types';
@@ -18,6 +18,16 @@ export function useChatSender() {
   const setIsLoading = useAppStore((s: AppState) => s.setIsLoading);
   const pendingMode = useAppStore((s: AppState) => s.pendingMode);
   const streamingRef = useRef(false);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
+  }, []);
 
   const handleSendMessage = useCallback(async (text: string) => {
     if (isLoading) return;
@@ -45,15 +55,17 @@ export function useChatSender() {
     setIsLoading(true);
     streamingRef.current = false;
 
-    // 监听流式事件
+    if (cleanupRef.current) {
+      cleanupRef.current();
+      cleanupRef.current = null;
+    }
+
     const eventName = `stream:${sessionId}`;
     const cleanup = EventsOn(eventName, (data: any) => {
       if (data.type === 'start') {
         streamingRef.current = true;
-        // 添加一个空的 assistant 消息作为流式占位
         addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '', reasoning: '', timestamp: Date.now() });
       } else if (data.type === 'reasoning') {
-        // 追加思考内容到最后一条消息
         updateLastMessage((last) => {
           if (last && last.role === 'assistant') {
             return { ...last, reasoning: (last.reasoning || '') + data.content };
@@ -61,7 +73,6 @@ export function useChatSender() {
           return last;
         });
       } else if (data.type === 'content') {
-        // 追加正文内容到最后一条消息
         updateLastMessage((last) => {
           if (last && last.role === 'assistant') {
             return { ...last, content: last.content + data.content };
@@ -69,9 +80,10 @@ export function useChatSender() {
           return last;
         });
       } else if (data.type === 'done') {
-        // 流式结束，不做额外处理，等 sendMessageEx 返回
       }
     });
+
+    cleanupRef.current = cleanup;
 
     try {
       const resp = await api.sendMessageEx(sessionId, text, selectedModel, thinkingMode);

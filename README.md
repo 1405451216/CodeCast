@@ -267,6 +267,17 @@ MIT — 详见 [LICENSE](LICENSE)。
 - **Git 工作流增强**: AI Commit / PR Template / Interactive Rebase / 冲突解决
 - **情景记忆可视化**: 记忆统计面板 + 召回高亮 + 标签云
 - **性能优化**: 虚拟滚动 + Bundle 分包 + React.memo + 图片懒加载
+- **🎬 Cast 模式**: 6 大功能面板 + 12 个 Cast 专用工具 + 写作/翻译/日程/知识库/邮件/工具箱
+
+#### 🎬 Cast 模式详情
+| 面板 | 功能 |
+|------|------|
+| ✍️ 写作助手 | 9 种文档类型 · 6 种写作模式 · 6 种风格 · AI 润色/扩写/缩写 · Markdown 实时预览 |
+| 🌐 翻译工作台 | 15+ 语言互译 · 5 种翻译风格 · 双语对照视图 · 术语表管理 · 翻译历史 |
+| 📋 日程管理 | 待办 CRUD · 4 级优先级 · 日历视图 · AI 智能排期 · 重复任务 · 统计面板 |
+| 📚 知识库笔记 | Markdown 编辑 · 分类标签体系 · 全文搜索 · 双向链接 · 导入导出 |
+| 📧 邮件起草器 | 10+ 模板 · AI 润色 · 联系人管理 · 签名管理 · 一键复制 |
+| 🔧 更多工具 | 数据分析 · 会议纪要 · 头脑风暴 · 番茄钟 · OCR 等 12 个轻量工具 |
 
 #### 🔧 改进
 - 修复 12 个代码质量问题（Critical/Major/Minor）
@@ -275,8 +286,8 @@ MIT — 详见 [LICENSE](LICENSE)。
 - TypeScript 编译 0 错误通过
 
 #### 📊 测试
-- 新增 131 个单元测试用例
-- 覆盖 Store/Tools/Checkpoint/TaskPlanner 核心模块
+- 新增 164 个单元测试用例（+33 Cast 模式测试）
+- 覆盖 Store/Tools/Checkpoint/TaskPlanner/Schedule/Knowledge/Completion 核心模块
 
 ---
 
