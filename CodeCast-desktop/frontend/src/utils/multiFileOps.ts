@@ -158,7 +158,7 @@ class MultiFileOperations {
                 const searchStr = caseSensitive ? pattern : pattern.toLowerCase();
                 const targetLine = caseSensitive ? line : line.toLowerCase();
                 
-                let index = targetLine.indexOf(searchStr);
+                const index = targetLine.indexOf(searchStr);
                 if (index !== -1) {
                   matches = [{
                     index,

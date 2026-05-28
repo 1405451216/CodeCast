@@ -88,7 +88,7 @@ class CastWorkerPool {
       clearTimeout(task.timer);
       this.pendingTasks.delete(id);
       for (const w of this.workers) {
-        try { w.postMessage({ id, type: 'cancel' }); } catch {}
+        try { w.postMessage({ id, type: 'cancel' }); } catch { /* ignore */ }
       }
       task.reject(new Error('Task cancelled'));
       return true;
@@ -110,7 +110,7 @@ class CastWorkerPool {
     }
     this.pendingTasks.clear();
     for (const w of this.workers) {
-      try { w.terminate(); } catch {}
+      try { w.terminate(); } catch { /* ignore */ }
     }
     this.workers = [];
     this.idleWorkers.clear();

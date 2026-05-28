@@ -86,8 +86,8 @@ export class VideoAnalysisService {
       const frames = await this.extractFrames(videoElement, opts);
       
       let analyzedFrames: VideoAnalysisResult['frames'] = [];
-      let allExtractedText: string[] = [];
-      let allExtractedCode: string[] = [];
+      const allExtractedText: string[] = [];
+      const allExtractedCode: string[] = [];
 
       if (opts.analyzeContent && frames.length > 0) {
         logger.info('VideoAnalysis', `📊 Analyzing ${frames.length} frames...`);

@@ -267,7 +267,7 @@ const InputArea = forwardRef<InputAreaHandle, InputAreaProps>(({ onSend, placeho
     const el = textareaRef.current;
     if (!el) return;
 
-    let newText = text;
+    const newText = text;
 
     switch (item.type) {
       case 'text':

@@ -163,7 +163,7 @@ const gitCommit: AgentTool = {
         };
       }
 
-      let commands: string[] = [];
+      const commands: string[] = [];
 
       if (params.add_all) {
         commands.push('git add .');

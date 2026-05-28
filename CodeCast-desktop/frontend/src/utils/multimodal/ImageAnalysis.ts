@@ -61,7 +61,7 @@ export class ImageAnalysisService {
 
       const base64Data = await this.imageToBase64(imageData.element);
 
-      let result: ImageAnalysisResult = await this.callAIForAnalysis(base64Data, imageData, opts);
+      const result: ImageAnalysisResult = await this.callAIForAnalysis(base64Data, imageData, opts);
 
       result.metadata = {
         format: imageData.format,

@@ -176,7 +176,7 @@ const jsonToolsTool: ICastTool = {
 
     try {
       let result: string;
-      let metadata: Record<string, unknown> = { operation, processedAt: new Date().toISOString() };
+      const metadata: Record<string, unknown> = { operation, processedAt: new Date().toISOString() };
 
       switch (operation) {
         case 'format':

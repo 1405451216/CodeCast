@@ -96,7 +96,7 @@ export class RAGEngine {
     this.isIndexing = true;
     const startTime = performance.now();
     let indexedCount = 0;
-    let failedFiles: string[] = [];
+    const failedFiles: string[] = [];
 
     try {
       await this.initializeStorage();
