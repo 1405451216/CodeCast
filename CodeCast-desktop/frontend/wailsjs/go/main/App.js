@@ -70,10 +70,6 @@ export function ClearBrowserData() {
   return window['go']['main']['App']['ClearBrowserData']();
 }
 
-export function ClearCompletionCache() {
-  return window['go']['main']['App']['ClearCompletionCache']();
-}
-
 export function ConfirmGitCommit(arg1) {
   return window['go']['main']['App']['ConfirmGitCommit'](arg1);
 }
@@ -136,14 +132,6 @@ export function GetAvailableEditors() {
 
 export function GetChangelog(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetChangelog'](arg1, arg2, arg3);
-}
-
-export function GetCodeCompletions(arg1) {
-  return window['go']['main']['App']['GetCodeCompletions'](arg1);
-}
-
-export function GetCompletionStats() {
-  return window['go']['main']['App']['GetCompletionStats']();
 }
 
 export function GetConfig() {
@@ -326,10 +314,6 @@ export function ReadFileContent(arg1) {
   return window['go']['main']['App']['ReadFileContent'](arg1);
 }
 
-export function RecordCompletionUsage(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['RecordCompletionUsage'](arg1, arg2, arg3, arg4, arg5);
-}
-
 export function RegisterCastTools(arg1) {
   return window['go']['main']['App']['RegisterCastTools'](arg1);
 }
@@ -428,10 +412,6 @@ export function SetPreferredEditor(arg1) {
 
 export function SilentDownload(arg1) {
   return window['go']['main']['App']['SilentDownload'](arg1);
-}
-
-export function StreamCodeCompletions(arg1) {
-  return window['go']['main']['App']['StreamCodeCompletions'](arg1);
 }
 
 export function ToggleModelConfig(arg1, arg2) {

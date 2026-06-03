@@ -63,7 +63,7 @@ type App struct {
 
 	// CodeCast 应用层（保留）
 	llmConfig   LLMProviderConfig  // KEEP: syncSettingsToConfig() 依赖
-	completor   *CodeCompletor
+	// completor 字段已删除（代码补全迁到 ap.CachedProvider）
 	// notes 字段已删除（笔记功能迁到 cast_kb_* + ap.memory）
 }
 
