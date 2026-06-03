@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppStore, TodoItem, ChangedFile, AppState } from '../store';
-import type { SubAgent } from '../store/types';
+import type { AgentInfo } from '../store/types';
 import { shallow } from 'zustand/shallow';
 
 // ─── Status helpers ─────────────────────────────────────────────
@@ -49,11 +49,11 @@ const fileStatusClass = (status: ChangedFile['status']): string => {
 
 // ─── Component ─────────────────────────────────────────────────
 
-const agentStatusIcon = (status: SubAgent['status']) => {
+const agentStatusIcon = (status: AgentInfo['status']) => {
   switch (status) {
     case 'running':
       return <span className="fp-agent-icon running">🔄</span>;
-    case 'queued':
+    case 'waiting_for_input':
       return <span className="fp-agent-icon queued">⏳</span>;
     case 'completed':
       return <span className="fp-agent-icon completed">✅</span>;
@@ -71,7 +71,7 @@ const FilesPanel: React.FC<{ style?: React.CSSProperties }> = ({ style }) => {
   const todoItems = useAppStore((s: AppState) => s.todoItems, shallow);
   const contextCompression = useAppStore((s: AppState) => s.contextCompression);
   const changedFiles = useAppStore((s: AppState) => s.changedFiles, shallow);
-  const agents = useAppStore((s) => s.agents, shallow) as SubAgent[];
+  const agents = useAppStore((s) => s.agents, shallow) as AgentInfo[];
   const currentSessionId = useAppStore((s: AppState) => s.currentSessionId);
 
   if (!filesPanelVisible) {
@@ -80,7 +80,7 @@ const FilesPanel: React.FC<{ style?: React.CSSProperties }> = ({ style }) => {
 
   // Filter agents for current session
   const sessionAgents = agents.filter((a) => a.sessionId === currentSessionId);
-  const activeAgents = sessionAgents.filter((a) => a.status === 'running' || a.status === 'queued');
+  const activeAgents = sessionAgents.filter((a) => a.status === 'running' || a.status === 'waiting_for_input');
   const completedAgents = sessionAgents.filter((a) => a.status === 'completed' || a.status === 'failed' || a.status === 'cancelled');
 
   // Calculate TODO progress

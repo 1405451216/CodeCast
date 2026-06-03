@@ -1,28 +1,32 @@
 import React from 'react';
 import { useAppStore } from '../store';
-import type { SubAgent } from '../store/types';
+import type { AgentInfo } from '../store/types';
 
 interface AgentCardProps {
   agentIds: string[];
 }
 
-const statusIcons: Record<SubAgent['status'], string> = {
-  queued: '⏳',
+const statusIcons: Record<AgentInfo['status'], string> = {
+  idle: '💤',
   running: '🔄',
+  paused: '⏸️',
+  waiting_for_input: '⏳',
   completed: '✅',
   failed: '❌',
   cancelled: '⛔',
 };
 
-const statusLabels: Record<SubAgent['status'], string> = {
-  queued: '排队中',
+const statusLabels: Record<AgentInfo['status'], string> = {
+  idle: '空闲',
   running: '执行中',
+  paused: '已暂停',
+  waiting_for_input: '等待确认',
   completed: '完成',
   failed: '失败',
   cancelled: '已取消',
 };
 
-const AgentCardItem: React.FC<{ agent: SubAgent }> = ({ agent }) => {
+const AgentCardItem: React.FC<{ agent: AgentInfo }> = ({ agent }) => {
   const handleCancel = async () => {
     try {
       const { CancelAgent } = await import('../../wailsjs/go/main/App');
@@ -47,11 +51,11 @@ const AgentCardItem: React.FC<{ agent: SubAgent }> = ({ agent }) => {
           {agent.status === 'failed' && (
             <span className="agent-error">{agent.error}</span>
           )}
-          {agent.status === 'queued' && statusLabels.queued}
+          {agent.status === 'waiting_for_input' && statusLabels.waiting_for_input}
           {agent.status === 'cancelled' && statusLabels.cancelled}
         </span>
       </div>
-      {(agent.status === 'running' || agent.status === 'queued') && (
+      {(agent.status === 'running' || agent.status === 'waiting_for_input') && (
         <button className="agent-cancel-btn" onClick={handleCancel} title="取消">×</button>
       )}
     </div>
@@ -60,7 +64,7 @@ const AgentCardItem: React.FC<{ agent: SubAgent }> = ({ agent }) => {
 
 const AgentCard: React.FC<AgentCardProps> = ({ agentIds }) => {
   const agents = useAppStore((s) =>
-    s.agents.filter((a) => agentIds.includes(a.id) && a.mode === 'explicit')
+    s.agents.filter((a) => agentIds.includes(a.id) )
   );
 
   if (agents.length === 0) return null;
