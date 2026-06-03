@@ -86,20 +86,12 @@ export function CreateSkill(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateSkill'](arg1, arg2, arg3);
 }
 
-export function CreateTask(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['CreateTask'](arg1, arg2, arg3, arg4);
-}
-
 export function DeleteSession(arg1) {
   return window['go']['main']['App']['DeleteSession'](arg1);
 }
 
 export function DeleteSkill(arg1) {
   return window['go']['main']['App']['DeleteSkill'](arg1);
-}
-
-export function DeleteTask(arg1) {
-  return window['go']['main']['App']['DeleteTask'](arg1);
 }
 
 export function DispatchAgents(arg1) {
@@ -242,16 +234,8 @@ export function GetSlashCommands() {
   return window['go']['main']['App']['GetSlashCommands']();
 }
 
-export function GetTaskStats() {
-  return window['go']['main']['App']['GetTaskStats']();
-}
-
-export function GetTaskTemplates() {
-  return window['go']['main']['App']['GetTaskTemplates']();
-}
-
-export function GetTasks() {
-  return window['go']['main']['App']['GetTasks']();
+export function GetToolHistory(arg1, arg2) {
+  return window['go']['main']['App']['GetToolHistory'](arg1, arg2);
 }
 
 export function GetUpdateHistory() {
@@ -322,10 +306,6 @@ export function OpenReleasePage() {
   return window['go']['main']['App']['OpenReleasePage']();
 }
 
-export function PauseAllTasks() {
-  return window['go']['main']['App']['PauseAllTasks']();
-}
-
 export function PopoutWindow() {
   return window['go']['main']['App']['PopoutWindow']();
 }
@@ -340,6 +320,10 @@ export function ReadFileContent(arg1) {
 
 export function RecordCompletionUsage(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['RecordCompletionUsage'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function RegisterCastTools(arg1) {
+  return window['go']['main']['App']['RegisterCastTools'](arg1);
 }
 
 export function RemoveAllowedDomain(arg1) {
@@ -374,16 +358,8 @@ export function ResolveCheckpoint(arg1, arg2) {
   return window['go']['main']['App']['ResolveCheckpoint'](arg1, arg2);
 }
 
-export function ResumeAllTasks() {
-  return window['go']['main']['App']['ResumeAllTasks']();
-}
-
 export function RotateEncryptionKey() {
   return window['go']['main']['App']['RotateEncryptionKey']();
-}
-
-export function RunTaskNow(arg1) {
-  return window['go']['main']['App']['RunTaskNow'](arg1);
 }
 
 export function SaveSettings(arg1) {
@@ -426,6 +402,10 @@ export function SetAPIKey(arg1) {
   return window['go']['main']['App']['SetAPIKey'](arg1);
 }
 
+export function SetCastApp() {
+  return window['go']['main']['App']['SetCastApp']();
+}
+
 export function SetCurrentProject(arg1) {
   return window['go']['main']['App']['SetCurrentProject'](arg1);
 }
@@ -442,20 +422,12 @@ export function SilentDownload(arg1) {
   return window['go']['main']['App']['SilentDownload'](arg1);
 }
 
-export function StartTaskScheduler(arg1) {
-  return window['go']['main']['App']['StartTaskScheduler'](arg1);
-}
-
 export function StreamCodeCompletions(arg1) {
   return window['go']['main']['App']['StreamCodeCompletions'](arg1);
 }
 
 export function ToggleModelConfig(arg1, arg2) {
   return window['go']['main']['App']['ToggleModelConfig'](arg1, arg2);
-}
-
-export function ToggleTask(arg1, arg2) {
-  return window['go']['main']['App']['ToggleTask'](arg1, arg2);
 }
 
 export function UnarchiveSession(arg1) {
@@ -480,10 +452,6 @@ export function UpdateSkill(arg1, arg2, arg3, arg4) {
 
 export function UpdateSlashCommand(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateSlashCommand'](arg1, arg2, arg3, arg4);
-}
-
-export function UpdateTask(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['UpdateTask'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function WindowClose() {

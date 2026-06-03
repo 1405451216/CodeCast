@@ -3,7 +3,6 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAppStore, Message, AppState } from '../store';
 import { shallow } from 'zustand/shallow';
 import { formatContent } from '../utils';
-import { performanceMonitor, cacheManager } from '../utils/performance';
 import InteractiveMessage from './InteractiveMessage';
 import * as api from '../api';
 import { Skeleton, SkeletonContainer } from './Skeleton';
@@ -167,17 +166,7 @@ const MessagesView: React.FC<{ isLoading: boolean }> = ({ isLoading }) => {
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (messages.length > 0 && messages.length % 10 === 0) {
-      cacheManager.set(
-        `messages-preview-${messages.length}`,
-        {
-          lastMessageId: messages[messages.length - 1]?.id,
-          count: messages.length,
-          timestamp: Date.now()
-        },
-        10 * 60 * 1000
-      );
-    }
+    // 缓存逻辑已迁移到 AP 端（ap.llm.CachedProvider）
   }, [messages]);
 
   const virtualizer = useVirtualizer({

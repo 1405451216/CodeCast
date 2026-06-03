@@ -4,12 +4,10 @@ import { useAppInit } from './hooks/useAppInit';
 import { useSessionActions } from './hooks/useSessionActions';
 import { useChatSender } from './hooks/useChatSender';
 import { useCommandPalette } from './hooks/useKeyboardShortcuts';
-import { WebVitalsDashboard, useWebVitals } from './utils/WebVitalsMonitor';
-import { performanceMonitor, cacheManager } from './utils/performance';
+import { useWebVitals } from './utils/WebVitalsMonitor';
 import * as api from './api';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingFallback from './components/LoadingFallback';
-import DemoPreview from './components/DemoPreview';
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -39,14 +37,13 @@ const MessagesView = lazy(() => import('./components/MessagesView'));
 const ChatInput = lazy(() => import('./components/ChatInput'));
 const PreviewPanel = lazy(() => import('./components/PreviewPanel'));
 const FilesPanel = lazy(() => import('./components/FilesPanel'));
-const SettingsPage = lazy(() => import('./components/SettingsPage'));
 const PluginsPanel = lazy(() => import('./components/PluginsPanel'));
 const AutomationPanel = lazy(() => import('./components/AutomationPanel'));
 const ProjectsPanel = lazy(() => import('./components/ProjectsPanel'));
 const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
 const PanelResizer = lazy(() => import('./components/PanelResizer'));
 const CodeModeWorkspace = lazy(() => import('./components/CodeModeWorkspace'));
-const CastModeWorkspace = lazy(() => import('./components/CastModeWorkspace'));
+const ToolPanel = lazy(() => import('./components/ToolPanel'));
 
 const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(260);
@@ -62,30 +59,7 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    performanceMonitor.startMonitoring();
-
-    const reportInterval = setInterval(() => {
-      const metrics = performanceMonitor.getCurrentMetrics();
-      console.log(`[Perf] FPS: ${metrics.fps}, Memory: ${metrics.memoryUsage}MB, Render: ${metrics.renderTime}ms`);
-
-      const bottlenecks = performanceMonitor.detectBottlenecks();
-      if (bottlenecks.length > 0) {
-        console.warn('[Perf] Bottlenecks detected:', bottlenecks);
-      }
-    }, import.meta.env.DEV ? 10000 : 60000);
-
-    const cleanupInterval = setInterval(async () => {
-      const cleaned = await cacheManager.cleanup();
-      if (cleaned > 0) {
-        console.log(`[Cache] Cleaned up ${cleaned} expired entries`);
-      }
-    }, 5 * 60 * 1000);
-
-    return () => {
-      performanceMonitor.stopMonitoring();
-      clearInterval(reportInterval);
-      clearInterval(cleanupInterval);
-    };
+    return () => {};
   }, []);
 
   const sidebarVisible = useAppStore((s: AppState) => s.sidebarVisible);
@@ -95,8 +69,6 @@ const App: React.FC = () => {
   const currentSession = useAppStore((s: AppState) => s.currentSessionId);
   const sessions = useAppStore((s: AppState) => s.sessions);
   const isLoading = useAppStore((s: AppState) => s.isLoading);
-
-  const currentMode = sessions.find(s => s.ID === currentSession)?.Mode || '';
 
   useAppInit();
 
@@ -149,7 +121,7 @@ const App: React.FC = () => {
   const isWailsEnvironment = typeof window !== 'undefined' && 'go' in window;
 
   if (!isWailsEnvironment) {
-    return <DemoPreview />;
+    return <div style={{padding: 40}}>CodeCast 必须在 Wails 桌面环境中运行</div>;
   }
 
   return (
@@ -201,25 +173,13 @@ const App: React.FC = () => {
               )}
             </Suspense>
           </div>
-          
+
           {view === 'chat' && (
             <Suspense fallback={<LoadingFallback message="加载输入框..." />}>
               <ChatInput onSend={handleSendMessage} isLoading={isLoading} onStop={handleStop} />
             </Suspense>
           )}
-          
-          {currentMode === 'coding' && view === 'chat' && (
-            <Suspense fallback={<LoadingFallback message="加载 Code 工作台..." />}>
-              <CodeModeWorkspace visible mode="coding" />
-            </Suspense>
-          )}
 
-          {currentMode === 'daily' && view === 'chat' && (
-            <Suspense fallback={<LoadingFallback message="加载 Cast 工作台..." />}>
-              <CastModeWorkspace visible mode="daily" />
-            </Suspense>
-          )}
-          
           <Suspense fallback={null}>
             <PluginsPanel />
           </Suspense>
@@ -228,6 +188,10 @@ const App: React.FC = () => {
           </Suspense>
           <Suspense fallback={null}>
             <ProjectsPanel />
+          </Suspense>
+
+          <Suspense fallback={<LoadingFallback message="加载工具面板..." />}>
+            <ToolPanel />
           </Suspense>
         </div>
         
@@ -251,13 +215,8 @@ const App: React.FC = () => {
       </div>
 
       <Suspense fallback={null}>
-        <SettingsPage />
-      </Suspense>
-      <Suspense fallback={null}>
         <NotificationCenter />
       </Suspense>
-
-      <WebVitalsDashboard />
 
       <CommandPalette
         isOpen={isCommandPaletteOpen}

@@ -32,6 +32,32 @@ export namespace main {
 	        this.updatedAt = source["updatedAt"];
 	    }
 	}
+	export class CastToolInvocation {
+	    id: string;
+	    toolName: string;
+	    category: string;
+	    args: string;
+	    result: string;
+	    isError: boolean;
+	    sessionId: string;
+	    durationMs: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CastToolInvocation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.toolName = source["toolName"];
+	        this.category = source["category"];
+	        this.args = source["args"];
+	        this.result = source["result"];
+	        this.isError = source["isError"];
+	        this.sessionId = source["sessionId"];
+	        this.durationMs = source["durationMs"];
+	    }
+	}
 	export class ChangelogSection {
 	    title: string;
 	    items: string[];
@@ -666,6 +692,10 @@ export namespace main {
 	    auto_memory: boolean;
 	    tool_memory: boolean;
 	    message_history_limit: number;
+	    smtp_host: string;
+	    smtp_port: number;
+	    smtp_user: string;
+	    smtp_pass: string;
 	    auto_commit: boolean;
 	    confirm_before_commit: boolean;
 	    use_worktree: boolean;
@@ -718,6 +748,10 @@ export namespace main {
 	        this.auto_memory = source["auto_memory"];
 	        this.tool_memory = source["tool_memory"];
 	        this.message_history_limit = source["message_history_limit"];
+	        this.smtp_host = source["smtp_host"];
+	        this.smtp_port = source["smtp_port"];
+	        this.smtp_user = source["smtp_user"];
+	        this.smtp_pass = source["smtp_pass"];
 	        this.auto_commit = source["auto_commit"];
 	        this.confirm_before_commit = source["confirm_before_commit"];
 	        this.use_worktree = source["use_worktree"];
@@ -778,56 +812,6 @@ export namespace main {
 	    }
 	}
 	
-	export class Task {
-	    id: string;
-	    name: string;
-	    description: string;
-	    command: string;
-	    schedule: string;
-	    enabled: boolean;
-	    last_run: number;
-	    next_run: number;
-	    status: string;
-	    last_error: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new Task(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.description = source["description"];
-	        this.command = source["command"];
-	        this.schedule = source["schedule"];
-	        this.enabled = source["enabled"];
-	        this.last_run = source["last_run"];
-	        this.next_run = source["next_run"];
-	        this.status = source["status"];
-	        this.last_error = source["last_error"];
-	    }
-	}
-	export class TaskTemplate {
-	    name: string;
-	    description: string;
-	    command: string;
-	    schedule: string;
-	    category: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new TaskTemplate(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.description = source["description"];
-	        this.command = source["command"];
-	        this.schedule = source["schedule"];
-	        this.category = source["category"];
-	    }
-	}
 	
 	export class UpdateInfo {
 	    has_update: boolean;
@@ -871,6 +855,23 @@ export namespace main {
 	        this.updated_at = source["updated_at"];
 	        this.success = source["success"];
 	        this.notes = source["notes"];
+	    }
+	}
+
+}
+
+export namespace tools {
+	
+	export class Registry {
+	
+	
+	    static createFrom(source: any = {}) {
+	        return new Registry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	
 	    }
 	}
 
