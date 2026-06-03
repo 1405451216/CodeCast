@@ -3,16 +3,15 @@ module github.com/example/codecast
 go 1.26
 
 require (
+	agentprimordia v0.0.0-00010101000000-000000000000
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3
 	github.com/google/uuid v1.6.0
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/sync v0.20.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.50.1
 )
 
 require (
-	agentprimordia v0.0.0-00010101000000-000000000000 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -45,6 +44,7 @@ require (
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.50.1 // indirect
 )
 
-replace agentprimordia => D:\codecast\agentprimordia\agentprimordia
+replace agentprimordia => ../../agentprimordia/agentprimordia
