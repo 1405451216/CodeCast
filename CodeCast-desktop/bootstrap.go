@@ -417,7 +417,7 @@ func (b *Bootstrap) printStartupBanner() {
 	fmt.Println("   curl http://localhost:8080/status")
 	fmt.Println("   curl http://localhost:9090/metrics")
 
-	fmt.Println("\n按 Ctrl+C 优雅关闭...\n")
+	fmt.Println("\n按 Ctrl+C 优雅关闭...")
 }
 
 // Shutdown 优雅关闭所有子系统
@@ -512,7 +512,7 @@ func (b *Bootstrap) RunDemo() error {
 	fmt.Printf("   执行成功: %d\n", auditStats.ExecutedCount)
 	fmt.Printf("   被拦截数: %d\n", auditStats.BlockedCount)
 
-	fmt.Println("\n✨ 所有功能演示完成!\n")
+	fmt.Println("\n✨ 所有功能演示完成!")
 
 	return nil
 }

@@ -215,8 +215,8 @@ func (pool *AgentPool) Submit(agent *SubAgent) {
 
 	pool.emitEvent(agent, "status")
 
+	pool.wg.Add(1)
 	go func() {
-		pool.wg.Add(1)
 		defer pool.wg.Done()
 		select {
 		case pool.semaphore <- struct{}{}:
