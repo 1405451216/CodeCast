@@ -9,10 +9,6 @@ export function AddBlockedDomain(arg1:string):Promise<void>;
 
 export function AddEnvVar(arg1:string,arg2:string):Promise<void>;
 
-export function AddMCPServer(arg1:string,arg2:string):Promise<main.MCPServer>;
-
-export function AddMCPServerStdio(arg1:string,arg2:string,arg3:Array<string>):Promise<main.MCPServer>;
-
 export function AddModelConfig(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number,arg7:number,arg8:boolean):Promise<main.ModelConfigItem>;
 
 export function AddProject(arg1:string):Promise<main.Project>;
@@ -43,8 +39,6 @@ export function ClearBrowserData():Promise<void>;
 
 export function ClearCompletionCache():Promise<void>;
 
-export function ClearMemory():Promise<void>;
-
 export function ConfirmGitCommit(arg1:string):Promise<void>;
 
 export function CreateSession(arg1:string,arg2:string,arg3:string):Promise<main.Session>;
@@ -67,13 +61,11 @@ export function ExecuteCommand(arg1:string,arg2:number):Promise<string>;
 
 export function ExportSession(arg1:string,arg2:string):Promise<string>;
 
-export function ExtractSummaryAsync(arg1:string,arg2:string,arg3:string):Promise<void>;
-
 export function FixEnvironmentIssue(arg1:string):Promise<string>;
 
-export function GetAgentDetail(arg1:string):Promise<main.SubAgent>;
+export function GetAgentDetail(arg1:string):Promise<main.AgentInfo>;
 
-export function GetAgents(arg1:string):Promise<Array<main.SubAgent>>;
+export function GetAgents(arg1:string):Promise<Array<main.AgentInfo>>;
 
 export function GetAllReleases(arg1:number):Promise<Array<main.UpdateInfo>>;
 
@@ -101,10 +93,6 @@ export function GetGitStatus():Promise<Record<string, any>>;
 
 export function GetKeyRotationInfo():Promise<Record<string, any>>;
 
-export function GetMCPStatus():Promise<Array<Record<string, any>>>;
-
-export function GetMemoryStats():Promise<Record<string, any>>;
-
 export function GetModelConfigs():Promise<Array<main.ModelConfigItem>>;
 
 export function GetNoProjectMode():Promise<boolean>;
@@ -120,8 +108,6 @@ export function GetProjects():Promise<Array<main.Project>>;
 export function GetProviderModels(arg1:string):Promise<Array<string>>;
 
 export function GetProviders():Promise<Array<main.ProviderPreset>>;
-
-export function GetSandboxStatus():Promise<Record<string, any>>;
 
 export function GetSecurityStatus():Promise<main.SecurityStatus>;
 
@@ -193,8 +179,6 @@ export function RemoveBlockedDomain(arg1:string):Promise<void>;
 
 export function RemoveEnvVar(arg1:string):Promise<void>;
 
-export function RemoveMCPServer(arg1:string):Promise<void>;
-
 export function RemoveModelConfig(arg1:string):Promise<void>;
 
 export function RemoveProject(arg1:string):Promise<void>;
@@ -203,7 +187,7 @@ export function RemoveSlashCommand(arg1:string):Promise<void>;
 
 export function RenameSession(arg1:string,arg2:string):Promise<void>;
 
-export function ResetMemory():Promise<void>;
+export function ResolveCheckpoint(arg1:string,arg2:boolean):Promise<void>;
 
 export function ResumeAllTasks():Promise<number>;
 
@@ -225,7 +209,7 @@ export function SelectMultipleFiles():Promise<Array<string>>;
 
 export function SendMessage(arg1:string,arg2:string):Promise<Array<main.Message>>;
 
-export function SendMessageEx(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<Array<main.Message>>;
+export function SendMessageEx(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Array<main.Message>>;
 
 export function SendNotification(arg1:string,arg2:string,arg3:string):Promise<void>;
 
@@ -242,10 +226,6 @@ export function SilentDownload(arg1:string):Promise<void>;
 export function StartTaskScheduler(arg1:any):Promise<any>;
 
 export function StreamCodeCompletions(arg1:main.CompletionRequest):Promise<void>;
-
-export function TestMCPServerConnection(arg1:string):Promise<Record<string, any>>;
-
-export function ToggleMCPServer(arg1:string,arg2:boolean):Promise<void>;
 
 export function ToggleModelConfig(arg1:string,arg2:boolean):Promise<void>;
 
@@ -264,10 +244,6 @@ export function UpdateSkill(arg1:string,arg2:string,arg3:string,arg4:string):Pro
 export function UpdateSlashCommand(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function UpdateTask(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
-
-export function ValidateCommand(arg1:string):Promise<void>;
-
-export function ValidatePath(arg1:string,arg2:string):Promise<void>;
 
 export function WindowClose():Promise<void>;
 

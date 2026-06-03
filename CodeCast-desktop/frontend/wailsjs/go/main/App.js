@@ -14,14 +14,6 @@ export function AddEnvVar(arg1, arg2) {
   return window['go']['main']['App']['AddEnvVar'](arg1, arg2);
 }
 
-export function AddMCPServer(arg1, arg2) {
-  return window['go']['main']['App']['AddMCPServer'](arg1, arg2);
-}
-
-export function AddMCPServerStdio(arg1, arg2, arg3) {
-  return window['go']['main']['App']['AddMCPServerStdio'](arg1, arg2, arg3);
-}
-
 export function AddModelConfig(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
   return window['go']['main']['App']['AddModelConfig'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
@@ -82,10 +74,6 @@ export function ClearCompletionCache() {
   return window['go']['main']['App']['ClearCompletionCache']();
 }
 
-export function ClearMemory() {
-  return window['go']['main']['App']['ClearMemory']();
-}
-
 export function ConfirmGitCommit(arg1) {
   return window['go']['main']['App']['ConfirmGitCommit'](arg1);
 }
@@ -128,10 +116,6 @@ export function ExecuteCommand(arg1, arg2) {
 
 export function ExportSession(arg1, arg2) {
   return window['go']['main']['App']['ExportSession'](arg1, arg2);
-}
-
-export function ExtractSummaryAsync(arg1, arg2, arg3) {
-  return window['go']['main']['App']['ExtractSummaryAsync'](arg1, arg2, arg3);
 }
 
 export function FixEnvironmentIssue(arg1) {
@@ -198,14 +182,6 @@ export function GetKeyRotationInfo() {
   return window['go']['main']['App']['GetKeyRotationInfo']();
 }
 
-export function GetMCPStatus() {
-  return window['go']['main']['App']['GetMCPStatus']();
-}
-
-export function GetMemoryStats() {
-  return window['go']['main']['App']['GetMemoryStats']();
-}
-
 export function GetModelConfigs() {
   return window['go']['main']['App']['GetModelConfigs']();
 }
@@ -236,10 +212,6 @@ export function GetProviderModels(arg1) {
 
 export function GetProviders() {
   return window['go']['main']['App']['GetProviders']();
-}
-
-export function GetSandboxStatus() {
-  return window['go']['main']['App']['GetSandboxStatus']();
 }
 
 export function GetSecurityStatus() {
@@ -382,10 +354,6 @@ export function RemoveEnvVar(arg1) {
   return window['go']['main']['App']['RemoveEnvVar'](arg1);
 }
 
-export function RemoveMCPServer(arg1) {
-  return window['go']['main']['App']['RemoveMCPServer'](arg1);
-}
-
 export function RemoveModelConfig(arg1) {
   return window['go']['main']['App']['RemoveModelConfig'](arg1);
 }
@@ -402,8 +370,8 @@ export function RenameSession(arg1, arg2) {
   return window['go']['main']['App']['RenameSession'](arg1, arg2);
 }
 
-export function ResetMemory() {
-  return window['go']['main']['App']['ResetMemory']();
+export function ResolveCheckpoint(arg1, arg2) {
+  return window['go']['main']['App']['ResolveCheckpoint'](arg1, arg2);
 }
 
 export function ResumeAllTasks() {
@@ -482,14 +450,6 @@ export function StreamCodeCompletions(arg1) {
   return window['go']['main']['App']['StreamCodeCompletions'](arg1);
 }
 
-export function TestMCPServerConnection(arg1) {
-  return window['go']['main']['App']['TestMCPServerConnection'](arg1);
-}
-
-export function ToggleMCPServer(arg1, arg2) {
-  return window['go']['main']['App']['ToggleMCPServer'](arg1, arg2);
-}
-
 export function ToggleModelConfig(arg1, arg2) {
   return window['go']['main']['App']['ToggleModelConfig'](arg1, arg2);
 }
@@ -524,14 +484,6 @@ export function UpdateSlashCommand(arg1, arg2, arg3, arg4) {
 
 export function UpdateTask(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['UpdateTask'](arg1, arg2, arg3, arg4, arg5);
-}
-
-export function ValidateCommand(arg1) {
-  return window['go']['main']['App']['ValidateCommand'](arg1);
-}
-
-export function ValidatePath(arg1, arg2) {
-  return window['go']['main']['App']['ValidatePath'](arg1, arg2);
 }
 
 export function WindowClose() {

@@ -4,7 +4,7 @@
  * ⚠️ 请勿手动编辑此文件！修改后端 Settings struct 后重新运行:
  *   node scripts/generate-settings-keys.mjs
  *
- * 生成时间: 2026-05-28T11:44:40.885Z
+ * 生成时间: 2026-06-03T09:30:29.008Z
  */
 
 export const S = {

@@ -420,7 +420,7 @@ export class TaskPlanner {
       order: subTaskDef.order,
       title: subTaskDef.title,
       description: subTaskDef.description,
-      status: subTaskDef.order === 1 ? TaskStatus.QUEUED : TaskStatus.PENDING,
+      status: subTaskDef.order === 1 ? TaskStatus.RUNNING : TaskStatus.IDLE,
       riskLevel: subTaskDef.riskLevel,
       estimatedTurns: subTaskDef.estimatedTurns,
       actualTurns: 0,
