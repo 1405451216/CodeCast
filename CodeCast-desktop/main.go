@@ -64,7 +64,7 @@ type App struct {
 	// CodeCast 应用层（保留）
 	llmConfig   LLMProviderConfig  // KEEP: syncSettingsToConfig() 依赖
 	completor   *CodeCompletor
-	notes       *NotesStore
+	// notes 字段已删除（笔记功能迁到 cast_kb_* + ap.memory）
 }
 
 func NewApp() *App {
@@ -231,26 +231,8 @@ func (a *App) startup(ctx context.Context) {
 	a.checkpointConfirmations = make(map[string]chan bool)
 
 	// 15. Notes Hook — trigger note recording after each agent run
-	a.hooks.Register(ap.HookAfterRun, func(ctx context.Context, hctx *ap.HookContext) error {
-		go a.recordNotesAsync(hctx.SessionID, "", "")
-		return nil
-	})
-
-	// 16. Notes Store (preserve existing behavior)
-	notesDir := filepath.Join(filepath.Dir(a.settingsPath))
-	notesStore, notesErr := NewNotesStore(notesDir)
-	if notesErr != nil {
-		slog.Warn("笔记系统初始化失败", "error", notesErr)
-	} else {
-		a.notes = notesStore
-		slog.Info("结构化笔记系统已启动", "dir", notesDir)
-		go func() {
-			time.Sleep(5 * time.Minute)
-			if deleted, cleanupErr := a.notes.CleanupOld(30); cleanupErr == nil && deleted > 0 {
-				slog.Info("已清理过期笔记", "count", deleted)
-			}
-		}()
-	}
+	// 已迁移到 cast_kb_save（AI 主动调用） + ap.Memory（自动）
+	// 16. Notes 系统已迁移到 cast_kb_* + ap.memory（见 cast_tools_kb.go）
 
 	a.taskSchedulerStop = make(chan struct{})
 	go a.runScheduleDispatcher(a.taskSchedulerStop)

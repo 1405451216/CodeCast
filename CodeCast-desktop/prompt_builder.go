@@ -27,10 +27,9 @@ func (a *App) buildSystemPrompt(session *Session) string {
 		projectPath = cp.Path
 	}
 	a.mu.RUnlock()
-	if a.notes != nil && session != nil {
-		if ctx, err := a.notes.ToContextPrompt(session.ID); err == nil {
-			notesContext = ctx
-		}
+	if a.castReg != nil {
+		// 笔记上下文已通过 cast_kb_search 工具按需获取，无需自动注入
+		_ = a.castReg
 	}
 	if session != nil && session.SkillID != "" {
 		a.mu.RLock()

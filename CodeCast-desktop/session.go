@@ -340,30 +340,7 @@ func (a *App) emitToolEvent(toolName, detail string) {
 }
 
 // ==================== Notes Recording ====================
-
-func (a *App) recordNotesAsync(sessionID, userMsg, assistantMsg string) {
-	if a.notes == nil {
-		return
-	}
-
-	inputLower := strings.ToLower(userMsg)
-
-	if strings.Contains(inputLower, "帮我写") || strings.Contains(inputLower, "实现") ||
-		strings.Contains(inputLower, "添加") || strings.Contains(inputLower, "创建") {
-		a.notes.SetTask(sessionID, truncateLine(userMsg, 100))
-	}
-
-	if strings.Contains(inputLower, "修改") || strings.Contains(inputLower, "改") ||
-		strings.Contains(inputLower, "fix") || strings.Contains(inputLower, "修复") {
-		a.notes.AddIssue(sessionID, truncateLine(userMsg, 100))
-	}
-
-	assistantLower := strings.ToLower(assistantMsg)
-	if strings.Contains(assistantLower, "已完成") || strings.Contains(assistantLower, "修改了") ||
-		strings.Contains(assistantLower, "创建了") || strings.Contains(assistantLower, "实现了") {
-		a.notes.AddDecision(sessionID, truncateLine(assistantMsg, 150))
-	}
-}
+// 已迁移到 cast_kb_save（AI 主动调用） + ap.Memory（自动）
 
 func truncateLine(s string, max int) string {
 	runes := []rune(s)

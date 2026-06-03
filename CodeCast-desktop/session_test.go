@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -293,106 +292,6 @@ func TestBuildSystemPromptNonExistentSkill(t *testing.T) {
 	}
 }
 
-// ==================== recordNotesAsync 测试 ====================
-
-func TestRecordNotesAsyncTaskDetection(t *testing.T) {
-	tmpDir := t.TempDir()
-	store, _ := NewNotesStore(tmpDir)
-	app := &App{notes: store}
-
-	app.recordNotesAsync("sess1", "帮我写一个用户认证模块", "好的，我来帮你实现 JWT 认证功能")
-
-	time.Sleep(50 * time.Millisecond)
-	loaded, _ := store.Load("sess1")
-	if loaded.CurrentTask == "" {
-		t.Error("'帮我写' should trigger SetTask")
-	}
-	if !strings.Contains(loaded.CurrentTask, "用户认证模块") {
-		t.Errorf("Task content wrong: %s", loaded.CurrentTask)
-	}
-}
-
-func TestRecordNotesAsyncIssueDetection(t *testing.T) {
-	tmpDir := t.TempDir()
-	store, _ := NewNotesStore(tmpDir)
-	app := &App{notes: store}
-
-	app.recordNotesAsync("sess1", "修复登录超时的 bug", "已修复，问题是连接池配置错误")
-
-	time.Sleep(50 * time.Millisecond)
-	loaded, _ := store.Load("sess1")
-	foundIssue := false
-	for _, issue := range loaded.PendingIssues {
-		if strings.Contains(issue, "登录超时") {
-			foundIssue = true
-			break
-		}
-	}
-	if !foundIssue {
-		t.Error("'修复' should trigger AddIssue")
-	}
-}
-
-func TestRecordNotesAsyncDecisionDetection(t *testing.T) {
-	tmpDir := t.TempDir()
-	store, _ := NewNotesStore(tmpDir)
-	app := &App{notes: store}
-
-	app.recordNotesAsync("sess1", "实现 OAuth 登录", "已完成 OAuth 集成，支持 Google 和 GitHub 登录")
-
-	time.Sleep(50 * time.Millisecond)
-	loaded, _ := store.Load("sess1")
-	foundDecision := false
-	for _, d := range loaded.Decisions {
-		if strings.Contains(d, "已完成") && strings.Contains(d, "OAuth") {
-			foundDecision = true
-			break
-		}
-	}
-	if !foundDecision {
-		t.Error("Assistant '已完成' should trigger AddDecision")
-	}
-}
-
-func TestRecordNotesAsyncNonCodingSkipped(t *testing.T) {
-	tmpDir := t.TempDir()
-	store, _ := NewNotesStore(tmpDir)
-	app := &App{notes: store}
-
-	app.recordNotesAsync("sess1", "今天天气怎么样", "天气不错，适合出门散步")
-
-	time.Sleep(50 * time.Millisecond)
-	loaded, _ := store.Load("sess1")
-	if loaded.CurrentTask != "" || len(loaded.Decisions) > 0 || len(loaded.PendingIssues) > 0 {
-		t.Error("Non-coding session should not trigger notes recording via this path")
-	}
-}
-
-func TestRecordNotesAsyncPanicRecovery(t *testing.T) {
-	app := &App{notes: nil}
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("recordNotesAsync should not panic with nil notes: %v", r)
-		}
-	}()
-	app.recordNotesAsync("sess1", "test input", "test output")
-}
-
-func TestRecordNotesAsyncTruncation(t *testing.T) {
-	tmpDir := t.TempDir()
-	store, _ := NewNotesStore(tmpDir)
-	app := &App{notes: store}
-
-	longInput := strings.Repeat("a", 200)
-	app.recordNotesAsync("sess1", fmt.Sprintf("帮我写%s", longInput), "done")
-
-	time.Sleep(50 * time.Millisecond)
-	loaded, _ := store.Load("sess1")
-	runes := []rune(loaded.CurrentTask)
-	if len(runes) > 103 {
-		t.Errorf("Long task should be truncated to ~100 + ..., got %d", len(runes))
-	}
-}
 
 // ==================== deepCopySession 测试 ====================
 
