@@ -42,7 +42,6 @@ const AutomationPanel = lazy(() => import('./components/AutomationPanel'));
 const ProjectsPanel = lazy(() => import('./components/ProjectsPanel'));
 const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
 const PanelResizer = lazy(() => import('./components/PanelResizer'));
-const CodeModeWorkspace = lazy(() => import('./components/CodeModeWorkspace'));
 const ToolPanel = lazy(() => import('./components/ToolPanel'));
 
 const App: React.FC = () => {
