@@ -15,6 +15,7 @@ import { createMessagesSlice } from './useMessagesStore';
 import { createAgentSlice } from './useAgentStore';
 import { createPerformanceSlice } from './usePerformanceStore';
 import { createPluginSlice } from './usePluginStore';
+import { createToolsSlice } from './useToolsStore';
 
 import type { SessionSlice } from './useSessionStore';
 import type { ProjectSlice } from './useProjectStore';
@@ -30,6 +31,7 @@ import type { MessagesSlice } from './useMessagesStore';
 import type { AgentSlice } from './useAgentStore';
 import type { PerformanceSlice } from './usePerformanceStore';
 import type { PluginSlice } from './usePluginStore';
+import type { ToolsSlice } from './useToolsStore';
 import type { SliceSet } from './storeTypes';
 
 export interface AppState extends
@@ -46,7 +48,8 @@ export interface AppState extends
   MessagesSlice,
   AgentSlice,
   PerformanceSlice,
-  PluginSlice {
+  PluginSlice,
+  ToolsSlice {
   isStreaming: boolean;
   setIsStreaming: (val: boolean) => void;
 }
@@ -72,6 +75,7 @@ export const useAppStore = create<AppState>((set, _get, _api) => {
     ...createAgentSlice(sliceSet),
     ...createPerformanceSlice(sliceSet),
     ...createPluginSlice(sliceSet),
+    ...createToolsSlice(sliceSet),
 
     isStreaming: false,
     setIsStreaming: (val: boolean) => {

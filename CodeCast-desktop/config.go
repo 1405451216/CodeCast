@@ -192,6 +192,12 @@ type Settings struct {
 	ToolMemory          bool   `json:"tool_memory"`
 	MessageHistoryLimit int    `json:"message_history_limit"`
 
+	// SMTP 邮件发送（cast_email_send 工具用）
+	SMTPHost string `json:"smtp_host"`
+	SMTPPort int    `json:"smtp_port"`
+	SMTPUser string `json:"smtp_user"`
+	SMTPPass string `json:"smtp_pass"`
+
 	AutoCommit        bool `json:"auto_commit"`
 	ConfirmBeforeCommit bool `json:"confirm_before_commit"`
 
