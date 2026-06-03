@@ -179,6 +179,14 @@ interface GoAppMethods {
   RecordCompletionUsage(prefix: string, acceptedText: string, source: string, model: string, latencyMs: number): Promise<void>;
   GetCompletionStats(): Promise<{ total_requests: number; total_suggestions: number; accept_rate: number; avg_latency_ms: number; cache_hit_rate: number }>;
   ClearCompletionCache(): Promise<void>;
+
+  // AP Agent Bridge
+  DispatchAgents(tasksJSON: string): Promise<string[]>;
+  GetAgents(sessionId: string): Promise<import('./store/types').AgentInfo[]>;
+  GetAgentDetail(agentId: string): Promise<import('./store/types').AgentInfo | null>;
+  CancelAgent(agentId: string): Promise<void>;
+  CancelSessionAgents(sessionId: string): Promise<void>;
+  ResolveCheckpoint(checkpointId: string, approved: boolean): Promise<void>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -568,3 +576,12 @@ export const GetCompletionStats = async (): Promise<{
 export const ClearCompletionCache = (): Promise<void> => {
   return callGo('ClearCompletionCache');
 };
+
+// AP Agent Bridge
+export const dispatchAgents = (tasksJSON: string) => callGo('DispatchAgents', tasksJSON);
+export const getAgents = (sessionId: string) => callGo('GetAgents', sessionId);
+export const getAgentDetail = (agentId: string) => callGo('GetAgentDetail', agentId);
+export const cancelAgent = (agentId: string) => callGo('CancelAgent', agentId);
+export const cancelSessionAgents = (sessionId: string) => callGo('CancelSessionAgents', sessionId);
+export const resolveCheckpoint = (checkpointId: string, approved: boolean) =>
+  callGo('ResolveCheckpoint', checkpointId, approved);

@@ -4,6 +4,9 @@ import * as api from '../api';
 import { toSession, toMessage } from '../api/types';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 
+// AP StreamRun event types (from chat.go)
+type APStreamEventType = 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'error' | 'done';
+
 export function useChatSender() {
   const currentSessionId = useAppStore((s: AppState) => s.currentSessionId);
   const selectedModel = useAppStore((s: AppState) => s.selectedModel);
@@ -60,26 +63,51 @@ export function useChatSender() {
       cleanupRef.current = null;
     }
 
+    // Listen for AP stream events (from chat.go StreamRun)
     const eventName = `stream:${sessionId}`;
-    const cleanup = EventsOn(eventName, (data: any) => {
-      if (data.type === 'start') {
-        streamingRef.current = true;
-        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '', reasoning: '', timestamp: Date.now() });
-      } else if (data.type === 'reasoning') {
-        updateLastMessage((last) => {
-          if (last && last.role === 'assistant') {
-            return { ...last, reasoning: (last.reasoning || '') + data.content };
+    const cleanup = EventsOn(eventName, (data: { type: APStreamEventType; content?: string }) => {
+      switch (data.type) {
+        case 'content':
+          if (!streamingRef.current) {
+            streamingRef.current = true;
+            addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '', reasoning: '', timestamp: Date.now() });
           }
-          return last;
-        });
-      } else if (data.type === 'content') {
-        updateLastMessage((last) => {
-          if (last && last.role === 'assistant') {
-            return { ...last, content: last.content + data.content };
+          updateLastMessage((last) => {
+            if (last && last.role === 'assistant') {
+              return { ...last, content: last.content + (data.content || '') };
+            }
+            return last;
+          });
+          break;
+        case 'reasoning':
+          if (!streamingRef.current) {
+            streamingRef.current = true;
+            addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '', reasoning: '', timestamp: Date.now() });
           }
-          return last;
-        });
-      } else if (data.type === 'done') {
+          updateLastMessage((last) => {
+            if (last && last.role === 'assistant') {
+              return { ...last, reasoning: (last.reasoning || '') + (data.content || '') };
+            }
+            return last;
+          });
+          break;
+        case 'tool_call':
+          // Tool call started — agent is executing a tool
+          break;
+        case 'tool_result':
+          // Tool result received — agent continues reasoning
+          break;
+        case 'error':
+          updateLastMessage((last) => {
+            if (last && last.role === 'assistant' && !last.content) {
+              return { ...last, content: '抱歉，发生了错误: ' + (data.content || '未知错误') };
+            }
+            return last;
+          });
+          break;
+        case 'done':
+          // Stream complete
+          break;
       }
     });
 
@@ -87,7 +115,7 @@ export function useChatSender() {
 
     try {
       const resp = await api.sendMessageEx(sessionId, text, selectedModel, thinkingMode);
-      // 如果没有收到流式事件（回退模式），用完整响应替换
+      // Fallback: if no streaming events were received, use the full response
       if (!streamingRef.current && resp && resp.length > 0) {
         addMessage(toMessage(resp[0]));
       }
@@ -95,7 +123,6 @@ export function useChatSender() {
       if (!streamingRef.current) {
         addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '抱歉，发生了错误: ' + (e.message || e), timestamp: Date.now() });
       } else {
-        // 流式过程中出错，更新最后一条消息
         updateLastMessage((last) => {
           if (last && last.role === 'assistant' && !last.content) {
             return { ...last, content: '抱歉，发生了错误: ' + (e.message || e) };

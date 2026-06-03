@@ -6,6 +6,19 @@ import { EventsOn } from '../../wailsjs/runtime/runtime';
 
 const isWailsEnvironment = typeof window !== 'undefined' && 'go' in window;
 
+// AP EventBus event names (from event_bridge.go)
+const AP_EVENTS = [
+  'agent:start',
+  'agent:stop',
+  'agent:error',
+  'agent:turn',
+  'agent:turn_end',
+  'agent:tool',
+  'agent:tool_result',
+  'pool:dispatch',
+  'pool:complete',
+] as const;
+
 export function useAppInit() {
   const setPlatform = useAppStore((s: AppState) => s.setPlatform);
   const setSessions = useAppStore((s: AppState) => s.setSessions);
@@ -19,12 +32,25 @@ export function useAppInit() {
 
     initApp();
 
+    // Listen for legacy agent events
     const cleanupAgentEvent = EventsOn('agent:event', (event: any) => {
       useAppStore.getState().handleAgentEvent(event);
     });
 
+    // Listen for AP EventBus events (forwarded by event_bridge.go)
+    const cleanups: (() => void)[] = [cleanupAgentEvent];
+
+    for (const eventName of AP_EVENTS) {
+      const cleanup = EventsOn(eventName, (payload: any) => {
+        useAppStore.getState().handleAPEvent(eventName, payload);
+      });
+      cleanups.push(cleanup);
+    }
+
     return () => {
-      cleanupAgentEvent();
+      for (const cleanup of cleanups) {
+        cleanup();
+      }
     };
   }, []);
 
@@ -38,7 +64,6 @@ export function useAppInit() {
       console.error('Failed to detect platform:', e);
     }
 
-    // 统一使用 ThemeSwitcher 的存储格式 (codecast-theme)
     const savedThemeRaw = localStorage.getItem('codecast-theme');
     let initialMode: string = 'dark';
     if (savedThemeRaw) {
@@ -48,7 +73,6 @@ export function useAppInit() {
           initialMode = parsed.mode;
         }
       } catch {
-        // 旧格式兼容: codecast_theme 存的是纯字符串
         const legacyTheme = localStorage.getItem('codecast_theme');
         if (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'system') {
           initialMode = legacyTheme;
@@ -64,7 +88,6 @@ export function useAppInit() {
         if (settings.theme) {
           document.documentElement.setAttribute('data-theme', settings.theme);
           document.documentElement.classList.toggle('dark', settings.theme === 'dark');
-          // 同步到新格式
           const existing = localStorage.getItem('codecast-theme');
           let themeConfig = { mode: settings.theme, accentColor: 'purple', fontSize: 'medium' };
           if (existing) {
