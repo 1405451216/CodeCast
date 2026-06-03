@@ -85,7 +85,7 @@ export const useCastAgentStore = create<CastAgentStore>()(
             userGoal: goal,
             parsedGoal,
             steps: initializedSteps,
-            status: TaskStatus.PENDING,
+            status: TaskStatus.IDLE,
             currentStepIndex: 0,
             totalSteps: initializedSteps.length,
             completedSteps: 0,
