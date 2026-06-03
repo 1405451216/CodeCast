@@ -27,6 +27,10 @@
 | 7 | `PoolStats` has no `ActiveTasks` field — it has `RunningTasks/QueuedTasks/CompletedTasks/FailedTasks` | Fix agent_bridge.go GetAgents() |
 | 8 | AP has `StatusWaitingForInput` — useful for Checkpoint | Use in AgentInfo |
 | 9 | AP has `CostTracker`, `CachedProvider`, `GuardrailHook`, `DAGWorkflow`, `Pipeline` | Add as architecture improvements |
+| 10 | **DEADLOCK BUG**: `createProvider()` calls `a.mu.RLock()` then `resolveCredentialsLocked()` which expects caller to already hold `a.mu` — Go RWMutex is not reentrant | Remove `RLock` from `createProvider()`, document that caller must hold the lock |
+| 11 | Task granularity too coarse — Task 9 (1474-line session.go) and Task 11 (5 files) violate 2-5 min step rule | Split into focused sub-tasks |
+| 12 | Backend/Frontend tasks are serial but could be parallel | Task 12-16 only depend on Task 1, enable parallel tracks |
+| 13 | No rollback strategy for high-risk tasks | Each commit is a rollback point; add explicit safety commits |
 
 ---
 
@@ -104,6 +108,33 @@
 
 ---
 
+## Execution Strategy
+
+### Parallel Tracks
+
+Tasks 1-11 (Backend) and Tasks 12-16 (Frontend) are **independent** after Task 1 completes. They can execute in parallel:
+
+```
+Task 1 (go.mod) ──┬── Task 2-11 (Backend track)
+                   └── Task 12-16 (Frontend track)
+Task 17-18 (Integration) depends on both tracks completing
+```
+
+### Rollback Strategy
+
+Every step ends with a `git commit`. If any task fails:
+1. `git log --oneline -5` to find the last working commit
+2. `git reset --hard <commit>` to rollback
+3. Fix the issue and re-apply changes
+
+For high-risk tasks (Task 8, 9, 10), **create a safety branch** before starting:
+```bash
+git checkout -b backup-before-task-N
+git checkout main  # continue working on main
+```
+
+---
+
 ## Task Decomposition
 
 Tasks are ordered by dependency. Each task produces a self-contained, testable change.
@@ -158,10 +189,11 @@ import (
 // createProvider creates an AP LLM Provider based on current settings.
 // Uses resolveCredentialsLocked() for API key/URL, guessProviderForModel() for provider type.
 // All AP Provider constructors return (*Provider, error).
+//
+// IMPORTANT: Caller MUST hold a.mu lock before calling this method.
+// resolveCredentialsLocked() requires the caller to hold a.mu (see config.go:862 comment).
+// Go's sync.RWMutex is NOT reentrant — do NOT add a.mu.RLock() here or it will deadlock.
 func (a *App) createProvider() (ap.Provider, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
 	creds, err := a.resolveCredentialsLocked("")
 	if err != nil {
 		return nil, fmt.Errorf("resolve credentials: %w", err)
@@ -268,6 +300,7 @@ func (a *App) createProvider() (ap.Provider, error) {
 
 // createCachedProvider creates a cached provider for code completion use cases.
 // Uses AP's CachedProvider with fingerprint + vector similarity cache.
+// IMPORTANT: Caller MUST hold a.mu lock (calls createProvider which requires it).
 func (a *App) createCachedProvider() (ap.Provider, error) {
 	primary, err := a.createProvider()
 	if err != nil {
@@ -630,6 +663,9 @@ func (a *App) SendMessageEx(sessionID, input, model, thinking string) ([]Message
 		return nil, fmt.Errorf("create agent: %w", err)
 	}
 
+	// NOTE: createProvider() requires a.mu to be held.
+	// getOrCreateAgent() calls createProvider() internally with the lock.
+
 	ctx, reqCancel := context.WithCancel(a.ctx)
 	defer reqCancel()
 
@@ -698,7 +734,10 @@ func (a *App) getOrCreateAgent(sessionID string, model string) (ap.Agent, contex
 	}
 	a.mu.RUnlock()
 
+	// createProvider() requires caller to hold a.mu — we acquire it here
+	a.mu.Lock()
 	provider, err := a.createProvider()
+	a.mu.Unlock()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -971,8 +1010,10 @@ func (a *App) startup(ctx context.Context) {
 	// 9. AP Lifecycle
 	a.lifecycle = ap.NewLifecycle()
 
-	// 10. Provider + RAG
+	// 10. Provider + RAG (createProvider requires a.mu — safe during startup, no contention)
+	a.mu.Lock()
 	provider, _ := a.createProvider()
+	a.mu.Unlock()
 	embeddingAdapter := ap.NewEmbeddingAdapter(provider, 1536)
 	a.ragStore = ap.NewRAGStore(a.memory, embeddingAdapter)
 
