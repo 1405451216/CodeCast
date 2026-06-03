@@ -162,11 +162,20 @@ type castPomodoroStartResult struct {
 }
 
 type castOCRArgs struct {
-	ImagePath string `json:"imagePath"`
+	ImagePath  string `json:"imagePath"`            // 本地文件路径 或 base64 data URL
+	Prompt     string `json:"prompt,omitempty"`     // 提取指令，默认"提取所有文字"
+	Lang       string `json:"lang,omitempty"`       // 期望语言，如 "zh"/"en"/"ja"，留空自动检测
+	Model      string `json:"model,omitempty"`      // 覆盖默认 vision 模型
+	MaxTokens  int    `json:"maxTokens,omitempty"`  // 覆盖 max_tokens
 }
 type castOCRResult struct {
-	Text  string `json:"text"`
-	Lang  string `json:"lang"`
+	Text     string  `json:"text"`
+	Lang     string  `json:"lang"`
+	Model    string  `json:"model"`
+	Usage    struct {
+		InputTokens  int `json:"inputTokens"`
+		OutputTokens int `json:"outputTokens"`
+	} `json:"usage"`
 }
 
 type castPasswordGenArgs struct {

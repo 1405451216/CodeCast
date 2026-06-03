@@ -1,11 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	ap "agentprimordia/pkg"
 )
@@ -54,10 +60,16 @@ func registerMiscTools(toolkit *ap.ToolRegistry) error {
 			},
 		),
 		newCastTool("cast_ocr_image", "misc",
-			"从图片提取文字（OCR 桩实现，需配置 Tesseract）",
+			"OCR 真实实现：读图片提取文字（需 Anthropic API Key）",
 			json.RawMessage(`{
 				"type": "object",
-				"properties": {"imagePath": {"type": "string"}},
+				"properties": {
+					"imagePath": {"type": "string", "description": "本地路径或 data:image/...;base64,..."},
+					"prompt":    {"type": "string", "description": "提取指令，默认提取所有文字"},
+					"lang":      {"type": "string", "description": "期望语言，如 zh/en/ja"},
+					"model":     {"type": "string", "description": "覆盖默认 claude-sonnet-4-5"},
+					"maxTokens": {"type": "integer", "description": "最大输出 token，默认 4096"}
+				},
 				"required": ["imagePath"]
 			}`),
 			func(ctx context.Context, a *App, args json.RawMessage) (*ap.ToolResult, error) {
@@ -152,10 +164,215 @@ func (a *App) castToolOCR(ctx context.Context, args json.RawMessage) (*ap.ToolRe
 	if err := json.Unmarshal(args, &in); err != nil {
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
 	}
-	// OCR 桩实现：返回提示
-	out := castOCRResult{Text: fmt.Sprintf("[OCR stub] Would extract text from: %s", in.ImagePath), Lang: "auto"}
+	if in.ImagePath == "" {
+		return a.recordCastInvocation("cast_ocr_image", "misc", "", args,
+			`{"text":"","lang":"","error":"imagePath is required"}`, true, 0), nil
+	}
+
+	start := nowMs()
+	text, model, inTok, outTok, err := a.doOCR(ctx, in)
+	if err != nil {
+		return a.recordCastInvocation("cast_ocr_image", "misc", "", args,
+			`{"text":"","error":"`+escapeJSON(err.Error())+`"}`, true, nowMs()-start), nil
+	}
+
+	out := castOCRResult{
+		Text:  text,
+		Lang:  in.Lang,
+		Model: model,
+	}
+	out.Usage.InputTokens = inTok
+	out.Usage.OutputTokens = outTok
 	outJSON, _ := json.Marshal(out)
-	return a.recordCastInvocation("cast_ocr_image", "misc", "", args, string(outJSON), false, 0), nil
+	return a.recordCastInvocation("cast_ocr_image", "misc", "", args, string(outJSON), false, nowMs()-start), nil
+}
+
+// doOCR 真实实现：读图片 → base64 → 调 Anthropic Vision API → 提取文字
+// 复用当前用户的 LLM credentials（如果是 Anthropic provider）或要求用户配 ANTHROPIC_API_KEY
+func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, inTok, outTok int, err error) {
+	// 1. 读取图片
+	imgData, mimeType, err := loadImageAsBase64(in.ImagePath)
+	if err != nil {
+		return "", "", 0, 0, fmt.Errorf("load image: %w", err)
+	}
+
+	// 2. 选 model
+	model = in.Model
+	if model == "" {
+		// 优先用当前用户 LLM 配置（如果是 Anthropic）
+		if a.settings != nil && isAnthropicProvider(a.settings.LLMProvider) {
+			model = a.settings.LLMModel
+			if model == "" {
+				model = "claude-sonnet-4-5"
+			}
+		} else {
+			model = "claude-sonnet-4-5"
+		}
+	}
+
+	// 3. 构造 prompt
+	prompt := in.Prompt
+	if prompt == "" {
+		prompt = "请提取这张图片中的所有文字，保持原始排版结构。如果是表格请用 Markdown 表格输出。"
+	}
+	if in.Lang != "" {
+		prompt += "\n\n输出语言：" + in.Lang
+	}
+
+	// 4. 取 API key
+	a.mu.RLock()
+	creds, credsErr := a.resolveCredentialsLocked("")
+	a.mu.RUnlock()
+	if credsErr != nil || creds.APIKey == "" {
+		return "", "", 0, 0, fmt.Errorf("Anthropic API key not configured (Settings → API Key)")
+	}
+	// 推断 provider：先看 settings.LLMProvider，没有则按 model 名猜
+	providerID := ""
+	if a.settings != nil {
+		providerID = a.settings.LLMProvider
+	}
+	if providerID == "" {
+		providerID = a.guessProviderForModel(creds.Model)
+	}
+	if !isAnthropicProvider(providerID) {
+		// 用户用 OpenAI 等，但 OCR 走 Anthropic（更稳）。给清晰错误。
+		return "", "", 0, 0, fmt.Errorf("OCR requires Anthropic provider; current is %s (model=%s)", providerID, creds.Model)
+	}
+
+	// 5. 构造 Anthropic Messages API 请求
+	baseURL := creds.APIURL
+	if baseURL == "" {
+		baseURL = "https://api.anthropic.com"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+	url := baseURL + "/v1/messages"
+
+	maxTokens := in.MaxTokens
+	if maxTokens == 0 {
+		maxTokens = 4096
+	}
+
+	reqBody := map[string]any{
+		"model":      model,
+		"max_tokens": maxTokens,
+		"messages": []map[string]any{
+			{
+				"role": "user",
+				"content": []map[string]any{
+					{
+						"type": "image",
+						"source": map[string]any{
+							"type":       "base64",
+							"media_type": mimeType,
+							"data":       imgData,
+						},
+					},
+					{
+						"type": "text",
+						"text": prompt,
+					},
+				},
+			},
+		},
+	}
+
+	bodyJSON, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", creds.APIKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", 0, 0, fmt.Errorf("anthropic request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return "", "", 0, 0, fmt.Errorf("anthropic API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
+	}
+
+	// 6. 解析响应
+	var ar struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+		Usage struct {
+			InputTokens  int `json:"input_tokens"`
+			OutputTokens int `json:"output_tokens"`
+		} `json:"usage"`
+	}
+	if err := json.Unmarshal(respBody, &ar); err != nil {
+		return "", "", 0, 0, fmt.Errorf("parse response: %w", err)
+	}
+
+	// 7. 提取 text content
+	var textBuilder strings.Builder
+	for _, c := range ar.Content {
+		if c.Type == "text" {
+			textBuilder.WriteString(c.Text)
+		}
+	}
+
+	return textBuilder.String(), model, ar.Usage.InputTokens, ar.Usage.OutputTokens, nil
+}
+
+// loadImageAsBase64 读取本地文件或解析 data URL，返回 base64 字符串 + MIME。
+func loadImageAsBase64(path string) (data, mime string, err error) {
+	// data URL: data:image/png;base64,xxxxx
+	if strings.HasPrefix(path, "data:") {
+		comma := strings.Index(path, ",")
+		if comma < 0 {
+			return "", "", fmt.Errorf("invalid data URL")
+		}
+		header := path[5:comma] // "image/png;base64"
+		mime = strings.SplitN(header, ";", 2)[0]
+		data = path[comma+1:]
+		return data, mime, nil
+	}
+
+	// 本地文件
+	ext := strings.ToLower(path)
+	if idx := strings.LastIndex(ext, "."); idx >= 0 {
+		ext = ext[idx+1:]
+	}
+	mime = mimeFromExt(ext)
+	if mime == "" {
+		return "", "", fmt.Errorf("unsupported image extension: .%s", ext)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", "", fmt.Errorf("read file: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(raw), mime, nil
+}
+
+func mimeFromExt(ext string) string {
+	switch ext {
+	case "png":
+		return "image/png"
+	case "jpg", "jpeg":
+		return "image/jpeg"
+	case "gif":
+		return "image/gif"
+	case "webp":
+		return "image/webp"
+	default:
+		return ""
+	}
+}
+
+func isAnthropicProvider(id string) bool {
+	id = strings.ToLower(id)
+	return strings.Contains(id, "anthropic") || strings.Contains(id, "claude")
+}
+
+func escapeJSON(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }
 
 func (a *App) castToolPasswordGen(ctx context.Context, args json.RawMessage) (*ap.ToolResult, error) {
