@@ -88,18 +88,6 @@ export interface LLMRequest {
   stream?: boolean;
 }
 
-export interface LLMResponse {
-  id: string;
-  model: string;
-  content: string;
-  role: 'assistant';
-  finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter';
-  usage: TokenUsage;
-  toolCalls?: ToolCall[];
-  reasoning?: string;
-  created: number;
-}
-
 export interface TokenUsage {
   promptTokens: number;
   completionTokens: number;
