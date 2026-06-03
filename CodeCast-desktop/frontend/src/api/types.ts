@@ -1,3 +1,5 @@
+import type { AgentInfo } from '../store/types';
+
 export interface GoProject {
   id: string;
   path: string;
@@ -42,6 +44,38 @@ export function toSession(gs: GoSession): import('../store/types').Session {
     SkillID: gs.SkillID,
     Mode: (gs.Mode as 'coding' | 'daily' | '') || '',
     Messages: (gs.Messages || []).map(toMessage),
+  };
+}
+
+// AP AgentInfo — maps directly from Go AgentInfo struct (agent_bridge.go)
+export interface GoAgentInfo {
+  id: string;
+  sessionId: string;
+  title: string;
+  status: string;
+  turn: number;
+  maxTurns: number;
+  result?: string;
+  error?: string;
+  lastToolName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Convert GoAgentInfo from backend to frontend AgentInfo */
+export function toAgentInfo(ga: GoAgentInfo): AgentInfo {
+  return {
+    id: ga.id,
+    sessionId: ga.sessionId,
+    title: ga.title,
+    status: ga.status as AgentInfo['status'],
+    turn: ga.turn,
+    maxTurns: ga.maxTurns,
+    result: ga.result,
+    error: ga.error,
+    lastToolName: ga.lastToolName,
+    createdAt: ga.createdAt,
+    updatedAt: ga.updatedAt,
   };
 }
 

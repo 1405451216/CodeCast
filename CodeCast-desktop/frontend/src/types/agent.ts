@@ -1,12 +1,15 @@
+// AP-compatible agent types for CodeCast
+// These align with AP framework status constants and event types
+
 export enum TaskStatus {
-  PENDING = 'pending',
-  PLANNING = 'planning',
-  QUEUED = 'queued',
+  IDLE = 'idle',
   RUNNING = 'running',
-  WAITING_DEPENDENCY = 'waiting_dependency',
   PAUSED = 'paused',
+  WAITING_FOR_INPUT = 'waiting_for_input',
   COMPLETED = 'completed',
   FAILED = 'failed',
+  CANCELLED = 'cancelled',
+  PLANNING = 'planning',
   SKIPPED = 'skipped',
   RETRYING = 'retrying'
 }
@@ -156,12 +159,23 @@ export interface PlanningProgress {
   partialPlan?: Partial<TaskPlan>;
 }
 
+// AP EventBus event types (from event_bridge.go)
 export interface TaskExecutionEvent {
   type: 'subtask_start' | 'subtask_complete' | 'subtask_fail' | 'subtask_retry' | 'progress' | 'log' | 'pause' | 'resume' | 'complete' | 'fail' | 'cancel';
   taskId: string;
   subTaskId?: string;
   data?: unknown;
   timestamp: number;
+}
+
+// AP-compatible checkpoint event payload (from checkpoint_hook.go)
+export interface CheckpointEvent {
+  checkpoint_id: string;
+  tool_name: string;
+  tool_args: string;
+  risk_level: 'low' | 'medium' | 'high';
+  agent_id: string;
+  session_id: string;
 }
 
 export interface AgentLoopConfigV2 {

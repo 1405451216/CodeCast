@@ -88,13 +88,11 @@ export type PreviewTab = 'browser' | 'editor';
 
 export type ActiveMenu = null | 'file' | 'edit' | 'view';
 
-export interface SubAgent {
+export interface AgentInfo {
   id: string;
   sessionId: string;
-  parentMsgId: string;
   title: string;
-  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
-  mode: 'explicit' | 'implicit';
+  status: 'idle' | 'running' | 'paused' | 'waiting_for_input' | 'completed' | 'failed' | 'cancelled';
   turn: number;
   maxTurns: number;
   result?: string;
@@ -107,7 +105,7 @@ export interface SubAgent {
 export interface AgentEvent {
   agent_id: string;
   type: 'status' | 'progress' | 'tool_use' | 'result';
-  status?: SubAgent['status'];
+  status?: AgentInfo['status'];
   turn?: number;
   max_turns?: number;
   tool_name?: string;

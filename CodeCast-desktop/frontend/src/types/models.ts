@@ -1,3 +1,7 @@
+// CodeCast model types — compatible with AP framework
+// AP SDK types are available via @agentprimordia/sdk but not re-exported here
+// to avoid build dependency issues. Import directly from the SDK where needed.
+
 export interface ModelProvider {
   id: string;
   name: string;
@@ -37,7 +41,7 @@ export interface ModelCapabilities {
   systemPrompt: boolean;
 }
 
-export type ModelUseCase = 
+export type ModelUseCase =
   | 'daily_chat'
   | 'coding_assistant'
   | 'deep_reasoning'
@@ -136,7 +140,7 @@ export interface ProviderConfig {
   baseUrl?: string;
   organization?: string;
   extraHeaders?: Record<string, string>;
-  models?: string[]; // 启用的模型 ID 列表
+  models?: string[];
   defaultModel?: string;
 }
 
