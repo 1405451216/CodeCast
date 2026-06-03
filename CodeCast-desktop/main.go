@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	ap "agentprimordia/pkg"
+
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -35,16 +37,34 @@ type App struct {
 	projects      []Project
 	currentProjectID string
 	noProjectMode bool
-	memory        *MemoryStore
-	notes         *NotesStore
 	activeSessionID string
 	memoryCleanupStop chan struct{}
 	taskSchedulerStop  chan struct{}
-	agentPool        *AgentPool
-	llmConfig        LLMProviderConfig
 	migrationPending bool
-	completor       *CodeCompletor
 	mu               sync.RWMutex
+
+	// AP 框架核心
+	agent            ap.Agent
+	pool             *ap.Pool
+	memory           *ap.SQLiteStore
+	ragStore          *ap.RAGStore
+	toolkit           *ap.ToolRegistry
+	mcpReg            *ap.MCPRegistry
+	eventBus          *ap.Bus
+	metricsCollector  *ap.AgentMetricsCollector
+	guardrail         *ap.GuardrailEngine
+	guardrailHook     *ap.GuardrailHook
+	hooks             *ap.HookManager
+	checkpointStore   ap.CheckpointStore
+	lifecycle         *ap.Lifecycle
+	sessionAgents     map[string]ap.Agent
+	sessionCancels    map[string]context.CancelFunc
+	checkpointConfirmations map[string]chan bool
+
+	// CodeCast 应用层（保留）
+	llmConfig   LLMProviderConfig  // KEEP: syncSettingsToConfig() 依赖
+	completor   *CodeCompletor
+	notes       *NotesStore
 }
 
 func NewApp() *App {
@@ -80,36 +100,136 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+
+	// 1. AP Memory (SQLite + FTS5)
 	memoryPath := filepath.Join(filepath.Dir(a.settingsPath), "memory.db")
-	memoryStore, err := NewMemoryStore(memoryPath)
+	apMemory, err := ap.NewSQLiteStore(memoryPath)
 	if err != nil {
-		slog.Warn("记忆系统初始化失败", "error", err)
+		slog.Warn("AP 记忆系统初始化失败", "error", err)
 	} else {
-		a.memory = memoryStore
-		slog.Info("情景记忆系统已启动", "db", memoryPath)
+		a.memory = apMemory
+		slog.Info("AP 记忆系统已启动", "db", memoryPath)
+	}
 
-		if deleted, cleanupErr := a.memory.CleanupExpired(); cleanupErr == nil && deleted > 0 {
-			slog.Info("已清理过期记忆", "count", deleted)
-		}
+	// 2. AP EventBus (bufferSize=64)
+	a.eventBus = ap.NewBus(64)
+	slog.Info("AP EventBus 已启动")
 
-		a.memoryCleanupStop = make(chan struct{})
-		StartAutoCleanup(a.memory, a.memoryCleanupStop)
-		slog.Info("记忆自动清理已启动", "interval", "24h")
+	// 3. AP Metrics
+	a.metricsCollector = ap.NewMetrics()
+	slog.Info("AP Metrics 已启动")
 
-		notesDir := filepath.Join(filepath.Dir(a.settingsPath))
-		notesStore, notesErr := NewNotesStore(notesDir)
-		if notesErr != nil {
-			slog.Warn("笔记系统初始化失败", "error", notesErr)
-		} else {
-			a.notes = notesStore
-			slog.Info("结构化笔记系统已启动", "dir", notesDir)
-			go func() {
-				time.Sleep(5 * time.Minute)
-				if deleted, cleanupErr := a.notes.CleanupOld(30); cleanupErr == nil && deleted > 0 {
-					slog.Info("已清理过期笔记", "count", deleted)
-				}
-			}()
-		}
+	// 4. AP Guardrail + GuardrailHook
+	a.guardrail = ap.NewGuardrailEngine()
+	a.guardrailHook = a.setupGuardrails() // checkpoint_hook.go
+	slog.Info("AP Guardrails 已启动")
+
+	// 5. AP Toolkit — DefaultToolkit(rootDir string) (*Registry, []Tool, error)
+	projectPath := ""
+	a.mu.RLock()
+	if cp := a.getCurrentProjectLocked(); cp != nil {
+		projectPath = cp.Path
+	}
+	a.mu.RUnlock()
+	a.toolkit, _, _ = ap.DefaultToolkit(projectPath)
+	slog.Info("AP Toolkit 已启动", "root", projectPath)
+
+	// 6. AP Hooks — register checkpoint + guardrail
+	a.hooks = ap.NewHookManager()
+	a.hooks.Register(ap.HookBeforeTool, a.checkpointHook)
+	// GuardrailHook registers its hooks with HookManager
+	a.guardrailHook.Register(a.hooks)
+	slog.Info("AP Hooks 已注册")
+
+	// 7. AP MCPRegistry
+	a.mcpReg = ap.NewMCPRegistry()
+	slog.Info("AP MCPRegistry 已启动")
+
+	// 8. AP CheckpointStore
+	checkpointPath := filepath.Join(filepath.Dir(a.settingsPath), "checkpoints.db")
+	a.checkpointStore, _ = ap.NewSQLiteCheckpointStore(checkpointPath)
+	slog.Info("AP CheckpointStore 已启动")
+
+	// 9. AP Lifecycle
+	a.lifecycle = ap.NewLifecycle()
+	slog.Info("AP Lifecycle 已启动")
+
+	// 10. Provider + RAG (createProvider requires a.mu — safe during startup, no contention)
+	a.mu.Lock()
+	provider, providerErr := a.createProvider()
+	a.mu.Unlock()
+	if providerErr != nil {
+		slog.Warn("AP Provider 初始化失败", "error", providerErr)
+	} else {
+		// RAG Store with embedding adapter
+		embeddingAdapter := ap.NewEmbeddingAdapter(provider, 1536)
+		a.ragStore = ap.NewRAGStore(a.memory, embeddingAdapter)
+		slog.Info("AP RAGStore 已启动")
+
+		// 11. Default Agent
+		a.agent = ap.NewReActAgent(ap.ReActConfig{
+			Name:            "CodeCast",
+			SystemPrompt:    a.buildSystemPrompt(nil),
+			Model:           provider,
+			Toolkit:         a.toolkit,
+			Memory:          ap.NewMemoryAdapter(a.memory),
+			EventPublisher:  ap.NewEventBusAdapter(a.eventBus),
+			Metrics:         ap.NewMetricsAdapter(a.metricsCollector),
+			ContextWindow:   ap.NewDefaultStrategy(80),
+			Hooks:           a.hooks,
+			Lifecycle:       a.lifecycle,
+			CheckpointStore: a.checkpointStore,
+			MaxTurns:        20,
+			RAG: &ap.RAGConfig{
+				Provider: ap.NewRAGProviderAdapter(a.ragStore),
+				Mode:     ap.RAGModeAuto,
+				TopK:     5,
+			},
+		})
+		slog.Info("AP Default Agent 已创建")
+
+		// 12. AP Agent Pool
+		a.pool = ap.NewPool(ap.PoolConfig{
+			MaxConcurrency: 5,
+			Timeout:        5 * time.Minute,
+			DefaultAgent: ap.ReActAgentConfig{
+				SystemPrompt: "你是一个代码助手子代理",
+				MaxTurns:     10,
+			},
+		})
+		a.pool.SetModel(provider)
+		slog.Info("AP Agent Pool 已启动", "max_concurrency", 5)
+	}
+
+	// 13. Event bridge (AP EventBus → Wails Events)
+	a.startEventBridge()
+	slog.Info("AP Event Bridge 已启动")
+
+	// 14. Session caches
+	a.sessionAgents = make(map[string]ap.Agent)
+	a.sessionCancels = make(map[string]context.CancelFunc)
+	a.checkpointConfirmations = make(map[string]chan bool)
+
+	// 15. Notes Hook — trigger note recording after each agent run
+	a.hooks.Register(ap.HookAfterRun, func(ctx context.Context, hctx *ap.HookContext) error {
+		go a.recordNotesAsync(hctx.SessionID, "", "")
+		return nil
+	})
+
+	// 16. Notes Store (preserve existing behavior)
+	notesDir := filepath.Join(filepath.Dir(a.settingsPath))
+	notesStore, notesErr := NewNotesStore(notesDir)
+	if notesErr != nil {
+		slog.Warn("笔记系统初始化失败", "error", notesErr)
+	} else {
+		a.notes = notesStore
+		slog.Info("结构化笔记系统已启动", "dir", notesDir)
+		go func() {
+			time.Sleep(5 * time.Minute)
+			if deleted, cleanupErr := a.notes.CleanupOld(30); cleanupErr == nil && deleted > 0 {
+				slog.Info("已清理过期笔记", "count", deleted)
+			}
+		}()
 	}
 
 	a.taskSchedulerStop = make(chan struct{})
@@ -117,9 +237,6 @@ func (a *App) startup(ctx context.Context) {
 	slog.Info("任务调度器已启动", "interval", "1m")
 	startCleanupGoroutine()
 	slog.Info("活跃连接清理机制已启动")
-	a.agentPool = NewAgentPool(a, DefaultMaxConcurrency)
-	slog.Info("子 Agent 并发池已启动", "max_concurrency", DefaultMaxConcurrency)
-	go cleanupOldAgents()
 
 	// 从磁盘恢复持久化的 sessions
 	a.loadPersistedSessions()
@@ -132,22 +249,33 @@ func (a *App) domReady(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	// Cancel all active session contexts
+	a.mu.Lock()
+	for _, cancel := range a.sessionCancels {
+		cancel()
+	}
+	a.mu.Unlock()
+
+	if a.pool != nil {
+		a.pool.Close()
+		slog.Info("AP Agent Pool 已关闭")
+	}
+	if a.eventBus != nil {
+		a.eventBus.Close()
+		slog.Info("AP EventBus 已关闭")
+	}
+	if a.memory != nil {
+		a.memory.Close()
+		slog.Info("AP 记忆系统已关闭")
+	}
 	if a.memoryCleanupStop != nil {
 		close(a.memoryCleanupStop)
 	}
 	if a.taskSchedulerStop != nil {
 		close(a.taskSchedulerStop)
 	}
-	if a.memory != nil {
-		a.memory.Close()
-		slog.Info("情景记忆系统已关闭")
-	}
-	if a.agentPool != nil {
-		a.agentPool.Shutdown()
-		slog.Info("子 Agent 并发池已关闭")
-	}
+	// Notes store has no Close method — cleanup is handled by garbage collection
 	cleanupOnce.Do(func() { close(cleanupStopCh) })
-	a.CancelRequest()
 	slog.Info("应用即将关闭", "action", "cleaned_all_active_connections")
 }
 
