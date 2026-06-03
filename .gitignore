@@ -80,3 +80,6 @@ gen_*.py
 *.tsbuildinfo
 next-env.d.ts
 out/
+# ---------- AI Assistants ----------
+.claude/
+.codebuddy/
