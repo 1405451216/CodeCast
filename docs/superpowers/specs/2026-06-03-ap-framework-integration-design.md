@@ -539,3 +539,106 @@ require (
 | 流式输出体验下降 | 低 | 高 | AP StreamingFunc 回调与前端 SSE 对齐测试 |
 | 检查点持久化数据不兼容 | 低 | 中 | 提供迁移脚本 |
 | DeepSeek 通过 OpenAI Provider 映射不完全兼容 | 低 | 低 | DeepSeek API 高度兼容 OpenAI，实测验证 |
+
+## 11. 隐藏依赖与补充设计
+
+以下问题在初审中未覆盖，经全面审计后发现：
+
+### 11.1 凭证解析瓶颈 `resolveCredentialsLocked()`
+
+当前所有 LLM 调用（主对话、子 Agent、Memory 摘要、Context 压缩）都通过 `resolveCredentialsLocked(modelName)` 获取 API Key 和 BaseURL。AP 接入后：
+
+- AP 的 `Provider` 创建需要 API Key，但 CodeCast 的凭证存储在加密的 `Settings` 中
+- **设计方案**：保留 `resolveCredentialsLocked()` 作为凭证源，`provider_factory.go` 中的 `createProvider()` 通过它获取凭证后创建 AP Provider
+- Memory 摘要和 Context 压缩不再直接调用 LLM API，改为使用 AP 的 `Summarizer` 和 `ContextWindowStrategy`
+
+### 11.2 请求取消机制 `activeCancels`
+
+当前 `session.go` 中有 `activeCancels map[string]cancelEntry` 用于按会话取消 HTTP 请求。AP 接入后：
+
+- AP 的 `Agent` 支持 `context.Cancel`，可通过 `Agent` 的 `ctx` 传播取消信号
+- **设计方案**：`CancelRequest()` 和 `CancelSessionRequest()` 改为调用 `context.CancelFunc`，不再需要独立的 `activeCancels` map
+- 通过 AP Hook（`HookOnError`）监听取消事件
+
+### 11.3 Notes 系统与对话耦合
+
+当前 `notes.go` 的 `ToContextPrompt()` 在 `SendMessageEx` 中注入，`recordNotesAsync()` 在每次回复后触发。AP 接入后：
+
+- **设计方案**：将 Notes 注入移至 `prompt_builder.go`，作为 `buildSystemPrompt()` 的一部分
+- `recordNotesAsync()` 改为通过 AP Hook（`HookAfterRun`）触发，而非硬编码在 `SendMessage` 中
+
+### 11.4 工具定义双轨制
+
+当前主对话只注册 `dispatch_agents` 一个工具，子 Agent 注册 6 个工具（read_file/write_file/edit_file/run_command/search/web_fetch），两套 schema 完全独立。AP 接入后：
+
+- **设计方案**：统一使用 AP 的 `ToolRegistry`
+- 主对话 Agent 注册 `dispatch_agents` + 基础工具（read_file/search）→ 允许主对话也能直接调用工具
+- 子 Agent 通过 AP Pool 的 `AgentFactory` 创建，继承主 Registry 的工具子集 + 添加 `files_scope` 限制
+
+### 11.5 代码补全 `completor` 自有 LLM 路径
+
+当前 `completor.go` 有独立的 LLM 调用路径（`getOpenAICompletions`/`streamOpenAICompletions`），与主对话和子 Agent 的 Provider 完全独立。AP 接入后：
+
+- **设计方案**：`completor` 保留为 CodeCast 应用层组件，但改为使用 AP Provider（通过 `app.createProvider()` 获取）
+- 代码补全的 L3 本地缓存和 L1 符号索引不变，L2 AI 补全改为使用 AP 的 `CachedProvider`
+
+### 11.6 Memory/Context 模块直接调用 LLM
+
+当前 `memory.go` 的 `ExtractSummaryAsync()` 和 `context.go` 的 `generateCompactionSummary()` 各自直接调用 `callAPIEx()`，绕过了任何 Provider 抽象。AP 接入后：
+
+- **设计方案**：使用 AP 的 `ap.NewSummarizer(provider)` 替代 `ExtractSummaryAsync()`
+- 使用 AP 的 `ap.DefaultStrategy`（ContextWindowStrategy）替代 `generateCompactionSummary()`
+- 这两个模块不再需要直接调用 LLM API
+
+### 11.7 双持久化系统
+
+当前 Session 持久化使用 JSON 文件（`persistence.go`），Memory 持久化使用 SQLite（`memory.go`），两套完全独立。AP 接入后：
+
+- **设计方案**：Memory 统一使用 AP 的 `ap.NewSQLiteStore`，Session 保留 JSON 文件持久化（因为是簿记元数据，不属于 Agent 框架范畴）
+- AP 的 `ap.SQLiteCheckpointStore` 用于 Agent 状态持久化（替代 `agent_persist.go`）
+- 最终三套持久化：Session（JSON）、Memory（AP SQLite）、Checkpoint（AP SQLite）
+
+## 12. Wails Binding 方法完整性清单
+
+共约 95 个 Wails binding 方法，按 AP 影响分级：
+
+### CRITICAL（必须修改）
+| 方法 | 当前返回类型 | AP 适配 |
+|------|------------|---------|
+| `SendMessage` | `[]Message` | 改为调用 AP Agent，返回 `ap.Response` |
+| `SendMessageEx` | `[]Message` | 改为调用 AP Agent，返回 `ap.Response` |
+| `DispatchAgents` | `[]string` | 改为调用 AP Pool |
+| `GetAgents` | `[]*SubAgent` | 改为从 AP Pool 获取 |
+| `GetAgentDetail` | `*SubAgent` | 改为从 AP Pool 获取 |
+| `CancelAgent` | `error` | 改为 AP context cancel |
+| `CancelSessionAgents` | `error` | 改为 AP Pool cancel |
+| `CancelRequest` | `void` | 改为 AP context cancel |
+
+### HIGH（需要适配）
+| 方法 | 影响原因 |
+|------|---------|
+| `GetSessions` | Session 类型变化（Messages 字段移除） |
+| `CreateSession` | 需初始化 AP Agent 上下文 |
+| `ResetMemory` | 改为调用 AP Memory |
+| `GetMemoryStats` | 改为调用 AP Memory Stats |
+| `ClearMemory` | 改为调用 AP Memory |
+| `GetProviders` | 改为返回 AP Provider 列表 |
+| `GetProviderModels` | 改为返回 AP Model 列表 |
+| `GetModelConfigs` | 改为 AP Provider 配置 |
+| `AddModelConfig` | 改为创建 AP Provider |
+| `UpdateModelConfig` | 改为更新 AP Provider |
+| `RemoveModelConfig` | 改为移除 AP Provider |
+| `ToggleModelConfig` | 改为启用/禁用 AP Provider |
+| `AddMCPServer` | 改为调用 AP MCPRegistry |
+| `AddMCPServerStdio` | 改为调用 AP MCPRegistry |
+| `RemoveMCPServer` | 改为调用 AP MCPRegistry |
+| `ToggleMCPServer` | 改为调用 AP MCPRegistry |
+| `TestMCPServerConnection` | 改为调用 AP MCPClient |
+| `ValidatePath` | 改为调用 AP Sandbox/ACL |
+| `ValidateCommand` | 改为调用 AP Guardrail |
+| `ExecuteCommand` | 改为调用 AP Shell Tool |
+| `GetCodeCompletions` | 改为使用 AP Provider |
+| `StreamCodeCompletions` | 改为使用 AP Provider |
+
+### LOW / NONE（无需修改）
+所有其他方法（Skill CRUD、Task CRUD、Window 控制、Updater、Git、Notification 等）不直接依赖 Agent/Memory/LLM 类型，无需修改。
