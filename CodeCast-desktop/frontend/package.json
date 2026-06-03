@@ -24,6 +24,7 @@
     "test:performance": "node scripts/performance-benchmark.mjs"
   },
   "dependencies": {
+    "@agentprimordia/sdk": "file:../../../agentprimordia/agentprimordia/sdk/typescript",
     "@sentry/react": "^10.54.0",
     "@sentry/tracing": "^7.120.4",
     "@tanstack/react-virtual": "^3.13.25",
