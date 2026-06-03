@@ -11,7 +11,6 @@ import (
 func createTestApp() *App {
 	app := &App{
 		sessions:  []*Session{},
-		tasks:     []*Task{},
 		skills:    []*Skill{},
 		projects:  []Project{},
 		llmConfig: DefaultLLMProviderConfig(),

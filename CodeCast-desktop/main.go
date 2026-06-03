@@ -32,7 +32,6 @@ type App struct {
 	settingsPath  string
 	encryptionKey []byte
 	sessions      []*Session
-	tasks         []*Task
 	skills        []*Skill
 	projects      []Project
 	currentProjectID string
@@ -74,7 +73,6 @@ func NewApp() *App {
 	app := &App{
 		config:    &cfg,
 		sessions:  []*Session{},
-		tasks:     []*Task{},
 		skills:    []*Skill{},
 		projects:  []Project{},
 		llmConfig: DefaultLLMProviderConfig(),
@@ -255,8 +253,8 @@ func (a *App) startup(ctx context.Context) {
 	}
 
 	a.taskSchedulerStop = make(chan struct{})
-	a.StartTaskScheduler(a.taskSchedulerStop)
-	slog.Info("任务调度器已启动", "interval", "1m")
+	go a.runScheduleDispatcher(a.taskSchedulerStop)
+	slog.Info("AP Pool 调度器已启动（cast_schedule_* Tool 通过此调度）")
 	slog.Info("AP 会话管理已启动")
 
 	// 从磁盘恢复持久化的 sessions

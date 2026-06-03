@@ -24,9 +24,6 @@ func TestNewApp(t *testing.T) {
 	if app.sessions == nil {
 		t.Error("app.sessions is nil")
 	}
-	if app.tasks == nil {
-		t.Error("app.tasks is nil")
-	}
 	if app.skills == nil {
 		t.Error("app.skills is nil")
 	}
@@ -566,47 +563,6 @@ func TestSkillImport(t *testing.T) {
 	_, err = app.ImportSkill(`{"name":"test","prompt":""}`)
 	if err == nil {
 		t.Error("Expected error for empty prompt")
-	}
-}
-
-func TestTaskManagement(t *testing.T) {
-	app := NewApp()
-
-	task, err := app.CreateTask("Test Task", "Description", "echo hello", "0 8 * * *")
-	if err != nil {
-		t.Fatalf("CreateTask failed: %v", err)
-	}
-	if task.Name != "Test Task" {
-		t.Errorf("Expected Name 'Test Task', got '%s'", task.Name)
-	}
-	if task.Schedule != "0 8 * * *" {
-		t.Errorf("Expected Schedule '0 8 * * *', got '%s'", task.Schedule)
-	}
-	if !task.Enabled {
-		t.Error("New task should be enabled")
-	}
-	if task.Status != "pending" {
-		t.Errorf("Expected Status 'pending', got '%s'", task.Status)
-	}
-
-	tasks := app.GetTasks()
-	if len(tasks) != 1 {
-		t.Errorf("Expected 1 task, got %d", len(tasks))
-	}
-
-	err = app.ToggleTask(task.ID, false)
-	if err != nil {
-		t.Fatalf("ToggleTask failed: %v", err)
-	}
-
-	err = app.DeleteTask(task.ID)
-	if err != nil {
-		t.Fatalf("DeleteTask failed: %v", err)
-	}
-
-	tasks = app.GetTasks()
-	if len(tasks) != 0 {
-		t.Errorf("Expected 0 tasks after deletion, got %d", len(tasks))
 	}
 }
 
