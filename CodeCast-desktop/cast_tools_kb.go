@@ -9,9 +9,9 @@ import (
 	ap "agentprimordia/pkg"
 )
 
-func registerKBTools(toolkit *ap.ToolRegistry) error {
+func registerKBTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_kb_search", "knowledge",
+		newCastTool(a, "cast_kb_search", "knowledge",
 			"全文搜索知识库（基于 SQLite FTS5）",
 			json.RawMessage(`{
 				"type": "object",
@@ -25,7 +25,7 @@ func registerKBTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolKBSearch(ctx, args)
 			},
 		),
-		newCastTool("cast_kb_save", "knowledge",
+		newCastTool(a, "cast_kb_save", "knowledge",
 			"保存笔记到知识库",
 			json.RawMessage(`{
 				"type": "object",
@@ -40,7 +40,7 @@ func registerKBTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolKBSave(ctx, args)
 			},
 		),
-		newCastTool("cast_kb_link", "knowledge",
+		newCastTool(a, "cast_kb_link", "knowledge",
 			"建立两个笔记的双向链接（Obsidian 风格 [[link]]）",
 			json.RawMessage(`{
 				"type": "object",

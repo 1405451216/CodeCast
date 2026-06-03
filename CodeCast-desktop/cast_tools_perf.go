@@ -8,16 +8,16 @@ import (
 	ap "agentprimordia/pkg"
 )
 
-func registerPerfTools(toolkit *ap.ToolRegistry) error {
+func registerPerfTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_perf_get_metrics", "perf",
+		newCastTool(a, "cast_perf_get_metrics", "perf",
 			"获取当前应用性能指标（FPS/内存/渲染时间）",
 			json.RawMessage(`{"type":"object","properties":{}}`),
 			func(ctx context.Context, a *App, args json.RawMessage) (*ap.ToolResult, error) {
 				return a.castToolPerfGetMetrics(ctx, args)
 			},
 		),
-		newCastTool("cast_perf_clear_cache", "perf",
+		newCastTool(a, "cast_perf_clear_cache", "perf",
 			"清理缓存（completion/rag/all）",
 			json.RawMessage(`{
 				"type": "object",

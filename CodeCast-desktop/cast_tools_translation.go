@@ -19,9 +19,9 @@ const (
 5. 输出仅含译文，不加解释或前言`
 )
 
-func registerTranslationTools(toolkit *ap.ToolRegistry) error {
+func registerTranslationTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_translate_text", "translation",
+		newCastTool(a, "cast_translate_text", "translation",
 			"翻译文本到目标语言，支持 5 种风格",
 			json.RawMessage(`{
 				"type": "object",
@@ -36,7 +36,7 @@ func registerTranslationTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolTranslateText(ctx, args)
 			},
 		),
-		newCastTool("cast_translate_glossary", "translation",
+		newCastTool(a, "cast_translate_glossary", "translation",
 			"添加术语表条目（保持关键术语翻译一致）",
 			json.RawMessage(`{
 				"type": "object",

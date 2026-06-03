@@ -11,9 +11,9 @@ import (
 	ap "agentprimordia/pkg"
 )
 
-func registerSandboxTools(toolkit *ap.ToolRegistry) error {
+func registerSandboxTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_sandbox_run", "sandbox",
+		newCastTool(a, "cast_sandbox_run", "sandbox",
 			"在隔离环境执行 JS/Python/SQL 脚本",
 			json.RawMessage(`{
 				"type": "object",

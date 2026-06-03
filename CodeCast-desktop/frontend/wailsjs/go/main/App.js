@@ -394,10 +394,6 @@ export function SetAPIKey(arg1) {
   return window['go']['main']['App']['SetAPIKey'](arg1);
 }
 
-export function SetCastApp() {
-  return window['go']['main']['App']['SetCastApp']();
-}
-
 export function SetCurrentProject(arg1) {
   return window['go']['main']['App']['SetCurrentProject'](arg1);
 }

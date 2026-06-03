@@ -8,9 +8,9 @@ import (
 	ap "agentprimordia/pkg"
 )
 
-func registerCollabTools(toolkit *ap.ToolRegistry) error {
+func registerCollabTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_collab_share", "collab",
+		newCastTool(a, "cast_collab_share", "collab",
 			"分享会话给协作者",
 			json.RawMessage(`{
 				"type": "object",
@@ -25,7 +25,7 @@ func registerCollabTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolCollabShare(ctx, args)
 			},
 		),
-		newCastTool("cast_collab_invite", "collab",
+		newCastTool(a, "cast_collab_invite", "collab",
 			"邀请协作者加入",
 			json.RawMessage(`{
 				"type": "object",

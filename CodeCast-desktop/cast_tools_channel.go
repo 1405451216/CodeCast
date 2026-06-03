@@ -12,9 +12,9 @@ import (
 	ap "agentprimordia/pkg"
 )
 
-func registerChannelTools(toolkit *ap.ToolRegistry) error {
+func registerChannelTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_channel_send", "channel",
+		newCastTool(a, "cast_channel_send", "channel",
 			"通过 Webhook/Email/Feishu/Slack/DingTalk 发送消息",
 			json.RawMessage(`{
 				"type": "object",
@@ -31,7 +31,7 @@ func registerChannelTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolChannelSend(ctx, args)
 			},
 		),
-		newCastTool("cast_channel_test", "channel",
+		newCastTool(a, "cast_channel_test", "channel",
 			"测试通道连通性",
 			json.RawMessage(`{
 				"type": "object",

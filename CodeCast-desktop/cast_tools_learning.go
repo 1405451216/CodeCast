@@ -20,9 +20,9 @@ type castLearningPattern struct {
 	LastUsed int64  `json:"lastUsed"`
 }
 
-func registerLearningTools(toolkit *ap.ToolRegistry) error {
+func registerLearningTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_learning_get_patterns", "learning",
+		newCastTool(a, "cast_learning_get_patterns", "learning",
 			"获取用户常用操作模式",
 			json.RawMessage(`{
 				"type": "object",
@@ -32,7 +32,7 @@ func registerLearningTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolLearningGetPatterns(ctx, args)
 			},
 		),
-		newCastTool("cast_learning_clear", "learning",
+		newCastTool(a, "cast_learning_clear", "learning",
 			"清空学习数据",
 			json.RawMessage(`{"type":"object","properties":{}}`),
 			func(ctx context.Context, a *App, args json.RawMessage) (*ap.ToolResult, error) {

@@ -33,9 +33,9 @@ var (
 	currentPomodoro  *castPomodoroSession
 )
 
-func registerTodoTools(toolkit *ap.ToolRegistry) error {
+func registerTodoTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_todo_create", "todo",
+		newCastTool(a, "cast_todo_create", "todo",
 			"创建待办（支持优先级/截止日期/重复）",
 			json.RawMessage(`{
 				"type": "object",
@@ -51,14 +51,14 @@ func registerTodoTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolTodoCreate(ctx, args)
 			},
 		),
-		newCastTool("cast_todo_list", "todo",
+		newCastTool(a, "cast_todo_list", "todo",
 			"列出待办",
 			json.RawMessage(`{"type":"object","properties":{"includeDone":{"type":"boolean"}}}`),
 			func(ctx context.Context, a *App, args json.RawMessage) (*ap.ToolResult, error) {
 				return a.castToolTodoList(ctx, args)
 			},
 		),
-		newCastTool("cast_todo_done", "todo",
+		newCastTool(a, "cast_todo_done", "todo",
 			"标记待办完成",
 			json.RawMessage(`{
 				"type": "object",
@@ -69,7 +69,7 @@ func registerTodoTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolTodoDone(ctx, args)
 			},
 		),
-		newCastTool("cast_pomodoro_start", "todo",
+		newCastTool(a, "cast_pomodoro_start", "todo",
 			"启动番茄钟（默认 25 分钟）",
 			json.RawMessage(`{
 				"type": "object",
@@ -79,7 +79,7 @@ func registerTodoTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolPomodoroStart(ctx, args)
 			},
 		),
-		newCastTool("cast_pomodoro_status", "todo",
+		newCastTool(a, "cast_pomodoro_status", "todo",
 			"查询当前番茄钟状态",
 			json.RawMessage(`{"type":"object","properties":{}}`),
 			func(ctx context.Context, a *App, args json.RawMessage) (*ap.ToolResult, error) {

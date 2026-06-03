@@ -31,9 +31,9 @@ type castScheduleTask struct {
 
 var globalScheduleStore = &castScheduleStore{tasks: make(map[string]*castScheduleTask)}
 
-func registerScheduleTools(toolkit *ap.ToolRegistry) error {
+func registerScheduleTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_schedule_create", "schedule",
+		newCastTool(a, "cast_schedule_create", "schedule",
 			"创建定时任务（支持 cron 表达式）",
 			json.RawMessage(`{
 				"type": "object",
@@ -49,7 +49,7 @@ func registerScheduleTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolScheduleCreate(ctx, args)
 			},
 		),
-		newCastTool("cast_schedule_list", "schedule",
+		newCastTool(a, "cast_schedule_list", "schedule",
 			"列出所有定时任务",
 			json.RawMessage(`{
 				"type": "object",
@@ -61,7 +61,7 @@ func registerScheduleTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolScheduleList(ctx, args)
 			},
 		),
-		newCastTool("cast_schedule_run_now", "schedule",
+		newCastTool(a, "cast_schedule_run_now", "schedule",
 			"立即执行指定任务",
 			json.RawMessage(`{
 				"type": "object",

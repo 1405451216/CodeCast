@@ -9,9 +9,9 @@ import (
 
 // registerProjectTools 把项目文件操作注册为 AP Tool（让 AI 能直接调）
 // 实际实现转发到 ap.builtin.FileSystem（agentprimordia 框架提供的安全文件系统）
-func registerProjectTools(toolkit *ap.ToolRegistry) error {
+func registerProjectTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_project_list_files", "project",
+		newCastTool(a, "cast_project_list_files", "project",
 			"列出项目目录的文件/子目录",
 			json.RawMessage(`{
 				"type": "object",
@@ -25,7 +25,7 @@ func registerProjectTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolProjectListFiles(ctx, args)
 			},
 		),
-		newCastTool("cast_project_read_file", "project",
+		newCastTool(a, "cast_project_read_file", "project",
 			"读取项目中的文本文件",
 			json.RawMessage(`{
 				"type": "object",
@@ -39,7 +39,7 @@ func registerProjectTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolProjectReadFile(ctx, args)
 			},
 		),
-		newCastTool("cast_project_write_file", "project",
+		newCastTool(a, "cast_project_write_file", "project",
 			"写文本文件到项目（会触发 Checkpoint 高危拦截）",
 			json.RawMessage(`{
 				"type": "object",
@@ -54,7 +54,7 @@ func registerProjectTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolProjectWriteFile(ctx, args)
 			},
 		),
-		newCastTool("cast_project_search", "project",
+		newCastTool(a, "cast_project_search", "project",
 			"在项目目录中按模式搜索文件（路径匹配）",
 			json.RawMessage(`{
 				"type": "object",

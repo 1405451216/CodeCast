@@ -20,9 +20,9 @@ const (
 5. 输出仅含邮件内容，不加解释`
 )
 
-func registerEmailTools(toolkit *ap.ToolRegistry) error {
+func registerEmailTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_email_draft", "email",
+		newCastTool(a, "cast_email_draft", "email",
 			"起草邮件（不发送）",
 			json.RawMessage(`{
 				"type": "object",
@@ -38,7 +38,7 @@ func registerEmailTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolEmailDraft(ctx, args)
 			},
 		),
-		newCastTool("cast_email_send", "email",
+		newCastTool(a, "cast_email_send", "email",
 			"通过 SMTP 发送邮件（需要先在 settings 配置 SMTP）",
 			json.RawMessage(`{
 				"type": "object",

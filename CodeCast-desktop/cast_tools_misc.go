@@ -32,9 +32,9 @@ const (
 不要添加原文没提到的内容。`
 )
 
-func registerMiscTools(toolkit *ap.ToolRegistry) error {
+func registerMiscTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_brainstorm", "misc",
+		newCastTool(a, "cast_brainstorm", "misc",
 			"对主题生成多角度创意方案",
 			json.RawMessage(`{
 				"type": "object",
@@ -48,7 +48,7 @@ func registerMiscTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolBrainstorm(ctx, args)
 			},
 		),
-		newCastTool("cast_meeting_minutes", "misc",
+		newCastTool(a, "cast_meeting_minutes", "misc",
 			"从会议转录中提取结构化纪要",
 			json.RawMessage(`{
 				"type": "object",
@@ -59,7 +59,7 @@ func registerMiscTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolMeetingMinutes(ctx, args)
 			},
 		),
-		newCastTool("cast_ocr_image", "misc",
+		newCastTool(a, "cast_ocr_image", "misc",
 			"OCR 真实实现：读图片提取文字（需 Anthropic API Key）",
 			json.RawMessage(`{
 				"type": "object",
@@ -76,7 +76,7 @@ func registerMiscTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolOCR(ctx, args)
 			},
 		),
-		newCastTool("cast_password_gen", "misc",
+		newCastTool(a, "cast_password_gen", "misc",
 			"生成安全密码",
 			json.RawMessage(`{
 				"type": "object",
@@ -89,7 +89,7 @@ func registerMiscTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolPasswordGen(ctx, args)
 			},
 		),
-		newCastTool("cast_chart_generate", "misc",
+		newCastTool(a, "cast_chart_generate", "misc",
 			"从描述生成 Mermaid/PlantUML 图表代码",
 			json.RawMessage(`{
 				"type": "object",
@@ -103,7 +103,7 @@ func registerMiscTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolChartGenerate(ctx, args)
 			},
 		),
-		newCastTool("cast_format_convert", "misc",
+		newCastTool(a, "cast_format_convert", "misc",
 			"JSON/YAML/XML/CSV 互转",
 			json.RawMessage(`{
 				"type": "object",

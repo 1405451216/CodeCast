@@ -26,9 +26,9 @@ type castSecurityStats struct {
 	TopPatterns    map[string]int `json:"topPatterns"`
 }
 
-func registerSecurityTools(toolkit *ap.ToolRegistry) error {
+func registerSecurityTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_security_audit", "security",
+		newCastTool(a, "cast_security_audit", "security",
 			"安全审计统计（近 1h/24h/7d）",
 			json.RawMessage(`{
 				"type": "object",
@@ -38,7 +38,7 @@ func registerSecurityTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolSecurityAudit(ctx, args)
 			},
 		),
-		newCastTool("cast_security_blocked_history", "security",
+		newCastTool(a, "cast_security_blocked_history", "security",
 			"查看最近被拦截的危险命令",
 			json.RawMessage(`{
 				"type": "object",

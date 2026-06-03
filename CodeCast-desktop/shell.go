@@ -81,9 +81,7 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 	fmt.Printf("[Shell][%s] ✅ 危险模式检查: 通过 (9 个全局黑名单模式)\n", requestID)
 
 	if chainOperators.MatchString(command) {
-		matchedOperators := extractMatchedChainOperators(command)
-		fmt.Printf("[Shell][%s] 🚨 链式操作符检测: 操作符=%v 原始命令=%.150s\n",
-			requestID, matchedOperators, command)
+		fmt.Printf("[Shell][%s] 🚨 链式操作符检测: 原始命令=%.150s\n", requestID, command)
 		fmt.Printf("[Shell][%s] ❌ 拦截: 不允许使用链式操作符 (& | ; || && < > ` 等)\n", requestID)
 		return "", fmt.Errorf("命令被安全策略拦截: 不允许使用链式操作符 (& | ; || && < > ` 等)，请分步执行")
 	}
@@ -177,26 +175,6 @@ func (a *App) getCustomEnvVars() []string {
 
 func generateRequestID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano()%100000)
-}
-
-func extractMatchedChainOperators(cmd string) []string {
-	var operators []string
-	opMap := map[string]bool{
-		"&":  strings.Contains(cmd, "&"),
-		"|":  strings.Contains(cmd, "|"),
-		";":  strings.Contains(cmd, ";"),
-		"<":  strings.Contains(cmd, "<"),
-		">":  strings.Contains(cmd, ">"),
-		"`":  strings.Contains(cmd, "`"),
-		"$(": strings.Contains(cmd, "$("),
-	}
-
-	for op, found := range opMap {
-		if found {
-			operators = append(operators, op)
-		}
-	}
-	return operators
 }
 
 func maskSensitiveValue(envVar string) string {

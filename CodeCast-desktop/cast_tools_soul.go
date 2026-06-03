@@ -25,9 +25,9 @@ type castSoulPersona struct {
 	IsActive    bool   `json:"isActive"`
 }
 
-func registerSoulTools(toolkit *ap.ToolRegistry) error {
+func registerSoulTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_soul_set", "soul",
+		newCastTool(a, "cast_soul_set", "soul",
 			"切换 AI 人格",
 			json.RawMessage(`{
 				"type": "object",
@@ -38,7 +38,7 @@ func registerSoulTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolSoulSet(ctx, args)
 			},
 		),
-		newCastTool("cast_soul_list", "soul",
+		newCastTool(a, "cast_soul_list", "soul",
 			"列出所有人格",
 			json.RawMessage(`{"type":"object","properties":{}}`),
 			func(ctx context.Context, a *App, args json.RawMessage) (*ap.ToolResult, error) {

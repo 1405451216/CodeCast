@@ -7,9 +7,9 @@ import (
 	ap "agentprimordia/pkg"
 )
 
-func registerMemoryTools(toolkit *ap.ToolRegistry) error {
+func registerMemoryTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_memory_search", "memory",
+		newCastTool(a, "cast_memory_search", "memory",
 			"全文搜索 AP 记忆（SQLite FTS5）",
 			json.RawMessage(`{
 				"type": "object",
@@ -23,7 +23,7 @@ func registerMemoryTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolMemorySearch(ctx, args)
 			},
 		),
-		newCastTool("cast_memory_stats", "memory",
+		newCastTool(a, "cast_memory_stats", "memory",
 			"获取记忆系统统计",
 			json.RawMessage(`{"type":"object","properties":{}}`),
 			func(ctx context.Context, a *App, args json.RawMessage) (*ap.ToolResult, error) {

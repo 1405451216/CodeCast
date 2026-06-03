@@ -16,6 +16,7 @@ import (
 // 它实现了 ap.Tool 接口的样板代码（Name/Description/Parameters 来自声明），
 // 子类型只需实现 Execute() —— Execute 通过 *App 闭包注入，调用具体方法。
 type castTool struct {
+	app         *App // 在构造时注入（替代原 castApp 全局变量）
 	name        string
 	category    string
 	description string
@@ -27,27 +28,22 @@ func (t *castTool) Name() string             { return t.name }
 func (t *castTool) Description() string      { return t.description }
 func (t *castTool) Parameters() json.RawMessage { return t.parameters }
 func (t *castTool) Execute(ctx context.Context, args json.RawMessage) (*ap.ToolResult, error) {
-	if castApp == nil {
-		return &ap.ToolResult{Content: "castApp not initialized", IsError: true}, nil
+	if t.app == nil {
+		// 兜底：测试环境或初始化失败时返回可诊断错误
+		return &ap.ToolResult{Content: `{"error":"cast tool not bound to App (initialization failed)"}`, IsError: true}, nil
 	}
-	return t.execute(ctx, castApp, args)
+	return t.execute(ctx, t.app, args)
 }
-
-// castApp 全局 Cast App 引用（main.go startup 中设置）。
-// 用于 castTool.Execute 把 *App 传给方法实现。
-var castApp *App
-
-// SetCastApp 初始化全局 castApp 引用。
-func (a *App) SetCastApp() { castApp = a }
 
 // newCastTool 创建 Cast 工具实例。
 // parameters 可以为 nil（无参数工具）。
 // fn 是 *App 上的方法，签名 func(ctx, *App, args) (*ToolResult, error)。
-func newCastTool(name, category, description string, parameters json.RawMessage, fn func(context.Context, *App, json.RawMessage) (*ap.ToolResult, error)) *castTool {
+func newCastTool(app *App, name, category, description string, parameters json.RawMessage, fn func(context.Context, *App, json.RawMessage) (*ap.ToolResult, error)) *castTool {
 	if parameters == nil {
 		parameters = json.RawMessage(`{"type":"object","properties":{}}`)
 	}
 	return &castTool{
+		app:         app,
 		name:        name,
 		category:    category,
 		description: description,
@@ -83,7 +79,7 @@ func (a *App) RegisterCastTools(toolkit *ap.ToolRegistry) error {
 	}
 
 	// 顺序注册所有 Cast 工具
-	for _, r := range []func(*ap.ToolRegistry) error{
+	for _, r := range []func(*App, *ap.ToolRegistry) error{
 		// 内容生成类
 		registerWritingTools,
 		registerTranslationTools,
@@ -108,7 +104,7 @@ func (a *App) RegisterCastTools(toolkit *ap.ToolRegistry) error {
 		registerSoulTools,
 		registerMarketplaceTools,
 	} {
-		if err := r(toolkit); err != nil {
+		if err := r(a, toolkit); err != nil {
 			return err
 		}
 	}

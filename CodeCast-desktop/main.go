@@ -110,9 +110,6 @@ func (a *App) startup(ctx context.Context) {
 		slog.Info("AP 记忆系统已启动", "db", memoryPath)
 	}
 
-	// 1b. 初始化 Cast App 全局引用（cast_tools.go 在 Execute 时通过它取 *App）
-	a.SetCastApp()
-
 	// 2. AP EventBus (bufferSize=64)
 	a.eventBus = ap.NewBus(64)
 	slog.Info("AP EventBus 已启动")

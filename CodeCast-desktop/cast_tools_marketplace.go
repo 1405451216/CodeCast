@@ -24,9 +24,9 @@ var marketplaceCatalog = []*castMarketplaceItem{
 	{ID: "mermaid-live", Name: "Mermaid Live", Description: "实时 Mermaid 图表预览", Author: "Community", Stars: 92, Rating: 4.4},
 }
 
-func registerMarketplaceTools(toolkit *ap.ToolRegistry) error {
+func registerMarketplaceTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_marketplace_list", "marketplace",
+		newCastTool(a, "cast_marketplace_list", "marketplace",
 			"列出插件市场条目",
 			json.RawMessage(`{
 				"type": "object",
@@ -39,7 +39,7 @@ func registerMarketplaceTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolMarketplaceList(ctx, args)
 			},
 		),
-		newCastTool("cast_marketplace_install", "marketplace",
+		newCastTool(a, "cast_marketplace_install", "marketplace",
 			"从市场安装插件/工具",
 			json.RawMessage(`{
 				"type": "object",

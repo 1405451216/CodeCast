@@ -30,9 +30,9 @@ type castPluginInfo struct {
 	Source  string `json:"source"`
 }
 
-func registerPluginTools(toolkit *ap.ToolRegistry) error {
+func registerPluginTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_plugin_list", "plugin",
+		newCastTool(a, "cast_plugin_list", "plugin",
 			"列出已安装/可用的插件",
 			json.RawMessage(`{
 				"type": "object",
@@ -44,7 +44,7 @@ func registerPluginTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolPluginList(ctx, args)
 			},
 		),
-		newCastTool("cast_plugin_install", "plugin",
+		newCastTool(a, "cast_plugin_install", "plugin",
 			"安装插件（builtin/marketplace）",
 			json.RawMessage(`{
 				"type": "object",
@@ -55,7 +55,7 @@ func registerPluginTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolPluginInstall(ctx, args)
 			},
 		),
-		newCastTool("cast_plugin_exec", "plugin",
+		newCastTool(a, "cast_plugin_exec", "plugin",
 			"调用插件命令",
 			json.RawMessage(`{
 				"type": "object",

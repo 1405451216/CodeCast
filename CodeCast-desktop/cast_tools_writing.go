@@ -20,9 +20,9 @@ const (
 6. 不要解释，不要加前言后语，直接给内容`
 )
 
-func registerWritingTools(toolkit *ap.ToolRegistry) error {
+func registerWritingTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
-		newCastTool("cast_writing_generate", "writing",
+		newCastTool(a, "cast_writing_generate", "writing",
 			"生成结构化文档（周报/方案/文案/总结/邮件/PPT/简历/博客/其他）",
 			json.RawMessage(`{
 				"type": "object",
@@ -39,7 +39,7 @@ func registerWritingTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolWritingGenerate(ctx, args)
 			},
 		),
-		newCastTool("cast_writing_polish", "writing",
+		newCastTool(a, "cast_writing_polish", "writing",
 			"对已有文本进行润色/扩写/缩写/改写",
 			json.RawMessage(`{
 				"type": "object",
@@ -54,7 +54,7 @@ func registerWritingTools(toolkit *ap.ToolRegistry) error {
 				return a.castToolWritingPolish(ctx, args)
 			},
 		),
-		newCastTool("cast_writing_outline", "writing",
+		newCastTool(a, "cast_writing_outline", "writing",
 			"为主题生成结构化大纲",
 			json.RawMessage(`{
 				"type": "object",
