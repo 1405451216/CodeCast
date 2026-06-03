@@ -1,0 +1,99 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	ap "agentprimordia/pkg"
+)
+
+type AgentInfo struct {
+	ID           string `json:"id"`
+	SessionID    string `json:"sessionId"`
+	Title        string `json:"title"`
+	Status       string `json:"status"`
+	Turn         int    `json:"turn"`
+	MaxTurns     int    `json:"maxTurns"`
+	Result       string `json:"result,omitempty"`
+	Error        string `json:"error,omitempty"`
+	LastToolName string `json:"lastToolName,omitempty"`
+	CreatedAt    string `json:"createdAt"`
+	UpdatedAt    string `json:"updatedAt"`
+}
+
+// DispatchAgents dispatches tasks via AP Pool.Dispatch (batch).
+func (a *App) DispatchAgents(tasksJSON string) ([]string, error) {
+	var tasks []struct {
+		Title  string `json:"title"`
+		Prompt string `json:"prompt"`
+	}
+	if err := json.Unmarshal([]byte(tasksJSON), &tasks); err != nil {
+		return nil, fmt.Errorf("parse tasks: %w", err)
+	}
+
+	var taskConfigs []ap.TaskConfig
+	for _, t := range tasks {
+		taskConfigs = append(taskConfigs, ap.TaskConfig{
+			Title:    t.Title,
+			Prompt:   t.Prompt,
+			MaxTurns: 10,
+		})
+	}
+
+	results, err := a.pool.Dispatch(context.Background(), taskConfigs)
+	if err != nil {
+		return nil, fmt.Errorf("dispatch tasks: %w", err)
+	}
+
+	var taskIDs []string
+	for _, r := range results {
+		if r != nil {
+			taskIDs = append(taskIDs, r.TaskID)
+		}
+	}
+	return taskIDs, nil
+}
+
+// GetAgents returns agent info for a session using AP Pool.GetTasksBySession.
+func (a *App) GetAgents(sessionID string) []AgentInfo {
+	taskResults := a.pool.GetTasksBySession(sessionID)
+	var agents []AgentInfo
+	for _, tr := range taskResults {
+		agents = append(agents, AgentInfo{
+			ID:        tr.TaskID,
+			SessionID: tr.Task.SessionID,
+			Title:     tr.Task.Title,
+			Status:    string(tr.Status),
+			MaxTurns:  tr.Task.MaxTurns,
+		})
+	}
+	return agents
+}
+
+// GetAgentDetail returns a single agent's detail using AP Pool.GetTask.
+func (a *App) GetAgentDetail(agentID string) *AgentInfo {
+	tr, ok := a.pool.GetTask(agentID)
+	if !ok {
+		return nil
+	}
+	return &AgentInfo{
+		ID:        tr.TaskID,
+		SessionID: tr.Task.SessionID,
+		Title:     tr.Task.Title,
+		Status:    string(tr.Status),
+		MaxTurns:  tr.Task.MaxTurns,
+		Result:    func() string { if tr.Response != nil { return tr.Response.Content }; return "" }(),
+		Error:     func() string { if tr.Error != nil { return tr.Error.Error() }; return "" }(),
+	}
+}
+
+// CancelAgent cancels a running agent via AP Pool.Cancel.
+func (a *App) CancelAgent(agentID string) error {
+	return a.pool.Cancel(agentID)
+}
+
+// CancelSessionAgents cancels all agents for a session via AP Pool.CancelBySession.
+func (a *App) CancelSessionAgents(sessionID string) error {
+	return a.pool.CancelBySession(sessionID)
+}
