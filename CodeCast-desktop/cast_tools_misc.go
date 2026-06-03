@@ -187,8 +187,8 @@ func (a *App) castToolOCR(ctx context.Context, args json.RawMessage) (*ap.ToolRe
 	return a.recordCastInvocation("cast_ocr_image", "misc", "", args, string(outJSON), false, nowMs()-start), nil
 }
 
-// doOCR 真实实现：读图片 → base64 → 调 Anthropic Vision API → 提取文字
-// 复用当前用户的 LLM credentials（如果是 Anthropic provider）或要求用户配 ANTHROPIC_API_KEY
+// doOCR 真实实现：读图片 → base64 → 调当前 LLM provider 的 vision API → 提取文字
+// 支持 Anthropic / OpenAI / Google Gemini（任何有 vision 能力的模型）
 func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, inTok, outTok int, err error) {
 	// 1. 读取图片
 	imgData, mimeType, err := loadImageAsBase64(in.ImagePath)
@@ -196,21 +196,30 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 		return "", "", 0, 0, fmt.Errorf("load image: %w", err)
 	}
 
-	// 2. 选 model
-	model = in.Model
-	if model == "" {
-		// 优先用当前用户 LLM 配置（如果是 Anthropic）
-		if a.settings != nil && isAnthropicProvider(a.settings.LLMProvider) {
-			model = a.settings.LLMModel
-			if model == "" {
-				model = "claude-sonnet-4-5"
-			}
-		} else {
-			model = "claude-sonnet-4-5"
-		}
+	// 2. 取 credentials
+	a.mu.RLock()
+	creds, credsErr := a.resolveCredentialsLocked("")
+	a.mu.RUnlock()
+	if credsErr != nil || creds.APIKey == "" {
+		return "", "", 0, 0, fmt.Errorf("API key not configured (Settings → API Key)")
 	}
 
-	// 3. 构造 prompt
+	// 3. 推断 provider
+	providerID := ""
+	if a.settings != nil {
+		providerID = a.settings.LLMProvider
+	}
+	if providerID == "" {
+		providerID = a.guessProviderForModel(creds.Model)
+	}
+
+	// 4. 选 model（用户可在 args 指定，否则用当前 model）
+	model = in.Model
+	if model == "" {
+		model = creds.Model
+	}
+
+	// 5. 构造 prompt
 	prompt := in.Prompt
 	if prompt == "" {
 		prompt = "请提取这张图片中的所有文字，保持原始排版结构。如果是表格请用 Markdown 表格输出。"
@@ -219,38 +228,51 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 		prompt += "\n\n输出语言：" + in.Lang
 	}
 
-	// 4. 取 API key
-	a.mu.RLock()
-	creds, credsErr := a.resolveCredentialsLocked("")
-	a.mu.RUnlock()
-	if credsErr != nil || creds.APIKey == "" {
-		return "", "", 0, 0, fmt.Errorf("Anthropic API key not configured (Settings → API Key)")
-	}
-	// 推断 provider：先看 settings.LLMProvider，没有则按 model 名猜
-	providerID := ""
-	if a.settings != nil {
-		providerID = a.settings.LLMProvider
-	}
-	if providerID == "" {
-		providerID = a.guessProviderForModel(creds.Model)
-	}
-	if !isAnthropicProvider(providerID) {
-		// 用户用 OpenAI 等，但 OCR 走 Anthropic（更稳）。给清晰错误。
-		return "", "", 0, 0, fmt.Errorf("OCR requires Anthropic provider; current is %s (model=%s)", providerID, creds.Model)
+	maxTokens := in.MaxTokens
+	if maxTokens == 0 {
+		maxTokens = 4096
 	}
 
-	// 5. 构造 Anthropic Messages API 请求
+	// 6. 按 provider 分发
+	switch {
+	case isAnthropicProvider(providerID):
+		return doAnthropicVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
+	case isOpenAIVision(providerID, model):
+		return doOpenAIVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
+	case isGeminiProvider(providerID):
+		return doGeminiVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
+	default:
+		// 兜底：尝试 OpenAI 兼容协议（很多第三方 vision API 都用这格式）
+		return doOpenAIVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
+	}
+}
+
+// isOpenAIVision 检测 OpenAI 或 OpenAI 兼容 vision 模型
+func isOpenAIVision(providerID, model string) bool {
+	p := strings.ToLower(providerID)
+	m := strings.ToLower(model)
+	if strings.Contains(p, "openai") || strings.Contains(p, "gpt") {
+		return true
+	}
+	// gpt-4o / gpt-4-vision / o1 都支持 vision
+	return strings.HasPrefix(m, "gpt-4o") ||
+		strings.HasPrefix(m, "gpt-4-vision") ||
+		strings.Contains(m, "vision")
+}
+
+func isGeminiProvider(id string) bool {
+	id = strings.ToLower(id)
+	return strings.Contains(id, "gemini") || strings.Contains(id, "google")
+}
+
+// doAnthropicVision 调用 Anthropic Messages API
+func doAnthropicVision(ctx context.Context, creds APICredentials, model, prompt, imgData, mimeType string, maxTokens int) (text, modelRet string, inTok, outTok int, err error) {
 	baseURL := creds.APIURL
 	if baseURL == "" {
 		baseURL = "https://api.anthropic.com"
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
 	url := baseURL + "/v1/messages"
-
-	maxTokens := in.MaxTokens
-	if maxTokens == 0 {
-		maxTokens = 4096
-	}
 
 	reqBody := map[string]any{
 		"model":      model,
@@ -294,7 +316,6 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 		return "", "", 0, 0, fmt.Errorf("anthropic API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
 	}
 
-	// 6. 解析响应
 	var ar struct {
 		Content []struct {
 			Type string `json:"type"`
@@ -306,18 +327,154 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 		} `json:"usage"`
 	}
 	if err := json.Unmarshal(respBody, &ar); err != nil {
-		return "", "", 0, 0, fmt.Errorf("parse response: %w", err)
+		return "", "", 0, 0, fmt.Errorf("parse anthropic response: %w", err)
 	}
 
-	// 7. 提取 text content
 	var textBuilder strings.Builder
 	for _, c := range ar.Content {
 		if c.Type == "text" {
 			textBuilder.WriteString(c.Text)
 		}
 	}
-
 	return textBuilder.String(), model, ar.Usage.InputTokens, ar.Usage.OutputTokens, nil
+}
+
+// doOpenAIVision 调用 OpenAI Chat Completions API（兼容所有 OpenAI 格式第三方）
+func doOpenAIVision(ctx context.Context, creds APICredentials, model, prompt, imgData, mimeType string, maxTokens int) (text, modelRet string, inTok, outTok int, err error) {
+	baseURL := creds.APIURL
+	if baseURL == "" {
+		baseURL = "https://api.openai.com"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+	url := baseURL + "/v1/chat/completions"
+
+	// OpenAI 用 data URL 形式传图
+	dataURL := "data:" + mimeType + ";base64," + imgData
+	reqBody := map[string]any{
+		"model": model,
+		"messages": []map[string]any{
+			{
+				"role": "user",
+				"content": []map[string]any{
+					{
+						"type": "image_url",
+						"image_url": map[string]any{
+							"url": dataURL,
+						},
+					},
+					{
+						"type": "text",
+						"text": prompt,
+					},
+				},
+			},
+		},
+		"max_tokens": maxTokens,
+	}
+
+	bodyJSON, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+creds.APIKey)
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", 0, 0, fmt.Errorf("openai request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return "", "", 0, 0, fmt.Errorf("openai API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
+	}
+
+	var ar struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Usage struct {
+			PromptTokens     int `json:"prompt_tokens"`
+			CompletionTokens int `json:"completion_tokens"`
+		} `json:"usage"`
+	}
+	if err := json.Unmarshal(respBody, &ar); err != nil {
+		return "", "", 0, 0, fmt.Errorf("parse openai response: %w", err)
+	}
+	if len(ar.Choices) == 0 {
+		return "", "", 0, 0, fmt.Errorf("openai returned no choices")
+	}
+	return ar.Choices[0].Message.Content, model, ar.Usage.PromptTokens, ar.Usage.CompletionTokens, nil
+}
+
+// doGeminiVision 调用 Google Gemini generateContent API
+func doGeminiVision(ctx context.Context, creds APICredentials, model, prompt, imgData, mimeType string, maxTokens int) (text, modelRet string, inTok, outTok int, err error) {
+	baseURL := creds.APIURL
+	if baseURL == "" {
+		baseURL = "https://generativelanguage.googleapis.com"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", baseURL, model, creds.APIKey)
+
+	reqBody := map[string]any{
+		"contents": []map[string]any{
+			{
+				"parts": []map[string]any{
+					{
+						"inline_data": map[string]any{
+							"mime_type": mimeType,
+							"data":      imgData,
+						},
+					},
+					{
+						"text": prompt,
+					},
+				},
+			},
+		},
+		"generationConfig": map[string]any{
+			"maxOutputTokens": maxTokens,
+		},
+	}
+
+	bodyJSON, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", 0, 0, fmt.Errorf("gemini request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return "", "", 0, 0, fmt.Errorf("gemini API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
+	}
+
+	var ar struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+		UsageMetadata struct {
+			PromptTokenCount     int `json:"promptTokenCount"`
+			CandidatesTokenCount  int `json:"candidatesTokenCount"`
+		} `json:"usageMetadata"`
+	}
+	if err := json.Unmarshal(respBody, &ar); err != nil {
+		return "", "", 0, 0, fmt.Errorf("parse gemini response: %w", err)
+	}
+	if len(ar.Candidates) == 0 || len(ar.Candidates[0].Content.Parts) == 0 {
+		return "", "", 0, 0, fmt.Errorf("gemini returned no content")
+	}
+	return ar.Candidates[0].Content.Parts[0].Text, model, ar.UsageMetadata.PromptTokenCount, ar.UsageMetadata.CandidatesTokenCount, nil
 }
 
 // loadImageAsBase64 读取本地文件或解析 data URL，返回 base64 字符串 + MIME。
