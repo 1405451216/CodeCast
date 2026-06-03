@@ -442,6 +442,9 @@ func TestLinux_Advanced_AttackScenarios(t *testing.T) {
 }
 
 func TestLinux_ChainOperators_CompleteCoverage(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("此测试仅在 Linux 上运行")
+	}
 	t.Log("\n🔍 完整链式操作符覆盖率测试\n")
 
 	testCases := []struct {

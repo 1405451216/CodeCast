@@ -205,8 +205,8 @@ func (a *App) ReadFile(path string) (string, error) {
 		return "", err
 	}
 
-	sid := a.activeSessionID
-	go a.recordToolIfEnabled(sid, "ReadFile", fmt.Sprintf("读取了 %s (%s)", path, formatFileSize(info.Size())))
+	// AP EventBus replaces recordToolIfEnabled
+	a.emitToolEvent("ReadFile", fmt.Sprintf("读取了 %s (%s)", path, formatFileSize(info.Size())))
 
 	return string(data), nil
 }
@@ -239,8 +239,8 @@ func (a *App) WriteFile(path, content string) error {
 		return err
 	}
 
-	sid := a.activeSessionID
-	go a.recordToolIfEnabled(sid, "WriteFile", fmt.Sprintf("写入了 %s (%s)", path, formatFileSize(contentSize)))
+	// AP EventBus replaces recordToolIfEnabled
+	a.emitToolEvent("WriteFile", fmt.Sprintf("写入了 %s (%s)", path, formatFileSize(contentSize)))
 
 	if a.settings.AutoCommit {
 		go a.gitAutoCommit(path)

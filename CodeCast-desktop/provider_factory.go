@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"hash/fnv"
+	"time"
 
 	ap "agentprimordia/pkg"
 )
@@ -124,13 +127,31 @@ func (a *App) createCachedProvider() (ap.Provider, error) {
 		return nil, err
 	}
 
-	fpCache := ap.NewFingerprintCache()
-	vecCache := ap.NewInMemoryCache(1536)
-	hybridCache := ap.NewHybridCache(fpCache, vecCache, 0.95)
+	fpCache := ap.NewFingerprintCache(1000, 10*time.Minute)
+	// InMemoryCache needs an EmbeddingFunc, max size, and minimum similarity score.
+	// We use a simple hash-based embedding (deterministic, no LLM call needed for cache).
+	vecCache := ap.NewInMemoryCache(simpleEmbeddingFunc, 1536, 0.9)
+	hybridCache, cacheErr := ap.NewHybridCache(fpCache, vecCache)
+	if cacheErr != nil {
+		return nil, fmt.Errorf("create hybrid cache: %w", cacheErr)
+	}
 
 	cached, err := ap.NewCachedProvider(primary, hybridCache, 0.95)
 	if err != nil {
 		return nil, fmt.Errorf("create cached provider: %w", err)
 	}
 	return cached, nil
+}
+
+// simpleEmbeddingFunc provides a deterministic hash-based embedding for cache keys.
+// This avoids calling the LLM just for cache lookups.
+func simpleEmbeddingFunc(ctx context.Context, text string) ([]float32, error) {
+	h := fnv.New32a()
+	h.Write([]byte(text))
+	hash := h.Sum32()
+	vec := make([]float32, 64)
+	for i := range vec {
+		vec[i] = float32((hash >> (i % 32)) & 1)
+	}
+	return vec, nil
 }

@@ -76,7 +76,12 @@ func extractCommandName(cmd string) string {
 	return base
 }
 
-func validateCommand(agent *SubAgent, rawCmd string) error {
+const (
+	AgentModeImplicit = "implicit"
+	AgentModeExplicit = "explicit"
+)
+
+func validateCommand(agentID, agentMode, rawCmd string) error {
 	name := extractCommandName(rawCmd)
 	if name == "" {
 		return &CommandDeniedError{Reason: "无法解析命令名称"}
@@ -86,7 +91,7 @@ func validateCommand(agent *SubAgent, rawCmd string) error {
 
 	for _, re := range dangerousPatterns {
 		if re.MatchString(lowerCmd) {
-			fmt.Printf("[Security] 命令被危险模式拦截: agent=%s cmd=%.80s\n", agent.ID, rawCmd)
+			fmt.Printf("[Security] 命令被危险模式拦截: agent=%s cmd=%.80s\n", agentID, rawCmd)
 			return &CommandDeniedError{
 				Reason:    "命令被安全策略拦截: 包含危险模式",
 				Command:   name,
@@ -97,7 +102,7 @@ func validateCommand(agent *SubAgent, rawCmd string) error {
 
 	for _, dp := range agentExtraDangerPatterns {
 		if dp.re.MatchString(rawCmd) {
-			fmt.Printf("[Security] 检测到危险命令: agent=%s pattern=%s cmd=%.80s\n", agent.ID, dp.reason, rawCmd)
+			fmt.Printf("[Security] 检测到危险命令: agent=%s pattern=%s cmd=%.80s\n", agentID, dp.reason, rawCmd)
 			return &CommandDeniedError{
 				Reason:    fmt.Sprintf("检测到危险命令模式: %s", dp.reason),
 				Command:   name,
@@ -107,7 +112,7 @@ func validateCommand(agent *SubAgent, rawCmd string) error {
 	}
 
 	if chainOperators.MatchString(rawCmd) {
-		fmt.Printf("[Security] 链式命令被拒绝: agent=%s cmd=%.80s\n", agent.ID, rawCmd)
+		fmt.Printf("[Security] 链式命令被拒绝: agent=%s cmd=%.80s\n", agentID, rawCmd)
 		return &CommandDeniedError{
 			Reason:    "不允许使用链式命令（&& || ; | 管道、反引号、$()），请分步执行",
 			Command:   name,
@@ -115,16 +120,16 @@ func validateCommand(agent *SubAgent, rawCmd string) error {
 		}
 	}
 
-	if agent.Mode == AgentModeImplicit {
+	if agentMode == AgentModeImplicit {
 		if _, ok := subAgentRestrictedCommands[name]; ok {
-			fmt.Printf("[Security] 子代理受限命令被拒: agent=%s cmd=%s\n", agent.ID, name)
+			fmt.Printf("[Security] 子代理受限命令被拒: agent=%s cmd=%s\n", agentID, name)
 			return &CommandDeniedError{
 				Reason:  fmt.Sprintf("子代理不允许使用 '%s'（通用解释器，权限过大）", name),
 				Command: name,
 			}
 		}
 		if _, ok := subAgentAllowedCommands[name]; !ok {
-			fmt.Printf("[Security] 子代理白名单未命中: agent=%s cmd=%s\n", agent.ID, name)
+			fmt.Printf("[Security] 子代理白名单未命中: agent=%s cmd=%s\n", agentID, name)
 			return &CommandDeniedError{
 				Reason:  fmt.Sprintf("子代理不允许执行命令 '%s'，不在允许列表中", name),
 				Command: name,

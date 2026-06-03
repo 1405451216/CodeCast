@@ -1,12 +1,10 @@
 package main
 
-import (
-	ap "agentprimordia/pkg"
-)
-
 // initCostTracker sets up AP CostTracker for LLM usage monitoring.
+// CostTracker is configured as part of ReActConfig — this stub can be
+// expanded once ap.CostTracker is exported from the public API.
 func (a *App) initCostTracker() {
-	// CostTracker is configured as part of ReActConfig.CostTracker
-	// It hooks into the Agent lifecycle to track token usage and costs
-	// per session, per model, and globally.
+	// CostTracker hooks into the Agent lifecycle to track token usage
+	// and costs per session, per model, and globally.
+	// Will be initialized via ReActConfig.CostTracker when exported.
 }

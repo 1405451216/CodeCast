@@ -62,14 +62,18 @@ func (a *App) buildSystemPrompt(session *Session) string {
 {{.NotesContext}}{{end}}
 `, PromptBase, modePrompt(mode)))
 
-	result := tmpl.Execute(map[string]string{
-		"ProjectPath":        projectPath,
-		"Mode":               mode,
-		"Personality":        personality,
-		"CustomInstructions": customInstructions,
-		"SkillPrompt":        skillPrompt,
-		"NotesContext":       notesContext,
-	})
+	result, err := tmpl.
+		WithVar("ProjectPath", projectPath).
+		WithVar("Mode", mode).
+		WithVar("Personality", personality).
+		WithVar("CustomInstructions", customInstructions).
+		WithVar("SkillPrompt", skillPrompt).
+		WithVar("NotesContext", notesContext).
+		Render()
+	if err != nil {
+		// Fallback: return raw template if rendering fails
+		return PromptBase + "\n\n" + modePrompt(mode)
+	}
 
 	return result
 }

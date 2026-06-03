@@ -442,6 +442,9 @@ func TestLinux_SpecificShellFeatures(t *testing.T) {
 }
 
 func TestLinux_ChainOperators_RegexCoverage(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("此测试仅在 Linux 上运行")
+	}
 	t.Log("\n🔍 验证 chainOperators 正则在 Linux 下的覆盖范围\n")
 
 	linuxSpecificChars := []struct {

@@ -124,21 +124,32 @@ func (a *App) startup(ctx context.Context) {
 	a.guardrailHook = a.setupGuardrails() // checkpoint_hook.go
 	slog.Info("AP Guardrails 已启动")
 
-	// 5. AP Toolkit — DefaultToolkit(rootDir string) (*Registry, []Tool, error)
+	// 5. AP Toolkit — DefaultToolkit(cfg ToolkitConfig) (*Registry, error)
 	projectPath := ""
 	a.mu.RLock()
 	if cp := a.getCurrentProjectLocked(); cp != nil {
 		projectPath = cp.Path
 	}
 	a.mu.RUnlock()
-	a.toolkit, _, _ = ap.DefaultToolkit(projectPath)
+	var toolkitErr error
+	a.toolkit, toolkitErr = ap.DefaultToolkit(ap.ToolkitConfig{
+		RootDir:      projectPath,
+		EnableFS:     true,
+		EnableShell:  true,
+		EnableWeb:    true,
+		EnableSearch: true,
+		EnableUtils:  true,
+	})
+	if toolkitErr != nil {
+		slog.Warn("AP Toolkit 初始化失败", "error", toolkitErr)
+	}
 	slog.Info("AP Toolkit 已启动", "root", projectPath)
 
 	// 6. AP Hooks — register checkpoint + guardrail
 	a.hooks = ap.NewHookManager()
 	a.hooks.Register(ap.HookBeforeTool, a.checkpointHook)
-	// GuardrailHook registers its hooks with HookManager
-	a.guardrailHook.Register(a.hooks)
+	// GuardrailHook registers input+output guards with HookManager
+	a.guardrailHook.RegisterAll(a.hooks)
 	slog.Info("AP Hooks 已注册")
 
 	// 7. AP MCPRegistry
@@ -235,8 +246,7 @@ func (a *App) startup(ctx context.Context) {
 	a.taskSchedulerStop = make(chan struct{})
 	a.StartTaskScheduler(a.taskSchedulerStop)
 	slog.Info("任务调度器已启动", "interval", "1m")
-	startCleanupGoroutine()
-	slog.Info("活跃连接清理机制已启动")
+	slog.Info("AP 会话管理已启动")
 
 	// 从磁盘恢复持久化的 sessions
 	a.loadPersistedSessions()
@@ -275,7 +285,7 @@ func (a *App) shutdown(ctx context.Context) {
 		close(a.taskSchedulerStop)
 	}
 	// Notes store has no Close method — cleanup is handled by garbage collection
-	cleanupOnce.Do(func() { close(cleanupStopCh) })
+	// legacy cleanup removed — AP sessionCancels handled in CancelRequest()
 	slog.Info("应用即将关闭", "action", "cleaned_all_active_connections")
 }
 
