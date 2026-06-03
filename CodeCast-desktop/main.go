@@ -49,6 +49,7 @@ type App struct {
 	memory           *ap.SQLiteStore
 	ragStore          *ap.RAGStore
 	toolkit           *ap.ToolRegistry
+	castReg           *castToolRegistry
 	mcpReg            *ap.MCPRegistry
 	eventBus          *ap.Bus
 	metricsCollector  *ap.AgentMetricsCollector
@@ -144,6 +145,13 @@ func (a *App) startup(ctx context.Context) {
 		slog.Warn("AP Toolkit 初始化失败", "error", toolkitErr)
 	}
 	slog.Info("AP Toolkit 已启动", "root", projectPath)
+
+	// 5b. Cast Tools — 所有 Cast 工具注册为 AP Tool（AI 在对话中调用）
+	if a.toolkit != nil {
+		if err := a.RegisterCastTools(a.toolkit); err != nil {
+			slog.Warn("Cast 工具注册失败", "error", err)
+		}
+	}
 
 	// 6. AP Hooks — register checkpoint + guardrail
 	a.hooks = ap.NewHookManager()
