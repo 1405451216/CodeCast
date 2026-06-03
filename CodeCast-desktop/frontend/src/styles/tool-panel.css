@@ -1,0 +1,296 @@
+/* 3 栏布局：ToolPanel 样式 */
+
+.tool-panel {
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  min-width: 280px;
+  max-width: 480px;
+  height: 100%;
+  background: var(--bg-panel, #fafafa);
+  border-left: 1px solid var(--border, #e8e8e8);
+  overflow: hidden;
+}
+
+.tool-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border, #e8e8e8);
+  background: var(--bg-header, #f5f5f5);
+  flex-shrink: 0;
+}
+
+.tool-panel-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #666);
+  transition: all 0.15s;
+  border-bottom: 2px solid transparent;
+}
+
+.tool-panel-tab:hover {
+  background: var(--bg-hover, #eee);
+  color: var(--text-primary, #333);
+}
+
+.tool-panel-tab.active {
+  color: var(--primary, #1890ff);
+  border-bottom-color: var(--primary, #1890ff);
+  background: transparent;
+}
+
+.tool-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+/* 工具目录 */
+.tool-list {
+  padding: 0;
+}
+
+.tool-list-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary, #888);
+  font-size: 13px;
+}
+
+.tool-list-group {
+  margin-bottom: 8px;
+}
+
+.tool-list-group-title {
+  padding: 8px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tool-list-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-list-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border, #f0f0f0);
+  transition: background 0.15s;
+}
+
+.tool-list-item:hover {
+  background: var(--bg-hover, #f0f0f0);
+}
+
+.tool-list-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+  margin-bottom: 2px;
+  font-family: var(--font-mono, monospace);
+}
+
+.tool-list-item-desc {
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  line-height: 1.4;
+}
+
+/* 调用历史 */
+.tool-history {
+  padding: 0;
+}
+
+.tool-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  border-bottom: 1px solid var(--border, #f0f0f0);
+}
+
+.tool-history-clear {
+  background: transparent;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  cursor: pointer;
+}
+
+.tool-history-clear:hover {
+  background: var(--bg-hover, #f0f0f0);
+}
+
+.tool-history-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+}
+
+/* CastToolCall 卡片 */
+.cast-tool-call {
+  margin: 4px 0;
+  border: 1px solid var(--border, #e8e8e8);
+  border-radius: 6px;
+  background: var(--bg-card, #fff);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cast-tool-call:hover {
+  border-color: var(--primary, #1890ff);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.cast-tool-call.success {
+  border-left: 3px solid #52c41a;
+}
+
+.cast-tool-call.error {
+  border-left: 3px solid #ff4d4f;
+  background: var(--bg-error, #fff1f0);
+}
+
+.cast-tool-call-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.cast-tool-call-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.cast-tool-call-name {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cast-tool-call-cat {
+  font-size: 10px;
+  color: var(--text-secondary, #888);
+  padding: 1px 6px;
+  background: var(--bg-tag, #f0f0f0);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.cast-tool-call-duration {
+  font-size: 10px;
+  color: var(--text-secondary, #888);
+  flex-shrink: 0;
+}
+
+.cast-tool-call-toggle {
+  font-size: 10px;
+  color: var(--text-secondary, #888);
+  flex-shrink: 0;
+}
+
+.cast-tool-call-preview {
+  padding: 0 10px 8px 32px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cast-tool-call-detail {
+  border-top: 1px solid var(--border, #f0f0f0);
+  padding: 8px 10px;
+  background: var(--bg-code, #fafafa);
+}
+
+.cast-tool-call-section {
+  margin-bottom: 8px;
+}
+
+.cast-tool-call-section:last-child {
+  margin-bottom: 0;
+}
+
+.cast-tool-call-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary, #888);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.cast-tool-call-section pre {
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--bg-input, #fff);
+  border: 1px solid var(--border, #e8e8e8);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary, #333);
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* EmptyState */
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-state-title {
+  font-size: 14px;
+  color: var(--text-secondary, #888);
+  margin-bottom: 8px;
+}
+
+.empty-state-hint {
+  font-size: 12px;
+  color: var(--text-tertiary, #aaa);
+  line-height: 1.5;
+}
+
+/* 响应式：小屏时 ToolPanel 折叠到抽屉 */
+@media (max-width: 768px) {
+  .tool-panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 85%;
+    max-width: 360px;
+    z-index: 1000;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+    transform: translateX(100%);
+    transition: transform 0.2s;
+  }
+
+  .tool-panel.open {
+    transform: translateX(0);
+  }
+}

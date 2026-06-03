@@ -120,6 +120,8 @@ export function GetSkills():Promise<Array<main.Skill>>;
 
 export function GetSlashCommands():Promise<Array<main.SlashCommand>>;
 
+export function GetToolCatalog():Promise<Array<main.ToolCatalogItem>>;
+
 export function GetToolHistory(arg1:string,arg2:number):Promise<Array<main.CastToolInvocation>>;
 
 export function GetUpdateHistory():Promise<Array<main.UpdateRecord>>;
@@ -127,6 +129,8 @@ export function GetUpdateHistory():Promise<Array<main.UpdateRecord>>;
 export function GetWorkspaceFiles(arg1:string):Promise<Array<main.FileEntry>>;
 
 export function ImportSkill(arg1:string):Promise<main.Skill>;
+
+export function InvokeCastTool(arg1:string,arg2:string):Promise<string>;
 
 export function IsDomainBlocked(arg1:string):Promise<boolean>;
 

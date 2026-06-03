@@ -234,6 +234,10 @@ export function GetSlashCommands() {
   return window['go']['main']['App']['GetSlashCommands']();
 }
 
+export function GetToolCatalog() {
+  return window['go']['main']['App']['GetToolCatalog']();
+}
+
 export function GetToolHistory(arg1, arg2) {
   return window['go']['main']['App']['GetToolHistory'](arg1, arg2);
 }
@@ -248,6 +252,10 @@ export function GetWorkspaceFiles(arg1) {
 
 export function ImportSkill(arg1) {
   return window['go']['main']['App']['ImportSkill'](arg1);
+}
+
+export function InvokeCastTool(arg1, arg2) {
+  return window['go']['main']['App']['InvokeCastTool'](arg1, arg2);
 }
 
 export function IsDomainBlocked(arg1) {

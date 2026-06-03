@@ -243,3 +243,65 @@ func (a *App) GetToolHistory(sessionID string, limit int) []CastToolInvocation {
 	}
 	return out
 }
+
+// InvokeCastTool 手动调用指定 Cast AP Tool（供前端 useToolCall hook）。
+// 返回 JSON 序列化的 {content, isError} 字符串。
+func (a *App) InvokeCastTool(name, argsJSON string) (string, error) {
+	if a.toolkit == nil {
+		return `{"content":"toolkit not initialized","isError":true}`, nil
+	}
+	tool, ok := a.toolkit.Get(name)
+	if !ok {
+		return fmt.Sprintf(`{"content":"tool not found: %s","isError":true}`, name), nil
+	}
+
+	args := json.RawMessage(argsJSON)
+	if len(args) == 0 {
+		args = json.RawMessage("{}")
+	}
+	result, err := tool.Execute(a.ctx, args)
+	if err != nil {
+		return fmt.Sprintf(`{"content":%q,"isError":true}`, err.Error()), nil
+	}
+
+	a.recordCastInvocation(name, "", "", args, result.Content, result.IsError, 0)
+	resp := map[string]any{"content": result.Content, "isError": result.IsError}
+	out, _ := json.Marshal(resp)
+	return string(out), nil
+}
+
+// GetToolCatalog 返回所有已注册 Cast Tool 的目录（供 ToolList 展示）。
+func (a *App) GetToolCatalog() []ToolCatalogItem {
+	if a.toolkit == nil {
+		return nil
+	}
+	var out []ToolCatalogItem
+	for _, def := range a.toolkit.Definitions() {
+		// def 是 map[string]any；提取 name/description
+		name, _ := def["name"].(string)
+		desc, _ := def["description"].(string)
+		if name == "" {
+			continue
+		}
+		// category 从 name 前缀推断（cast_<category>_xxx）
+		category := ""
+		if rest, ok := strings.CutPrefix(name, "cast_"); ok {
+			if idx := strings.Index(rest, "_"); idx > 0 {
+				category = rest[:idx]
+			}
+		}
+		out = append(out, ToolCatalogItem{
+			Name:        name,
+			Category:    category,
+			Description: desc,
+		})
+	}
+	return out
+}
+
+// ToolCatalogItem 是 ToolList 展示用的目录项。
+type ToolCatalogItem struct {
+	Name        string `json:"name"`
+	Category    string `json:"category"`
+	Description string `json:"description"`
+}

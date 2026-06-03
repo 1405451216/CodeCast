@@ -29,6 +29,7 @@
 @import './notifications.css';
 @import './dialogs.css';
 @import './reasoning.css';
+@import './tool-panel.css';
 
 /* Highlight.js Theme - GitHub Dark Dimmed */
 @import 'highlight.js/styles/github-dark-dimmed.css';
