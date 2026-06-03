@@ -202,26 +202,6 @@ export namespace main {
 	        this.value = source["value"];
 	    }
 	}
-	export class FileEntry {
-	    name: string;
-	    path: string;
-	    is_dir: boolean;
-	    size: number;
-	    mod_time: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new FileEntry(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.path = source["path"];
-	        this.is_dir = source["is_dir"];
-	        this.size = source["size"];
-	        this.mod_time = source["mod_time"];
-	    }
-	}
 	export class MCPServer {
 	    id: string;
 	    name: string;

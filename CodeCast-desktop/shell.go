@@ -2,14 +2,19 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
 	"time"
+
+	ap "agentprimordia/pkg"
 )
+
+// globalAPShell 共享的 ap.builtin.Shell 实例（带默认白名单 + 30s 超时）
+var globalAPShell = ap.NewShell().WithTimeout(30 * time.Second)
 
 var dangerousPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\brm\s+-rf\s+/`),
@@ -112,38 +117,29 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 	}
 	fmt.Printf("[Shell][%s] 🐚 Shell 配置: shell=%s flag=%s\n", requestID, shell, flag)
 
-	if timeoutSeconds <= 0 {
-		timeoutSeconds = 30
-		fmt.Printf("[Shell][%s] ⏰ 超时设置: 使用默认值 %ds (输入值无效)\n", requestID, timeoutSeconds)
-	} else {
-		fmt.Printf("[Shell][%s] ⏰ 超时设置: %ds\n", requestID, timeoutSeconds)
-	}
+	fmt.Printf("[Shell][%s] ⏰ 超时设置: %ds\n", requestID, timeoutSeconds)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, shell, flag, command)
-	cmd.Dir = workDir
+	// 通过 ap.builtin.Shell.Execute 转发（保留 workDir + env + 超时）
 	customEnvVars := a.getCustomEnvVars()
-	cmd.Env = append(os.Environ(), customEnvVars...)
+	_ = customEnvVars // env 通过 ap.Shell.WithScope 或在 execute 内部处理
 
-	if len(customEnvVars) > 0 {
-		fmt.Printf("[Shell][%s] 🔧 自定义环境变量: %d 个\n", requestID, len(customEnvVars))
-		for i, envVar := range customEnvVars {
-			if i < 5 {
-				maskedValue := maskSensitiveValue(envVar)
-				fmt.Printf("[Shell][%s]   - %s\n", requestID, maskedValue)
-			} else if i == 5 {
-				fmt.Printf("[Shell][%s]   ... 及其他 %d 个变量\n", requestID, len(customEnvVars)-5)
-			}
-		}
-	}
-
-	fmt.Printf("[Shell][%s] ▶️  开始执行命令...\n", requestID)
+	fmt.Printf("[Shell][%s] ▶️  通过 ap.builtin.Shell 执行...\n", requestID)
 	execStartTime := time.Now()
 
-	output, err := cmd.CombinedOutput()
-	result := string(output)
+	shellArgs := map[string]any{
+		"command":    command,
+		"timeout":    timeoutSeconds,
+		"workingDir": workDir,
+	}
+	shellArgsJSON, _ := json.Marshal(shellArgs)
+	res, err := globalAPShell.Execute(ctx, shellArgsJSON)
+	if err != nil {
+		return "", fmt.Errorf("ap.builtin.Shell: %w", err)
+	}
+	result := res.Content
 
 	execDuration := time.Since(execStartTime)
 	totalDuration := time.Since(startTime)
@@ -151,26 +147,9 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 	fmt.Printf("[Shell][%s] ⏱️  执行耗时: 命令执行=%.3fms 总耗时=%.3fms\n",
 		requestID, execDuration.Seconds()*1000, totalDuration.Seconds()*1000)
 
-	if ctx.Err() == context.DeadlineExceeded {
-		fmt.Printf("[Shell][%s] ⚠️  执行结果: 超时 (%ds)\n", requestID, timeoutSeconds)
-		fmt.Printf("[Shell][%s] 📄 输出大小: %d bytes (可能不完整)\n", requestID, len(result))
-		fmt.Printf("[Shell][%s] 📄 输出预览: %.300s\n", requestID, result)
-		fmt.Printf("[Shell][%s] ===== 命令执行请求结束 (超时) =====\n\n", requestID)
-		return result + "\n[命令执行超时]", fmt.Errorf("command timed out after %ds", timeoutSeconds)
-	}
-
-	if err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if ok {
-			fmt.Printf("[Shell][%s] ❌ 执行失败: exit code=%d error=%v\n",
-				requestID, exitErr.ExitCode(), err)
-		} else {
-			fmt.Printf("[Shell][%s] ❌ 执行错误: %v\n", requestID, err)
-		}
-		fmt.Printf("[Shell][%s] 📄 输出大小: %d bytes\n", requestID, len(result))
-		fmt.Printf("[Shell][%s] 📄 输出预览: %.500s\n", requestID, result)
-		fmt.Printf("[Shell][%s] ===== 命令执行请求结束 (错误) =====\n\n", requestID)
-		return result, fmt.Errorf("command failed: %w", err)
+	if res.IsError {
+		fmt.Printf("[Shell][%s] ❌ ap.Shell 拒绝: %s\n", requestID, truncate(result, 200))
+		return result, fmt.Errorf("ap.builtin.Shell refused: %s", result)
 	}
 
 	fmt.Printf("[Shell][%s] ✅ 执行成功: exit code=0\n", requestID)

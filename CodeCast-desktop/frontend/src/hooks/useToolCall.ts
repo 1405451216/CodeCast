@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAppStore, AppState } from '../store';
 import type { ToolInvocation } from '../store/useToolsStore';
+import type { ToolCallResponse } from '@agentprimordia/sdk';
 import * as api from '../api';
 
 interface UseToolCallOptions {
@@ -9,7 +10,7 @@ interface UseToolCallOptions {
 }
 
 interface UseToolCallResult {
-  call: (args: Record<string, any>) => Promise<{ result: string; isError: boolean }>;
+  call: (args: Record<string, any>) => Promise<ToolCallResponse & { durationMs: number }>;
   loading: boolean;
   error: string | null;
   lastInvocation: ToolInvocation | null;
@@ -17,11 +18,11 @@ interface UseToolCallResult {
 
 /**
  * useToolCall 封装手动调用 Cast AP Tool 的逻辑。
- * 1. 通过 Wails 绑定 invoke 工具
+ * 1. 通过 Wails 动态 invoke Cast Tool（后端返回 SDK 兼容的 ToolCallResponse）
  * 2. 记录到 useToolsStore 历史
  * 3. 返回 loading/error 状态
  *
- * 主要用于 UI 面板上"手动触发"按钮（不是 AI 自动调用）。
+ * 类型完全从 @agentprimordia/sdk 导入，确保前后端类型一致。
  */
 export const useToolCall = (opts: UseToolCallOptions): UseToolCallResult => {
   const [loading, setLoading] = useState(false);
@@ -30,36 +31,41 @@ export const useToolCall = (opts: UseToolCallOptions): UseToolCallResult => {
   const addInvocation = useAppStore((s: AppState) => (s as any).addInvocation) as (inv: ToolInvocation) => void;
 
   const call = useCallback(
-    async (args: Record<string, any>) => {
+    async (args: Record<string, any>): Promise<ToolCallResponse & { durationMs: number }> => {
       setLoading(true);
       setError(null);
       const start = Date.now();
       try {
-        // 通过 Wails 动态 invoke Cast Tool
-        // 后端 Wails 暴露 GetToolHistory + ToolRegistry 可迭代
-        // 这里我们用通用 invoke (Wails 自动生成)
-        const argsJSON = JSON.stringify(args);
-        const result = await (window as any).go?.main?.App?.InvokeCastTool?.(opts.toolName, argsJSON);
+        // 后端 Wails 绑定（返回 JSON {content, isError}）
+        const result = await (window as any).go?.main?.App?.InvokeCastTool?.(opts.toolName, JSON.stringify(args));
         const duration = Date.now() - start;
-        const isError = !!result?.isError;
+        // 标准化为 SDK ToolCallResponse 格式
+        const response: ToolCallResponse = {
+          result: result?.content || '',
+          usage: { promptTokens: 0, completionTokens: 0 },
+        };
         const invocation: ToolInvocation = {
           id: `${opts.toolName}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           toolName: opts.toolName,
           category: opts.category,
-          args: argsJSON,
-          result: result?.content || '',
-          isError,
+          args: JSON.stringify(args),
+          result: response.result,
+          isError: !!result?.isError,
           sessionId: '',
           durationMs: duration,
           timestamp: Date.now(),
         };
         addInvocation(invocation);
         setLastInvocation(invocation);
-        return { result: invocation.result, isError };
+        return { ...response, durationMs: duration };
       } catch (e: any) {
         const errMsg = e?.message || String(e);
         setError(errMsg);
-        return { result: '', isError: true };
+        return {
+          result: '',
+          usage: { promptTokens: 0, completionTokens: 0 },
+          durationMs: Date.now() - start,
+        };
       } finally {
         setLoading(false);
       }

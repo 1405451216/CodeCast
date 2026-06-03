@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useAppStore, AppState } from '../../store';
-import type { ToolDefinition } from '../../store/useToolsStore';
+import type { CastTool } from '../../store/useToolsStore';
 import EmptyState from './EmptyState';
 
 interface ToolListProps {
-  onPick?: (tool: ToolDefinition) => void;
+  onPick?: (tool: CastTool) => void;
 }
 
 interface CategoryMeta {
@@ -48,7 +48,7 @@ const PREFERRED_ORDER = [
  * - 点击触发 onPick（默认行为：注入到对话输入框）
  */
 export const ToolList: React.FC<ToolListProps> = ({ onPick }) => {
-  const catalog = useAppStore((s: AppState) => (s as any).catalog) as ToolDefinition[];
+  const catalog = useAppStore((s: AppState) => (s as any).catalog) as CastTool[];
   const setActiveTool = useAppStore((s: AppState) => (s as any).setActiveTool) as (id: string | null) => void;
   const [search, setSearch] = useState('');
 
@@ -65,7 +65,7 @@ export const ToolList: React.FC<ToolListProps> = ({ onPick }) => {
   }, [catalog, search]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, ToolDefinition[]>();
+    const map = new Map<string, CastTool[]>();
     for (const t of filtered) {
       const list = map.get(t.category) || [];
       list.push(t);
@@ -74,7 +74,7 @@ export const ToolList: React.FC<ToolListProps> = ({ onPick }) => {
     // 按 PREFERRED_ORDER 排序，未知类别追加到末尾
     const known = PREFERRED_ORDER.filter((c) => map.has(c));
     const unknown = Array.from(map.keys()).filter((c) => !PREFERRED_ORDER.includes(c)).sort();
-    return [...known, ...unknown].map((c) => [c, map.get(c)!] as [string, ToolDefinition[]]);
+    return [...known, ...unknown].map((c) => [c, map.get(c)!] as [string, CastTool[]]);
   }, [filtered]);
 
   if (!catalog || catalog.length === 0) {

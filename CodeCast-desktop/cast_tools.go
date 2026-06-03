@@ -94,6 +94,8 @@ func (a *App) RegisterCastTools(toolkit *ap.ToolRegistry) error {
 		// 工具箱
 		registerTodoTools,
 		registerMiscTools,
+		// 项目文件
+		registerProjectTools,
 		// 管理类
 		registerPluginTools,
 		registerSandboxTools,

@@ -1,5 +1,11 @@
 import type { SliceSet } from './storeTypes';
 
+// 从 @agentprimordia/sdk 导入基础类型
+import type { ToolCallResponse, ToolDefinition } from '@agentprimordia/sdk';
+
+export type { ToolCallResponse, ToolDefinition } from '@agentprimordia/sdk';
+export type CastTool = ToolDefinition & { category: string };
+
 export interface ToolInvocation {
   id: string;
   toolName: string;
@@ -12,22 +18,16 @@ export interface ToolInvocation {
   timestamp: number;
 }
 
-export interface ToolDefinition {
-  name: string;
-  category: string;
-  description: string;
-}
-
 export interface ToolsSlice {
   invocations: ToolInvocation[];
   addInvocation: (inv: ToolInvocation) => void;
   clearHistory: () => void;
   getHistoryBySession: (sessionId: string, limit?: number) => ToolInvocation[];
 
-  catalog: ToolDefinition[];
-  setCatalog: (catalog: ToolDefinition[]) => void;
-  getTool: (name: string) => ToolDefinition | undefined;
-  getToolsByCategory: (category: string) => ToolDefinition[];
+  catalog: CastTool[];
+  setCatalog: (catalog: CastTool[]) => void;
+  getTool: (name: string) => CastTool | undefined;
+  getToolsByCategory: (category: string) => CastTool[];
 
   activeToolId: string | null;
   setActiveTool: (id: string | null) => void;
@@ -58,13 +58,13 @@ export const createToolsSlice = (set: SliceSet): ToolsSlice => ({
 
   getTool: (name) => {
     const state = (set as any).getState?.() || {};
-    const catalog = (state.catalog as ToolDefinition[]) || [];
+    const catalog = (state.catalog as CastTool[]) || [];
     return catalog.find((t) => t.name === name);
   },
 
   getToolsByCategory: (category) => {
     const state = (set as any).getState?.() || {};
-    const catalog = (state.catalog as ToolDefinition[]) || [];
+    const catalog = (state.catalog as CastTool[]) || [];
     return catalog.filter((t) => t.category === category);
   },
 

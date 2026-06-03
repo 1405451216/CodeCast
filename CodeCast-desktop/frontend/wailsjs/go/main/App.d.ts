@@ -120,7 +120,7 @@ export function GetToolHistory(arg1:string,arg2:number):Promise<Array<main.CastT
 
 export function GetUpdateHistory():Promise<Array<main.UpdateRecord>>;
 
-export function GetWorkspaceFiles(arg1:string):Promise<Array<main.FileEntry>>;
+export function GetWorkspaceFiles(arg1:string):Promise<Array<string>>;
 
 export function ImportSkill(arg1:string):Promise<main.Skill>;
 

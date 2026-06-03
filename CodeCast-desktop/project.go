@@ -6,26 +6,33 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+
+	ap "agentprimordia/pkg"
 )
 
 // ==================== Project ====================
+// Project 是用户在 workspace 中注册的工作目录。
+// 文件操作（List/Read/Write）已迁移到 ap.builtin.FileSystem + cast_project_* Tool。
+// 本文件只管 Project 列表 + 路径白名单。
 
 type Project struct {
-	ID               string `json:"id"`
-	Path             string `json:"path"`
-	Name             string `json:"name"`
-	CreatedAt        int64  `json:"created_at"`
-	LastAccessedAt   int64  `json:"last_accessed_at"`
-	CustomInstructions string `json:"custom_instructions,omitempty"`
+	ID                  string `json:"id"`
+	Path                string `json:"path"`
+	Name                string `json:"name"`
+	CreatedAt           int64  `json:"created_at"`
+	LastAccessedAt      int64  `json:"last_accessed_at"`
+	CustomInstructions  string `json:"custom_instructions,omitempty"`
 }
+
+const projectsFileName = "projects.json"
 
 func (a *App) GetProjects() []Project {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-
 	result := make([]Project, len(a.projects))
 	copy(result, a.projects)
 	return result
@@ -33,350 +40,68 @@ func (a *App) GetProjects() []Project {
 
 func (a *App) AddProject(path string) (Project, error) {
 	if path == "" {
-		return Project{}, fmt.Errorf("路径不能为空")
+		return Project{}, fmt.Errorf("path is empty")
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return Project{}, fmt.Errorf("invalid path: %w", err)
+	}
+	if _, err := os.Stat(abs); err != nil {
+		return Project{}, fmt.Errorf("path not accessible: %w", err)
 	}
 
-	path = filepath.Clean(path)
-
-	info, err := os.Stat(path)
-	if err != nil || !info.IsDir() {
-		return Project{}, fmt.Errorf("无效的文件夹路径")
-	}
-
-	name := filepath.Base(path)
-	now := time.Now().Unix()
-	project := Project{
-		ID:                 fmt.Sprintf("proj_%d", time.Now().UnixNano()),
-		Path:               path,
-		Name:               name,
-		CreatedAt:          now,
-		LastAccessedAt:     now,
-		CustomInstructions: "",
+	// 基础路径安全检查
+	if strings.Contains(filepath.Clean(abs), "..") {
+		return Project{}, fmt.Errorf("path contains '..' (potential traversal)")
 	}
 
 	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	for _, p := range a.projects {
-		if p.Path == path {
+		if p.Path == abs {
+			a.mu.Unlock()
 			return p, nil
 		}
 	}
-
-	a.projects = append(a.projects, project)
-	if err := a.saveProjectsToDisk(a.projects); err != nil {
-		fmt.Printf("warning: save projects failed: %v\n", err)
+	project := Project{
+		ID:             generateID("proj"),
+		Path:           abs,
+		Name:           filepath.Base(abs),
+		CreatedAt:      time.Now().Unix(),
+		LastAccessedAt: time.Now().Unix(),
 	}
+	a.projects = append(a.projects, project)
+	toSave := append([]Project{}, a.projects...)
+	a.mu.Unlock()
+
+	a.saveProjectsToDisk(toSave)
 	return project, nil
 }
 
 func (a *App) RemoveProject(path string) error {
-	path = filepath.Clean(path)
-
 	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	for i, p := range a.projects {
 		if p.Path == path {
 			a.projects = append(a.projects[:i], a.projects[i+1:]...)
-			if err := a.saveProjectsToDisk(a.projects); err != nil {
-				fmt.Printf("warning: save projects failed: %v\n", err)
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("项目不存在")
-}
-
-func (a *App) loadProjectsFromDisk() []Project {
-	projectsPath := filepath.Join(filepath.Dir(a.settingsPath), "projects.json")
-	data, err := os.ReadFile(projectsPath)
-	if err != nil {
-		return []Project{}
-	}
-	var projects []Project
-	if err := json.Unmarshal(data, &projects); err != nil {
-		return []Project{}
-	}
-	for i := range projects {
-		projects[i].Path = filepath.Clean(projects[i].Path)
-		if projects[i].ID == "" {
-			projects[i].ID = fmt.Sprintf("proj_%d_%d", time.Now().UnixNano(), i)
-		}
-		// 兼容旧版 projects.json：缺少时间戳字段时跳过，避免前端显示 1970 年
-		if projects[i].CreatedAt == 0 {
-			projects[i].CreatedAt = projects[i].LastAccessedAt
-		}
-	}
-	return projects
-}
-
-func (a *App) saveProjectsToDisk(projects []Project) error {
-	projectsPath := filepath.Join(filepath.Dir(a.settingsPath), "projects.json")
-	data, err := json.MarshalIndent(projects, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal projects failed: %v", err)
-	}
-	if err := os.WriteFile(projectsPath, data, 0600); err != nil {
-		return fmt.Errorf("write projects file failed: %v", err)
-	}
-	return nil
-}
-
-// ==================== Path Sandbox ====================
-
-func (a *App) isPathAllowed(targetPath string) error {
-	absPath, err := filepath.Abs(targetPath)
-	if err != nil {
-		return fmt.Errorf("无法解析路径: %v", err)
-	}
-	absPath = filepath.Clean(absPath)
-
-	if a.noProjectMode {
-		tmpDir, err := os.UserCacheDir()
-		if err != nil {
-			tmpDir = os.TempDir()
-		}
-		codecastDir := filepath.Join(tmpDir, "codecast-workspace")
-		os.MkdirAll(codecastDir, 0700)
-		return nil
-	}
-
-	if len(a.projects) == 0 {
-		return fmt.Errorf("没有可访问的项目目录，请先选择一个项目")
-	}
-
-	for _, p := range a.projects {
-		dir := filepath.Clean(p.Path)
-		if absPath == dir || strings.HasPrefix(absPath, dir+string(filepath.Separator)) {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("路径 %s 不在允许的项目目录内", absPath)
-}
-
-// ==================== File Operations ====================
-
-func (a *App) ListFiles(path string) ([]string, error) {
-	if path == "" {
-		path = "."
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if err := a.isPathAllowed(path); err != nil {
-		return nil, err
-	}
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-	var files []string
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() {
-			name += "/"
-		}
-		files = append(files, name)
-	}
-	return files, nil
-}
-
-func (a *App) ReadFile(path string) (string, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if err := a.isPathAllowed(path); err != nil {
-		return "", err
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		return "", err
-	}
-	if info.Size() > MaxReadFileSize {
-		return "", fmt.Errorf("文件过大 (%s)，读取操作上限为 %s",
-			formatFileSize(info.Size()), formatFileSize(MaxReadFileSize))
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-
-	// AP EventBus replaces recordToolIfEnabled
-	a.emitToolEvent("ReadFile", fmt.Sprintf("读取了 %s (%s)", path, formatFileSize(info.Size())))
-
-	return string(data), nil
-}
-
-func (a *App) WriteFile(path, content string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if err := a.isPathAllowed(path); err != nil {
-		return err
-	}
-
-	dir := filepath.Dir(path)
-	if err := a.isPathAllowed(dir); err != nil {
-		return fmt.Errorf("目标目录不在允许范围内: %v", err)
-	}
-
-	contentSize := int64(len(content))
-	if contentSize > MaxWriteFileSize {
-		return fmt.Errorf("写入内容过大 (%s)，写入操作上限为 %s",
-			formatFileSize(contentSize), formatFileSize(MaxWriteFileSize))
-	}
-
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("创建目录失败: %v", err)
-	}
-
-	err := os.WriteFile(path, []byte(content), 0644)
-	if err != nil {
-		return err
-	}
-
-	// AP EventBus replaces recordToolIfEnabled
-	a.emitToolEvent("WriteFile", fmt.Sprintf("写入了 %s (%s)", path, formatFileSize(contentSize)))
-
-	if a.settings.AutoCommit {
-		go a.gitAutoCommit(path)
-	}
-
-	return nil
-}
-
-// ==================== File Dialog ====================
-
-func (a *App) SelectFile() (string, error) {
-	result, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "选择文件",
-		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "所有文件", Pattern: "*.*"},
-			{DisplayName: "图片", Pattern: "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp"},
-			{DisplayName: "文档", Pattern: "*.txt;*.md;*.pdf;*.doc;*.docx"},
-			{DisplayName: "代码", Pattern: "*.go;*.js;*.ts;*.py;*.java;*.c;*.cpp;*.h"},
-		},
-	})
-	if err != nil {
-		return "", err
-	}
-	return result, nil
-}
-
-func (a *App) SelectMultipleFiles() ([]string, error) {
-	results, err := wailsRuntime.OpenMultipleFilesDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "选择文件",
-		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "所有文件", Pattern: "*.*"},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
-}
-
-func (a *App) SelectFolder() (string, error) {
-	result, err := wailsRuntime.OpenDirectoryDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "选择项目文件夹",
-	})
-	if err != nil {
-		return "", err
-	}
-	return result, nil
-}
-
-// ==================== Workspace Files Panel ====================
-
-type FileEntry struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	IsDir   bool   `json:"is_dir"`
-	Size    int64  `json:"size"`
-	ModTime string `json:"mod_time"`
-}
-
-func (a *App) GetWorkspaceFiles(dirPath string) ([]FileEntry, error) {
-	a.mu.Lock()
-	if dirPath == "" {
-		if len(a.projects) > 0 {
-			dirPath = a.projects[0].Path
-		}
-		if dirPath == "" {
+			toSave := append([]Project{}, a.projects...)
 			a.mu.Unlock()
-			return nil, fmt.Errorf("no workspace directory")
+			a.saveProjectsToDisk(toSave)
+			return nil
 		}
-	}
-
-	if err := a.isPathAllowed(dirPath); err != nil {
-		a.mu.Unlock()
-		return nil, err
 	}
 	a.mu.Unlock()
-
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read directory: %w", err)
-	}
-
-	result := make([]FileEntry, 0, len(entries))
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), ".") {
-			continue
-		}
-		info, err := e.Info()
-		if err != nil {
-			continue
-		}
-		result = append(result, FileEntry{
-			Name:    e.Name(),
-			Path:    filepath.Join(dirPath, e.Name()),
-			IsDir:   e.IsDir(),
-			Size:    info.Size(),
-			ModTime: info.ModTime().Format("2006-01-02 15:04"),
-		})
-	}
-	return result, nil
+	return fmt.Errorf("project not found: %s", path)
 }
-
-func (a *App) ReadFileContent(filePath string) (string, error) {
-	a.mu.Lock()
-	if err := a.isPathAllowed(filePath); err != nil {
-		a.mu.Unlock()
-		return "", err
-	}
-	a.mu.Unlock()
-
-	info, err := os.Stat(filePath)
-	if err != nil {
-		return "", fmt.Errorf("文件未找到: %w", err)
-	}
-	if info.Size() > MaxPreviewFileSize {
-		return "", fmt.Errorf("文件过大 (%s)，预览操作上限为 %s",
-			formatFileSize(info.Size()), formatFileSize(MaxPreviewFileSize))
-	}
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("读取文件失败: %w", err)
-	}
-	return string(data), nil
-}
-
-// ==================== Current Project ====================
 
 func (a *App) SetCurrentProject(id string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.currentProjectID = id
-	// 更新最后访问时间
 	for i, p := range a.projects {
 		if p.ID == id {
+			a.currentProjectID = id
 			a.projects[i].LastAccessedAt = time.Now().Unix()
-			break
+			toSave := append([]Project{}, a.projects...)
+			go a.saveProjectsToDisk(toSave)
+			return
 		}
 	}
 }
@@ -387,29 +112,203 @@ func (a *App) GetCurrentProject() *Project {
 	return a.getCurrentProjectLocked()
 }
 
-// UpdateProjectInstructions 更新项目的自定义指令
-func (a *App) UpdateProjectInstructions(id, instructions string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	for i, p := range a.projects {
-		if p.ID == id {
-			a.projects[i].CustomInstructions = instructions
-			return a.saveProjectsToDisk(a.projects)
-		}
-	}
-	return fmt.Errorf("项目不存在: %s", id)
-}
-
-// getCurrentProjectLocked does the same as GetCurrentProject but assumes caller holds a.mu.
 func (a *App) getCurrentProjectLocked() *Project {
-	if a.currentProjectID == "" {
-		return nil
-	}
-	for _, p := range a.projects {
+	for i, p := range a.projects {
 		if p.ID == a.currentProjectID {
-			return &p
+			return &a.projects[i]
 		}
 	}
 	return nil
 }
+
+func (a *App) UpdateProjectInstructions(id, instructions string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for i, p := range a.projects {
+		if p.ID == id {
+			a.projects[i].CustomInstructions = instructions
+			toSave := append([]Project{}, a.projects...)
+			go a.saveProjectsToDisk(toSave)
+			return nil
+		}
+	}
+	return fmt.Errorf("project not found: %s", id)
+}
+
+func (a *App) loadProjectsFromDisk() []Project {
+	path := filepath.Join(filepath.Dir(a.settingsPath), projectsFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var projects []Project
+	if err := json.Unmarshal(data, &projects); err != nil {
+		return nil
+	}
+	return projects
+}
+
+func (a *App) saveProjectsToDisk(projects []Project) error {
+	if a.settingsPath == "" {
+		return nil
+	}
+	path := filepath.Join(filepath.Dir(a.settingsPath), projectsFileName)
+	data, err := json.MarshalIndent(projects, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+func (a *App) isPathAllowed(targetPath string) error {
+	if targetPath == "" {
+		return fmt.Errorf("path is empty")
+	}
+	cleaned := filepath.Clean(targetPath)
+	if strings.Contains(cleaned, "..") {
+		return fmt.Errorf("path contains '..' (potential traversal)")
+	}
+
+	// 必须在已注册 project 目录内
+	a.mu.RLock()
+	projectPaths := make([]string, len(a.projects))
+	for i, p := range a.projects {
+		projectPaths[i] = p.Path
+	}
+	noProjectMode := a.noProjectMode
+	a.mu.RUnlock()
+
+	if len(projectPaths) == 0 && !noProjectMode {
+		return fmt.Errorf("no project configured")
+	}
+
+	if noProjectMode {
+		return nil
+	}
+
+	abs, err := filepath.Abs(targetPath)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+	for _, pp := range projectPaths {
+		absPP, _ := filepath.Abs(pp)
+		if abs == absPP || strings.HasPrefix(abs, absPP+string(filepath.Separator)) {
+			return nil
+		}
+	}
+	return fmt.Errorf("path outside registered projects: %s", abs)
+}
+
+// ==================== File System Operations via AP ====================
+// 以下方法保留 Wails 绑定签名（前端 FilesPanel 依赖），
+// 内部实现转发到 ap.builtin.FileSystem Execute。
+
+// fsExecutor 缓存 per-project 的 FileSystem 实例
+var fsExecutor = struct {
+	sync.RWMutex
+	cache map[string]ap.Tool
+}{cache: make(map[string]ap.Tool)}
+
+func getFileSystemFor(path string) (ap.Tool, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	fsExecutor.RLock()
+	if fs, ok := fsExecutor.cache[abs]; ok {
+		fsExecutor.RUnlock()
+		return fs, nil
+	}
+	fsExecutor.RUnlock()
+	fs, err := ap.NewFileSystem(abs)
+	if err != nil {
+		return nil, fmt.Errorf("init filesystem: %w", err)
+	}
+	fsExecutor.Lock()
+	fsExecutor.cache[abs] = fs
+	fsExecutor.Unlock()
+	return fs, nil
+}
+
+// dispatchFS 通用转发：调 FileSystem.Execute
+func dispatchFS(rootPath string, action string, params map[string]any) (*ap.ToolResult, error) {
+	fs, err := getFileSystemFor(rootPath)
+	if err != nil {
+		return &ap.ToolResult{Content: err.Error(), IsError: true}, nil
+	}
+	params["action"] = action
+	argsJSON, _ := json.Marshal(params)
+	return fs.Execute(nil, argsJSON)
+}
+
+// ListFiles 列出目录文件
+func (a *App) ListFiles(path string) ([]string, error) {
+	res, err := dispatchFS(path, "list", map[string]any{"path": path})
+	if err != nil {
+		return nil, err
+	}
+	if res.IsError {
+		return nil, fmt.Errorf("%s", res.Content)
+	}
+	var list []string
+	if err := json.Unmarshal([]byte(res.Content), &list); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// ReadFile 读文件
+func (a *App) ReadFile(path string) (string, error) {
+	res, err := dispatchFS(path, "read", map[string]any{"path": path})
+	if err != nil {
+		return "", err
+	}
+	if res.IsError {
+		return "", fmt.Errorf("%s", res.Content)
+	}
+	return res.Content, nil
+}
+
+// WriteFile 写文件
+func (a *App) WriteFile(path, content string) error {
+	res, err := dispatchFS(path, "write", map[string]any{"path": path, "content": content})
+	if err != nil {
+		return err
+	}
+	if res.IsError {
+		return fmt.Errorf("%s", res.Content)
+	}
+	return nil
+}
+
+// GetWorkspaceFiles 列出工作区所有文件（顶层）
+// 详细元数据请用 cast_project_list_files Tool + ap.builtin.FileSystem
+func (a *App) GetWorkspaceFiles(dirPath string) ([]string, error) {
+	return a.ListFiles(dirPath)
+}
+
+// ReadFileContent 同 ReadFile（保留兼容）
+func (a *App) ReadFileContent(filePath string) (string, error) {
+	return a.ReadFile(filePath)
+}
+
+// SelectFile / SelectMultipleFiles / SelectFolder 用 Wails runtime dialog
+func (a *App) SelectFile() (string, error) {
+	return wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "选择文件",
+	})
+}
+
+func (a *App) SelectMultipleFiles() ([]string, error) {
+	return wailsRuntime.OpenMultipleFilesDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "选择文件",
+	})
+}
+
+func (a *App) SelectFolder() (string, error) {
+	return wailsRuntime.OpenDirectoryDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "选择目录",
+	})
+}
+
+// SetNoProjectMode / GetNoProjectMode 在 config.go 已有，删除这里的重复实现

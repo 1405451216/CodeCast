@@ -1,9 +1,12 @@
-// 工具类型 - 已迁移到 AP Tool（cast_tools_*）
-export interface CastTool {
-  name: string;
-  description: string;
+import type { ToolDefinition } from '@agentprimordia/sdk';
+
+// 工具类型 - 现在从 @agentprimordia/sdk 导入
+export type { ToolDefinition, ToolCallRequest, ToolCallResponse } from '@agentprimordia/sdk';
+
+// ToolDefinition UI 扩展（添加 category 字段）
+export interface CastTool extends ToolDefinition {
   category: string;
 }
-export interface AgentTool extends CastTool {
-  parameters: Record<string, any>;
-}
+
+// 兼容旧引用（已废弃）
+export type AgentTool = CastTool;
