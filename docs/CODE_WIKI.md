@@ -72,33 +72,58 @@ E:\codecast (2)\CodeCast\
 
 ### 2.1 三层架构
 
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend (React 18 + TypeScript)"]
+        direction LR
+        Sidebar["Sidebar<br/>会话 + 文件"]
+        MessagesView["MessagesView<br/>对话流 + CastToolCall"]
+        ToolPanel["ToolPanel<br/>工具目录 + 历史"]
+    end
+
+    subgraph Backend["Backend (Go 1.26 + Wails)"]
+        direction TB
+        Chat["chat.go<br/>SendMessage"]
+        Project["project.go<br/>File ops"]
+        Shell["shell.go<br/>Command exec"]
+        CastTools["cast_tools_*.go<br/>48 AP Tools"]
+        Session["session.go<br/>CRUD"]
+        Main["main.go<br/>startup"]
+    end
+
+    subgraph AP["AgentPrimordia Framework"]
+        direction TB
+        LLM["ap.llm<br/>9+1 Provider"]
+        Agent["ap.ReActAgent<br/>推理循环"]
+        Memory["ap.Memory<br/>SQLite FTS5"]
+        Pool["ap.Pool<br/>多 Agent 调度"]
+        Tools["ap.Toolkit + ap.builtin<br/>FileSystem / Shell / Vision"]
+        Hook["ap.Hook + ap.Guardrail<br/>拦截 + 安全"]
+        Bus["ap.Bus + ap.Metrics<br/>事件 + 指标"]
+    end
+
+    Sidebar <-->|"Wails Bindings<br/>(JSON-RPC)"| Main
+    MessagesView <--> Chat
+    ToolPanel <--> CastTools
+
+    Main --> Chat
+    Main --> CastTools
+    Chat --> Agent
+    Chat --> Memory
+    Chat --> Tools
+    Chat --> Hook
+    Project --> Tools
+    Shell --> Tools
+    CastTools --> Tools
+    Agent --> LLM
+    Pool --> Agent
+    Hook --> Bus
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ Frontend (React 18 + TypeScript 5.4)                        │
-│ ┌──────────┬────────────────────────┬──────────────┐         │
-│ │ Sidebar  │  MessagesView          │  ToolPanel   │         │
-│ │ 会话+文件│  对话流 + CastToolCall │  工具目录     │         │
-│ └──────────┴────────────────────────┴──────────────┘         │
-│       ↕ Wails Events  ↕ window.go.*  (JSON-RPC)            │
-├─────────────────────────────────────────────────────────────┤
-│ Backend (Go 1.26 + Wails v2.12)                              │
-│   App (Wails Bindings)                                        │
-│   ├─ chat.go: SendMessage → ap.ReActAgent                   │
-│   ├─ project.go: 项目管理 + ap.builtin.FileSystem            │
-│   ├─ shell.go: ExecuteCommand → ap.builtin.Shell             │
-│   ├─ cast_tools_*.go: 48 个 AP Tool                          │
-│   ├─ session.go / persistence.go: 会话 CRUD                   │
-│   └─ main.go: startup → 初始化 AP + 注册 Tool               │
-│       ↕ go.mod (require agentprimordia)                      │
-├─────────────────────────────────────────────────────────────┤
-│ AgentPrimordia Framework (E:\codecast (2)\agentprimordia\)   │
-│   ap.llm: 9+1 Provider    ap.ReActAgent: Agent 引擎          │
-│   ap.Memory: SQLite FTS5  ap.Pool: 多 Agent 调度             │
-│   ap.Toolkit: Tool 注册    ap.builtin: FileSystem/Shell      │
-│   ap.Hook: 拦截机制       ap.Guardrail: 安全                 │
-│   ap.Bus: 事件总线        ap.Metrics: 指标                   │
-└─────────────────────────────────────────────────────────────┘
-```
+
+**说明**：
+- **Frontend**：3 栏布局，左侧 Sidebar/中间消息流/右侧 ToolPanel，通过 Wails Bindings 与后端通信
+- **Backend**：Go 实现，49 个 .go 文件围绕 `App` struct 展开
+- **AP Framework**：通过 go.mod `replace` 指令本地引用，提供所有 agent/memory/tool 能力
 
 ### 2.2 关键设计原则
 
@@ -106,7 +131,99 @@ E:\codecast (2)\CodeCast\
 2. **单 App 单 Wails 绑定**：所有 Wails 绑定方法是 `App` 类型的方法
 3. **工具通过 ToolRegistry 注册**：AI 在 ReAct 循环中自动选择调用
 4. **3 栏 UI**：Sidebar（会话/文件）| Messages（消息流）| ToolPanel（工具目录+历史）
-5. **Zustand slice 模式**：15 个状态切片，组合到 `useAppStore`
+5. **Zustand slice 模式**：18 个状态切片，组合到 `useAppStore`
+
+### 2.3 完整时序图（用户发送消息 → AI 调 Tool → 返回）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant CI as ChatInput.tsx
+    participant UC as useChatSender
+    participant W as Wails Bridge
+    participant Chat as chat.go:SendMessage
+    participant Agent as ap.ReActAgent
+    participant LLM as LLM Provider<br/>(OpenAI/...)
+    participant Hook as ap.HookManager
+    participant Tool as castTool
+    participant Cast as castToolXxx()
+    participant AP as ap.Tool/builtin
+    participant TV as ToolPanel
+
+    User->>CI: 输入文本 + Enter
+    CI->>UC: handleSendMessage(text)
+    UC->>W: window.go.App.SendMessage(sid, text)
+    W->>Chat: App.SendMessage(sid, text)
+
+    Chat->>Agent: getOrCreateAgent(sid) [缓存或新建]
+    Chat->>Agent: StreamRun(ctx, UserMessage(text))
+    loop ReAct 循环（最多 20 轮）
+        Agent->>LLM: Complete(messages + 48 tool defs)
+        LLM-->>Agent: response（文本 or tool_call）
+
+        alt LLM 决定调 Tool
+            Agent->>Hook: Fire(HookBeforeTool, ctx)
+            Hook-->>Agent: 继续（Checkpoint 检查）
+
+            Agent->>Tool: castTool.Execute(ctx, args)
+            Tool->>Cast: t.execute(ctx, t.app, args)  // 闭包注入
+            Cast->>AP: castLLM / memory.Search / FileSystem.Execute
+            AP-->>Cast: result
+            Cast-->>Tool: *ToolResult
+            Tool-->>Agent: result
+            Tool->>TV: recordCastInvocation()  // 写历史
+            Agent->>Agent: ToolResult 加入 messages
+        else LLM 返回 final
+            Agent-->>Chat: stream 结束
+        end
+    end
+
+    Chat-->>W: []Message
+    W-->>UC: SendMessage return
+    UC->>CI: 触发 store 更新
+    CI-->>User: 渲染消息流（含 CastToolCall 卡片）
+
+    par 异步事件
+        Hook->>W: wailsRuntime.EventsEmit("agent:tool", payload)
+        W-->>TV: Wails Events
+        TV->>TV: 更新 invocations 列表
+    end
+```
+
+### 2.4 Cast Tool 生命周期（ER 图）
+
+```mermaid
+erDiagram
+    App ||--o{ Session : "manages"
+    App ||--o{ Project : "manages"
+    App ||--||{ castToolRegistry : "owns"
+    App ||--|| ap.Agent : "ReActAgent"
+    App ||--|| ap.Toolkit : "registers 48 tools"
+    App ||--|| ap.Memory : "episodes"
+    App ||--|| ap.Bus : "events"
+
+    castToolRegistry ||--o{ CastToolInvocation : "history[]"
+    castToolRegistry ||--o{ castTool : "tools[]"
+
+    castTool ||--|| ap.Tool : "implements"
+    castTool ||--o| App : "app injected"
+    castTool ||--|| castLLM : "calls for LLM tools"
+
+    Session ||--o{ Message : "messages[]"
+    Session ||--o{ Skill : "uses"
+
+    Project ||--o{ Project : "nested paths"
+    Project ||--o{ ap.FileSystem : "dispatchFS"
+
+    Message ||--o{ CastToolCall : "embedded"
+    CastToolCall }o--|| castTool : "displays"
+
+    ap.Agent ||--|| ap.LLM : "Model"
+    ap.Agent ||--|| ap.Toolkit : "tools"
+    ap.Agent ||--|| ap.Memory : "episodes"
+    ap.Agent ||--o{ ap.Hook : "fires"
+```
 
 ---
 
@@ -578,6 +695,88 @@ castTool → a.castToolProjectWriteFile(ctx, args)
    └─ a.recordCastInvocation("cast_project_write_file", ...)
 ```
 
+### 6.4 ReAct Loop 状态机
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+
+    Idle --> BuildingPrompt: User input
+    BuildingPrompt --> CallingLLM: Add 48 tool defs + history
+
+    CallingLLM --> ParsingResponse: API response
+    CallingLLM --> Error: API 错误 / 超时
+    Error --> BuildingPrompt: 重试 (n<3)
+
+    ParsingResponse --> Streaming: 文本 token
+    ParsingResponse --> ToolDispatch: 收到 tool_call
+    ParsingResponse --> Done: LLM 主动结束
+
+    ToolDispatch --> HookBefore: Fire BeforeTool
+    HookBefore --> Checkpoint: 高危 Tool?
+    Checkpoint --> UserConfirm: 等用户
+    UserConfirm --> Checkpoint: 批准/拒绝
+    Checkpoint --> ToolExec: 通过
+    Checkpoint --> ToolReject: 拒绝
+    ToolReject --> BuildingPrompt: 反馈给 LLM
+
+    ToolExec --> RecordInvocation: 写历史
+    RecordInvocation --> BuildingPrompt: Tool result 加入 messages
+
+    Streaming --> BuildingPrompt: 继续下一轮
+    Done --> [*]
+    ToolReject --> Done: 用户拒绝次数过多
+```
+
+**状态说明**：
+- **Idle** → 等待用户输入
+- **BuildingPrompt** → 构造 messages + 48 tool definitions
+- **CallingLLM** → HTTP 请求到 LLM Provider
+- **ParsingResponse** → 解析 LLM 输出（文本 / tool_call / 结束标记）
+- **ToolDispatch** → 调 HookBefore 检查后执行
+- **Checkpoint** → 高危 Tool（write_file/run_command）需要用户确认
+- **RecordInvocation** → 写 castToolRegistry.history
+
+### 6.5 部署架构
+
+```mermaid
+flowchart LR
+    subgraph Desktop["用户桌面（Windows/macOS/Linux）"]
+        subgraph App["CodeCast 进程"]
+            Go["Go Binary<br/>(~20MB)"]
+            WebView["WebView2<br/>(Win) / WebKit (Mac)<br/>gtk-webkit (Linux)"]
+            SQLite["SQLite<br/>memory.db<br/>checkpoints.db<br/>projects.json"]
+        end
+    end
+
+    subgraph Cloud["云端 LLM"]
+        OpenAI["OpenAI API<br/>gpt-4o / o3 / ..."]
+        Anthropic["Anthropic API<br/>claude-sonnet-4 / ..."]
+        Gemini["Google Gemini API<br/>gemini-1.5-pro / ..."]
+        Ollama["Ollama (本地)<br/>llama3 / qwen2 / ..."]
+    end
+
+    subgraph FileSystem["本地文件系统"]
+        CodeDir["项目目录<br/>(沙箱化)"]
+        Notes["~/.codecast/<br/>notes / sessions / settings.json"]
+    end
+
+    Go <-->|"HTTPS + Wails<br/>JSON-RPC"| WebView
+    Go --> SQLite
+    Go <-->|"HTTPS API"| OpenAI
+    Go <-->|"HTTPS API"| Anthropic
+    Go <-->|"HTTPS API"| Gemini
+    Go <-->|"HTTP (local)"| Ollama
+    Go <-->|"ap.builtin.FileSystem<br/>(沙箱)"| CodeDir
+    Go --> Notes
+```
+
+**安全特性**：
+- 所有 LLM 通信走 HTTPS（OpenAI/Anthropic/Gemini）
+- 文件操作通过 `ap.builtin.FileSystem` 沙箱（路径白名单 + 大小限制）
+- Shell 命令走 9 层 CodeCast 安全规则 + AP Shell 白名单（深度防御）
+- API Key 用 AES-256-GCM 加密存储在 `~/.codecast/`
+
 ---
 
 ## 7. 关键类与函数
@@ -590,6 +789,84 @@ castTool → a.castToolProjectWriteFile(ctx, args)
 - AP 框架：agent, pool, memory, ragStore, toolkit, castReg, mcpReg, eventBus, metricsCollector, guardrail, hooks, checkpointStore, lifecycle, sessionAgents, sessionCancels, checkpointConfirmations
 - 应用层：llmConfig, completor（已删）, notes（已删）
 - 并发：mu (sync.RWMutex), activeSessionID, memoryCleanupStop, taskSchedulerStop（已删）, migrationPending
+
+#### App struct 类图
+
+```mermaid
+classDiagram
+    class App {
+        +ctx context.Context
+        +settings *Settings
+        +sessions []*Session
+        +projects []Project
+        +llmConfig LLMProviderConfig
+        +mu sync.RWMutex
+        +AP 框架字段 (14 个)
+        +startup(ctx) Wails 入口
+        +shutdown(ctx) Wails 关闭
+    }
+
+    class Session {
+        +ID string
+        +Name string
+        +Mode string
+        +Messages []Message
+        +CreatedAt int64
+    }
+
+    class Message {
+        +Role string
+        +Content string
+        +ToolCalls []ToolCall
+        +Timestamp int64
+    }
+
+    class Project {
+        +ID string
+        +Path string
+        +Name string
+        +CustomInstructions string
+    }
+
+    class castTool {
+        -app *App
+        -name string
+        -category string
+        -description string
+        -parameters json.RawMessage
+        -execute func
+        +Name() string
+        +Description() string
+        +Parameters() json.RawMessage
+        +Execute(ctx, args) (ToolResult, error)
+    }
+
+    class castToolRegistry {
+        -history []CastToolInvocation
+        +recordInvocation(inv)
+        +getHistory() []CastToolInvocation
+    }
+
+    class CastToolInvocation {
+        +ID string
+        +ToolName string
+        +Category string
+        +Args string
+        +Result string
+        +IsError bool
+        +DurationMs int64
+    }
+
+    App "1" *-- "*" Session : manages
+    App "1" *-- "*" Project : manages
+    App "1" *-- "1" castToolRegistry : owns
+    App "1" *-- "48" castTool : registers
+    Session "1" *-- "*" Message : contains
+    castToolRegistry "1" *-- "*" CastToolInvocation : records
+    castTool ..> App : app injected at construct
+```
+
+---
 
 ### 7.2 核心方法清单
 
@@ -1068,6 +1345,41 @@ go test -run TestChat -v ./...
 - [docs/AP_INTEGRATION.md](docs/AP_INTEGRATION.md) — AP 框架深度融合总结
 - [docs/specs/](docs/specs/) — 历史设计与计划
 - AP 框架源码：`E:\codecast (2)\agentprimordia\`
+
+---
+
+## 附录 C：图示索引
+
+本 Wiki 共包含 **5 类 Mermaid 图**：
+
+| 图类型 | 位置 | 内容 |
+|--------|------|------|
+| **flowchart** (组件) | §2.1 | 三层架构：Frontend / Backend / AP |
+| **sequenceDiagram** (时序) | §2.3 | 完整 chat 流程：用户输入 → AI 调 Tool → 返回 |
+| **erDiagram** (实体) | §2.4 | 数据模型：App/Session/Project/castTool/Registry |
+| **stateDiagram-v2** (状态) | §6.4 | ReAct Loop 状态机：Idle → CallingLLM → ToolExec → Done |
+| **flowchart** (部署) | §6.5 | 部署架构：桌面进程 + LLM API + 本地文件 |
+| **classDiagram** (类图) | §7.1 后 | App struct + Session + castTool 关系 |
+
+### 渲染说明
+
+所有 Mermaid 图在以下环境自动渲染：
+- **GitHub**：自动渲染
+- **VS Code**：需装 "Markdown Preview Mermaid Support" 扩展
+- **Typora / Obsidian / MarkText**：自动渲染
+- **GitLab / Notion**：自动渲染
+- **本地查看**：`npx -y @mermaid-js/mermaid-cli -i docs/CODE_WIKI.md -o wiki.pdf`
+
+### Mermaid 速查
+
+```mermaid
+graph TD
+    A[开始] --> B{判断}
+    B -->|是| C[执行]
+    B -->|否| D[结束]
+```
+
+完整语法参考 [Mermaid 官方文档](https://mermaid.js.org/syntax/flowchart.html)。
 
 ---
 
