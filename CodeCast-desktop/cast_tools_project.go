@@ -99,6 +99,11 @@ func (a *App) castToolProjectReadFile(ctx context.Context, args json.RawMessage)
 	if err := json.Unmarshal(args, &in); err != nil {
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
 	}
+	// Validate that the file path is within an allowed project directory
+	if err := a.isPathAllowedBridge(in.FilePath); err != nil {
+		return a.recordCastInvocation("cast_project_read_file", "project", "", args,
+			"path not allowed: "+err.Error(), true, 0), nil
+	}
 	start := nowMs()
 	content, err := a.ReadFile(in.FilePath)
 	if err != nil {

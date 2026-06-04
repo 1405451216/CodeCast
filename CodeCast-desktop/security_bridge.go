@@ -1,0 +1,205 @@
+package main
+
+import (
+	"fmt"
+	"log/slog"
+	"path/filepath"
+
+	ap "agentprimordia/pkg"
+)
+
+// setupSecurityACL creates and configures the AP ACL with CodeCast's security rules.
+// The ACL governs path-based access control; command-level validation is handled by Sandbox.
+func setupSecurityACL(projectPaths []string) *ap.ACL {
+	acl := ap.NewACL()
+
+	// Deny sensitive system paths for all agents.
+	// ACL uses filepath.Clean + HasPrefix matching, so denying "/etc" blocks "/etc/passwd" too.
+	acl.Deny("*", "/etc/shadow")
+	acl.Deny("*", "/etc/sudoers")
+	acl.Deny("*", "/etc/ssh")
+	// Windows system paths
+	acl.Deny("*", `C:\Windows\System32\config`)
+	acl.Deny("*", `C:\Windows\System32\drivers\etc`)
+
+	// Allow read+write+execute within all project directories for all agents.
+	for _, pp := range projectPaths {
+		if pp != "" {
+			acl.Allow("*", pp, ap.AccessAll)
+		}
+	}
+
+	return acl
+}
+
+// setupSecuritySandbox creates and configures the AP Sandbox.
+// The Sandbox handles:
+//   - Dangerous character detection (; | & $ ` > < \n) — replaces chainOperators regex
+//   - Command allowlist/blocklist — replaces subAgentAllowedCommands / subAgentRestrictedCommands
+//   - Command name extraction from raw commands — replaces extractCommandName in validateCommand
+func setupSecuritySandbox(acl *ap.ACL) *ap.Sandbox {
+	sb := ap.NewSandbox(acl)
+
+	// ---- Allow safe development commands (replaces subAgentAllowedCommands) ----
+	// Compilers & build tools
+	for _, cmd := range []string{
+		"go", "gcc", "clang", "rustc",
+		"make", "cmake", "gradle", "mvn",
+		"tsc", "esbuild", "vite", "webpack",
+		"dotnet", "javac", "java",
+	} {
+		sb.AllowCommand(cmd)
+	}
+	// Package managers
+	for _, cmd := range []string{
+		"npm", "npx", "yarn", "pnpm",
+		"pip", "pip3", "poetry", "conda",
+		"cargo",
+	} {
+		sb.AllowCommand(cmd)
+	}
+	// Testing & linting
+	for _, cmd := range []string{
+		"jest", "mocha", "vitest", "pytest",
+		"eslint", "prettier", "gofmt", "gofumpt",
+		"ruff", "pylint", "black", "clang-format",
+		"rustfmt",
+	} {
+		sb.AllowCommand(cmd)
+	}
+	// Version control
+	sb.AllowCommand("git")
+	// File inspection (read-only or low-risk)
+	for _, cmd := range []string{
+		"type", "cat", "dir", "ls", "tree",
+		"findstr", "grep", "find", "head", "tail",
+		"wc", "stat", "file",
+	} {
+		sb.AllowCommand(cmd)
+	}
+	// Network diagnostics
+	for _, cmd := range []string{
+		"ping", "nslookup", "dig", "curl", "wget",
+	} {
+		sb.AllowCommand(cmd)
+	}
+	// Interpreters (allowed but shells are blocked below)
+	for _, cmd := range []string{
+		"node", "python", "python3", "ruby", "php",
+	} {
+		sb.AllowCommand(cmd)
+	}
+
+	// ---- Block dangerous commands (replaces subAgentRestrictedCommands + agentExtraDangerPatterns) ----
+	// Shell interpreters — too broad for sub-agents
+	for _, cmd := range []string{
+		"bash", "sh", "powershell", "pwsh",
+	} {
+		sb.BlockCommand(cmd)
+	}
+	// Destructive system commands
+	for _, cmd := range []string{
+		"rm", "mkfs", "format", "shutdown", "reboot",
+		"del", "rd",
+		// Windows-specific dangerous commands
+		"icacls", "mklink",
+		// Registry & scheduling
+		"reg", "schtasks",
+		// User management
+		"net",
+		// Background copy / PowerShell Invoke-Expression
+		"bcp", "bcpy",
+		// PowerShell interpreter
+		"powershell", "pwsh",
+	} {
+		sb.BlockCommand(cmd)
+	}
+
+	return sb
+}
+
+// validateCommandBridge replaces validateCommand from shell.go.
+// It delegates to AP Sandbox.CanExecute which checks:
+//   - Shell metacharacters (; | & $ ` > < \n) — replaces chainOperators
+//   - Blocked commands — replaces subAgentRestrictedCommands + dangerousPatterns
+//   - Allowlist enforcement — replaces subAgentAllowedCommands
+func (a *App) validateCommandBridge(agentID, agentMode, rawCmd string) error {
+	if a.sandbox == nil {
+		slog.Warn("[Security] Sandbox not initialized, skipping command validation",
+			"agentID", agentID, "cmd", rawCmd)
+		return nil
+	}
+
+	err := a.sandbox.CanExecute(agentID, rawCmd)
+	if err != nil {
+		name := extractCommandName(rawCmd)
+		dangerous := isDangerousCommandError(err)
+		slog.Info("[Security] command denied by AP Sandbox",
+			"agentID", agentID, "cmd", rawCmd, "reason", err.Error())
+		return &CommandDeniedError{
+			Reason:    fmt.Sprintf("命令被安全策略拦截: %s", err.Error()),
+			Command:   name,
+			Dangerous: dangerous,
+		}
+	}
+	return nil
+}
+
+// isPathAllowedBridge replaces isPathAllowed from project.go.
+// It uses AP Sandbox.ValidatePath which checks:
+//   - Path traversal ("..")
+//   - ACL rules for path-based access control
+//
+// Falls back to the original isPathAllowed logic if the sandbox is not initialized.
+func (a *App) isPathAllowedBridge(targetPath string) error {
+	if targetPath == "" {
+		return fmt.Errorf("path is empty")
+	}
+
+	// noProjectMode allows access to any path (same as the old isPathAllowed behavior)
+	a.mu.RLock()
+	noProjectMode := a.noProjectMode
+	a.mu.RUnlock()
+	if noProjectMode {
+		return nil
+	}
+
+	// Use sandbox for path validation if available.
+	// Sandbox.ValidatePath handles ".." traversal and ACL-based access control.
+	if a.sandbox != nil {
+		absPath, err := filepath.Abs(targetPath)
+		if err != nil {
+			return fmt.Errorf("invalid path: %w", err)
+		}
+		return a.sandbox.ValidatePath("codecast", absPath, ap.AccessRead)
+	}
+
+	// Fallback: delegate to the original isPathAllowed when sandbox is not ready.
+	return a.isPathAllowed(targetPath)
+}
+
+// isDangerousCommandError returns true if the error indicates a blocked or
+// inherently dangerous command (as opposed to simply not being allowlisted).
+func isDangerousCommandError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Errors containing "blocked" or "metacharacter" are considered dangerous.
+	// "not in allowed list" is a policy violation but not inherently dangerous.
+	errMsg := err.Error()
+	return containsAny(errMsg, "blocked", "metacharacter")
+}
+
+// containsAny checks if s contains any of the substrings.
+func containsAny(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if len(s) >= len(sub) {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}

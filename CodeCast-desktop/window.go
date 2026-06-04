@@ -89,28 +89,23 @@ func (a *App) SetPreferredEditor(editorID string) error {
 }
 
 func (a *App) OpenInEditor(dirPath string) error {
+	// Consolidate all lock-protected reads into a single acquisition to avoid TOCTOU.
+	a.mu.Lock()
 	if dirPath == "" {
-		a.mu.Lock()
-		projects := a.projects
-		a.mu.Unlock()
-		if len(projects) > 0 {
-			dirPath = projects[0].Path
-		}
-		if dirPath == "" {
-			return fmt.Errorf("no project directory specified")
+		if len(a.projects) > 0 {
+			dirPath = a.projects[0].Path
 		}
 	}
-
-	a.mu.Lock()
-	err := a.isPathAllowed(dirPath)
-	a.mu.Unlock()
-	if err != nil {
-		return fmt.Errorf("path not allowed: %v", err)
-	}
-
-	a.mu.Lock()
+	pathErr := a.isPathAllowedBridge(dirPath)
 	editorID := a.settings.OpenTarget
 	a.mu.Unlock()
+
+	if dirPath == "" {
+		return fmt.Errorf("no project directory specified")
+	}
+	if pathErr != nil {
+		return fmt.Errorf("path not allowed: %v", pathErr)
+	}
 
 	editors := a.GetAvailableEditors()
 	var targetCmd string

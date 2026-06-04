@@ -55,6 +55,8 @@ type App struct {
 	metricsExporter   *ap.MetricsExporter
 	guardrail         *ap.GuardrailEngine
 	guardrailHook     *ap.GuardrailHook
+	acl               *ap.ACL
+	sandbox           *ap.Sandbox
 	hooks             *ap.HookManager
 	checkpointStore   ap.CheckpointStore
 	lifecycle         *ap.Lifecycle
@@ -223,8 +225,24 @@ func (a *App) startup(ctx context.Context) {
 	a.guardrailHook = a.setupGuardrails() // checkpoint_hook.go
 	slog.Info("AP Guardrails 已启动")
 
-	// 5. AP Toolkit — DefaultToolkit(cfg ToolkitConfig) (*Registry, error)
+	// 4b. AP Security (ACL + Sandbox) — replaces hand-rolled security in shell.go
 	projectPath := ""
+	allProjectPaths := make([]string, 0, len(a.projects))
+	a.mu.RLock()
+	for _, p := range a.projects {
+		allProjectPaths = append(allProjectPaths, p.Path)
+	}
+	if cp := a.getCurrentProjectLocked(); cp != nil {
+		projectPath = cp.Path
+	}
+	a.mu.RUnlock()
+	a.acl = setupSecurityACL(allProjectPaths)
+	a.sandbox = setupSecuritySandbox(a.acl)
+	a.setGlobalValidateCommand()
+	slog.Info("AP Security (ACL+Sandbox) 已启动")
+
+	// 5. AP Toolkit — DefaultToolkit(cfg ToolkitConfig) (*Registry, error)
+	projectPath = ""
 	a.mu.RLock()
 	if cp := a.getCurrentProjectLocked(); cp != nil {
 		projectPath = cp.Path

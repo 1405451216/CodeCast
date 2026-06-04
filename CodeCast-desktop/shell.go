@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	crypto_rand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -15,18 +16,6 @@ import (
 
 // globalAPShell 共享的 ap.builtin.Shell 实例（带默认白名单 + 30s 超时）
 var globalAPShell = ap.NewShell().WithTimeout(30 * time.Second)
-
-var dangerousPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`\brm\s+-rf\s+/`),
-	regexp.MustCompile(`\bmkfs\b`),
-	regexp.MustCompile(`\bshutdown\s`),
-	regexp.MustCompile(`\breboot\b`),
-	regexp.MustCompile(`\bdel\s+/`),
-	regexp.MustCompile(`:\(\)\{.*:\|.*\}`),
-	regexp.MustCompile(`>\s*/dev/`),
-	regexp.MustCompile(`curl\s.*\|\s*sh`),
-	regexp.MustCompile(`wget\s.*\|\s*sh`),
-}
 
 // ==================== Computer Control (Shell Execution) ====================
 
@@ -63,29 +52,12 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 	}
 	fmt.Printf("[Shell][%s] 📁 工作目录: %s\n", requestID, workDir)
 
-	cmdLower := strings.ToLower(command)
-	dangerousPatternDetected := false
-	for _, re := range dangerousPatterns {
-		if re.MatchString(cmdLower) {
-			fmt.Printf("[Shell][%s] 🚨 危险模式检测: 正则=%s 匹配内容=%.100s\n", 
-				requestID, re.String(), command)
-			dangerousPatternDetected = true
-			break
-		}
+	// Security validation via AP Sandbox (replaces old dangerousPatterns + chainOperators checks)
+	if err := a.validateCommandBridge("codecast:main", AgentModeExplicit, command); err != nil {
+		fmt.Printf("[Shell][%s] ❌ 拦截: %v\n", requestID, err)
+		return "", err
 	}
-
-	if dangerousPatternDetected {
-		fmt.Printf("[Shell][%s] ❌ 拦截: 命令包含危险模式\n", requestID)
-		return "", fmt.Errorf("命令被安全策略拦截: 包含危险模式")
-	}
-	fmt.Printf("[Shell][%s] ✅ 危险模式检查: 通过 (9 个全局黑名单模式)\n", requestID)
-
-	if chainOperators.MatchString(command) {
-		fmt.Printf("[Shell][%s] 🚨 链式操作符检测: 原始命令=%.150s\n", requestID, command)
-		fmt.Printf("[Shell][%s] ❌ 拦截: 不允许使用链式操作符 (& | ; || && < > ` 等)\n", requestID)
-		return "", fmt.Errorf("命令被安全策略拦截: 不允许使用链式操作符 (& | ; || && < > ` 等)，请分步执行")
-	}
-	fmt.Printf("[Shell][%s] ✅ 链式操作符检查: 通过\n", requestID)
+	fmt.Printf("[Shell][%s] ✅ 安全策略检查: 通过 (AP ACL + Sandbox)\n", requestID)
 
 	originalCommand := command
 	command = sanitizeCommandForExecution(command)
@@ -117,7 +89,12 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 
 	fmt.Printf("[Shell][%s] ⏰ 超时设置: %ds\n", requestID, timeoutSeconds)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSeconds)*time.Second)
+	// Use a.ctx as parent so commands are cancelled on app shutdown.
+	parentCtx := a.ctx
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parentCtx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
 	// 通过 ap.builtin.Shell.Execute 转发（保留 workDir + env + 超时）
@@ -174,7 +151,9 @@ func (a *App) getCustomEnvVars() []string {
 }
 
 func generateRequestID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano()%100000)
+	b := make([]byte, 8)
+	crypto_rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 func maskSensitiveValue(envVar string) string {
@@ -201,44 +180,28 @@ func maskSensitiveValue(envVar string) string {
 	return envVar
 }
 
-var subAgentAllowedCommands = map[string]struct{}{
-	"go": {}, "gcc": {}, "clang": {}, "rustc": {},
-	"make": {}, "cmake": {}, "gradle": {}, "mvn": {},
-	"tsc": {}, "esbuild": {}, "vite": {}, "webpack": {},
-	"dotnet": {}, "javac": {}, "java": {},
-	"npm": {}, "npx": {}, "yarn": {}, "pnpm": {},
-	"pip": {}, "pip3": {}, "poetry": {}, "conda": {},
-	"cargo": {},
-	"jest":  {}, "mocha": {}, "vitest": {}, "pytest": {},
-	"eslint": {}, "prettier": {}, "gofmt": {}, "gofumpt": {},
-	"ruff": {}, "pylint": {}, "black": {}, "clang-format": {},
-	"rustfmt": {}, "git": {},
-	"type": {}, "cat": {}, "dir": {}, "ls": {}, "tree": {},
-	"findstr": {}, "grep": {}, "find": {}, "head": {}, "tail": {},
-	"wc": {}, "stat": {}, "file": {},
-	"ping": {}, "nslookup": {}, "dig": {}, "curl": {}, "wget": {},
-	"node": {}, "python": {}, "python3": {}, "ruby": {}, "php": {},
+// validateCommand delegates to the AP Sandbox bridge (security_bridge.go).
+// Retained as a package-level function for compatibility with sub-agent tool calls.
+func validateCommand(agentID, agentMode, rawCmd string) error {
+	// Use the global app instance if available, otherwise no security check.
+	// The canonical path is via App.validateCommandBridge which uses the sandbox.
+	return globalValidateCommand(agentID, agentMode, rawCmd)
 }
 
-var subAgentRestrictedCommands = map[string]struct{}{
-	"bash": {}, "sh": {}, "powershell": {}, "pwsh": {},
+// globalValidateCommand holds a reference to the active App's validateCommandBridge.
+// This is set during startup so the package-level validateCommand can delegate.
+var globalValidateCommand = defaultValidateCommand
+
+func defaultValidateCommand(agentID, agentMode, rawCmd string) error {
+	// No sandbox available — allow by default.
+	// Once App.startup runs, this is replaced with the sandbox-backed implementation.
+	return nil
 }
 
-var chainOperators = regexp.MustCompile(`[;&|<>]|\|\||&&|>>|` + "`" + `|\$\(`)
-
-var agentExtraDangerPatterns = []struct {
-	re     *regexp.Regexp
-	reason string
-}{
-	{regexp.MustCompile(`(?i)(del|rd)\s+/[sS]\s*/[qQ]`), "Windows 强制删除"},
-	{regexp.MustCompile(`(?i)\bformat\s+[A-Za-z]:`), "格式化磁盘"},
-	{regexp.MustCompile(`(?i)Invoke-Expression`), "PowerShell 远程执行"},
-	{regexp.MustCompile(`(?i)\bmklink\b`), "创建符号链接"},
-	{regexp.MustCompile(`(?i)\bicacls\b`), "修改文件权限"},
-	{regexp.MustCompile(`(?i)\breg\s+(add|delete|import)`), "修改注册表"},
-	{regexp.MustCompile(`(?i)\bnet\s+(user|group|localgroup)\s+(/add|/delete)`), "管理系统用户"},
-	{regexp.MustCompile(`(?i)schtasks\s+/create`), "创建计划任务"},
-	{regexp.MustCompile(`(?i)bcp(y)?\s`), "后台复制进程"},
+// setGlobalValidateCommand wires the package-level validateCommand to use the sandbox.
+// Called once during App.startup after the sandbox is initialized.
+func (a *App) setGlobalValidateCommand() {
+	globalValidateCommand = a.validateCommandBridge
 }
 
 func extractCommandName(cmd string) string {
@@ -264,9 +227,7 @@ func extractCommandName(cmd string) string {
 	if idx := strings.LastIndex(base, `/`); idx >= 0 {
 		base = base[idx+1:]
 	}
-	if idx := strings.LastIndex(base, `.exe`); idx >= 0 {
-		base = base[:idx]
-	}
+	base = strings.TrimSuffix(base, ".exe")
 	return base
 }
 
@@ -274,65 +235,6 @@ const (
 	AgentModeImplicit = "implicit"
 	AgentModeExplicit = "explicit"
 )
-
-func validateCommand(agentID, agentMode, rawCmd string) error {
-	name := extractCommandName(rawCmd)
-	if name == "" {
-		return &CommandDeniedError{Reason: "无法解析命令名称"}
-	}
-
-	lowerCmd := strings.ToLower(rawCmd)
-
-	for _, re := range dangerousPatterns {
-		if re.MatchString(lowerCmd) {
-			fmt.Printf("[Security] 命令被危险模式拦截: agent=%s cmd=%.80s\n", agentID, rawCmd)
-			return &CommandDeniedError{
-				Reason:    "命令被安全策略拦截: 包含危险模式",
-				Command:   name,
-				Dangerous: true,
-			}
-		}
-	}
-
-	for _, dp := range agentExtraDangerPatterns {
-		if dp.re.MatchString(rawCmd) {
-			fmt.Printf("[Security] 检测到危险命令: agent=%s pattern=%s cmd=%.80s\n", agentID, dp.reason, rawCmd)
-			return &CommandDeniedError{
-				Reason:    fmt.Sprintf("检测到危险命令模式: %s", dp.reason),
-				Command:   name,
-				Dangerous: true,
-			}
-		}
-	}
-
-	if chainOperators.MatchString(rawCmd) {
-		fmt.Printf("[Security] 链式命令被拒绝: agent=%s cmd=%.80s\n", agentID, rawCmd)
-		return &CommandDeniedError{
-			Reason:    "不允许使用链式命令（&& || ; | 管道、反引号、$()），请分步执行",
-			Command:   name,
-			Dangerous: true,
-		}
-	}
-
-	if agentMode == AgentModeImplicit {
-		if _, ok := subAgentRestrictedCommands[name]; ok {
-			fmt.Printf("[Security] 子代理受限命令被拒: agent=%s cmd=%s\n", agentID, name)
-			return &CommandDeniedError{
-				Reason:  fmt.Sprintf("子代理不允许使用 '%s'（通用解释器，权限过大）", name),
-				Command: name,
-			}
-		}
-		if _, ok := subAgentAllowedCommands[name]; !ok {
-			fmt.Printf("[Security] 子代理白名单未命中: agent=%s cmd=%s\n", agentID, name)
-			return &CommandDeniedError{
-				Reason:  fmt.Sprintf("子代理不允许执行命令 '%s'，不在允许列表中", name),
-				Command: name,
-			}
-		}
-	}
-
-	return nil
-}
 
 type CommandDeniedError struct {
 	Reason    string

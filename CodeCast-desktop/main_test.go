@@ -438,20 +438,22 @@ func TestIsPathAllowed(t *testing.T) {
 	}
 
 	app.AddProject(projectPath)
+	app.acl = setupSecurityACL([]string{projectPath})
+	app.sandbox = setupSecuritySandbox(app.acl)
 
-	err = app.isPathAllowed(projectPath)
+	err = app.isPathAllowedBridge(projectPath)
 	if err != nil {
 		t.Errorf("isPathAllowed should allow project path, got error: %v", err)
 	}
 
 	subPath := filepath.Join(projectPath, "subdir", "file.txt")
-	err = app.isPathAllowed(subPath)
+	err = app.isPathAllowedBridge(subPath)
 	if err != nil {
 		t.Errorf("isPathAllowed should allow subdirectory, got error: %v", err)
 	}
 
 	forbiddenPath := filepath.Join(tmpDir, "otherproject")
-	err = app.isPathAllowed(forbiddenPath)
+	err = app.isPathAllowedBridge(forbiddenPath)
 	if err == nil {
 		t.Error("isPathAllowed should reject paths outside project directory")
 	}
@@ -463,7 +465,7 @@ func TestIsPathAllowedNoProjects(t *testing.T) {
 		mu:       sync.RWMutex{},
 	}
 
-	err := app.isPathAllowed("/some/path")
+	err := app.isPathAllowedBridge("/some/path")
 	if err == nil {
 		t.Error("Expected error when no projects configured")
 	}

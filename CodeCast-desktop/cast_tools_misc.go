@@ -191,7 +191,7 @@ func (a *App) castToolOCR(ctx context.Context, args json.RawMessage) (*ap.ToolRe
 // 支持 Anthropic / OpenAI / Google Gemini（任何有 vision 能力的模型）
 func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, inTok, outTok int, err error) {
 	// 1. 读取图片
-	imgData, mimeType, err := loadImageAsBase64(in.ImagePath)
+	imgData, mimeType, err := a.loadImageAsBase64(in.ImagePath)
 	if err != nil {
 		return "", "", 0, 0, fmt.Errorf("load image: %w", err)
 	}
@@ -311,7 +311,7 @@ func doAnthropicVision(ctx context.Context, creds APICredentials, model, prompt,
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
 	if resp.StatusCode >= 400 {
 		return "", "", 0, 0, fmt.Errorf("anthropic API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
 	}
@@ -384,7 +384,7 @@ func doOpenAIVision(ctx context.Context, creds APICredentials, model, prompt, im
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
 	if resp.StatusCode >= 400 {
 		return "", "", 0, 0, fmt.Errorf("openai API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
 	}
@@ -416,7 +416,7 @@ func doGeminiVision(ctx context.Context, creds APICredentials, model, prompt, im
 		baseURL = "https://generativelanguage.googleapis.com"
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
-	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", baseURL, model, creds.APIKey)
+	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent", baseURL, model)
 
 	reqBody := map[string]any{
 		"contents": []map[string]any{
@@ -442,6 +442,7 @@ func doGeminiVision(ctx context.Context, creds APICredentials, model, prompt, im
 	bodyJSON, _ := json.Marshal(reqBody)
 	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", creds.APIKey)
 
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
@@ -450,7 +451,7 @@ func doGeminiVision(ctx context.Context, creds APICredentials, model, prompt, im
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
 	if resp.StatusCode >= 400 {
 		return "", "", 0, 0, fmt.Errorf("gemini API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
 	}
@@ -478,7 +479,8 @@ func doGeminiVision(ctx context.Context, creds APICredentials, model, prompt, im
 }
 
 // loadImageAsBase64 读取本地文件或解析 data URL，返回 base64 字符串 + MIME。
-func loadImageAsBase64(path string) (data, mime string, err error) {
+// For local files, it checks that the path is within an allowed project directory.
+func (a *App) loadImageAsBase64(path string) (data, mime string, err error) {
 	// data URL: data:image/png;base64,xxxxx
 	if strings.HasPrefix(path, "data:") {
 		comma := strings.Index(path, ",")
@@ -491,7 +493,11 @@ func loadImageAsBase64(path string) (data, mime string, err error) {
 		return data, mime, nil
 	}
 
-	// 本地文件
+	// Local file: validate path is within allowed project directories
+	if err := a.isPathAllowedBridge(path); err != nil {
+		return "", "", fmt.Errorf("path not allowed: %w", err)
+	}
+
 	ext := strings.ToLower(path)
 	if idx := strings.LastIndex(ext, "."); idx >= 0 {
 		ext = ext[idx+1:]
@@ -546,13 +552,25 @@ func (a *App) castToolPasswordGen(ctx context.Context, args json.RawMessage) (*a
 	if in.Symbols {
 		charset += "!@#$%^&*()-_=+[]{}|;:,.<>?"
 	}
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		return &ap.ToolResult{Content: err.Error(), IsError: true}, nil
-	}
+	// Rejection sampling to avoid modulo bias
+	charsetLen := byte(len(charset))
+	// maxAccept is the largest multiple of charsetLen that fits in a byte
+	maxAccept := 256 - (256 % int(charsetLen))
 	pwd := make([]byte, length)
-	for i, v := range b {
-		pwd[i] = charset[int(v)%len(charset)]
+	for i := 0; i < length; {
+		randBytes := make([]byte, length-i)
+		if _, err := rand.Read(randBytes); err != nil {
+			return &ap.ToolResult{Content: err.Error(), IsError: true}, nil
+		}
+		for _, v := range randBytes {
+			if int(v) < maxAccept {
+				pwd[i] = charset[v%charsetLen]
+				i++
+				if i >= length {
+					break
+				}
+			}
+		}
 	}
 	out := castPasswordGenResult{Password: string(pwd)}
 	outJSON, _ := json.Marshal(out)
@@ -628,5 +646,3 @@ func parseMinutes(text string) (summary string, actionItems []string, decisions 
 	return
 }
 
-// 工具注册时间跟踪
-var _ = fmt.Sprintf
