@@ -326,20 +326,19 @@ func (a *App) startup(ctx context.Context) {
 			SystemPrompt:    a.buildSystemPrompt(nil),
 			Model:           provider,
 			Toolkit:         a.toolkit,
-			Memory:          ap.NewMemoryAdapter(a.memory),
 			EventPublisher:  ap.NewEventBusAdapter(a.eventBus),
 			Metrics:         ap.NewMetricsAdapter(a.metricsCollector),
 			ContextWindow:   ap.NewDefaultStrategy(80),
-			Hooks:           a.hooks,
 			Lifecycle:       a.lifecycle,
 			CheckpointStore: a.checkpointStore,
 			MaxTurns:        20,
-			RAG: &ap.RAGConfig{
+		}).WithMemory(ap.NewMemoryAdapter(a.memory)).
+			WithRAG(ap.RAGConfig{
 				Provider: ap.NewRAGProviderAdapter(a.ragStore),
 				Mode:     ap.RAGModeAuto,
 				TopK:     5,
-			},
-		})
+			}).
+			WithHooks(a.hooks)
 		slog.Info("AP Default Agent 已创建")
 
 		// 12. AP Agent Pool
@@ -352,6 +351,7 @@ func (a *App) startup(ctx context.Context) {
 			},
 		})
 		a.pool.SetModel(provider)
+		a.pool.SetAgentFactory(a.createPoolAgentFactory())
 		slog.Info("AP Agent Pool 已启动", "max_concurrency", 5)
 	}
 

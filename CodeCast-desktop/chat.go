@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 
 	ap "agentprimordia/pkg"
@@ -24,14 +26,22 @@ func (a *App) SendMessageEx(sessionID, input, model, thinking string) ([]Message
 	}
 
 	ctx, reqCancel := context.WithCancel(a.ctx)
-	defer reqCancel()
+	streamDone := make(chan struct{})
+	defer func() {
+		<-streamDone // wait until stream read loop is finished
+		reqCancel()
+	}()
 
 	a.mu.Lock()
-	a.sessionCancels[sessionID] = reqCancel
+	requestIDBytes := make([]byte, 4)
+	rand.Read(requestIDBytes)
+	requestKey := sessionID + "_" + hex.EncodeToString(requestIDBytes)
+	a.sessionCancels[requestKey] = reqCancel
 	a.mu.Unlock()
 
 	streamCh, err := agent.StreamRun(ctx, ap.UserMessage(input))
 	if err != nil {
+		close(streamDone)
 		return nil, fmt.Errorf("agent stream run: %w", err)
 	}
 
@@ -65,6 +75,7 @@ func (a *App) SendMessageEx(sessionID, input, model, thinking string) ([]Message
 			})
 		}
 	}
+	close(streamDone)
 
 	a.memory.Add(a.ctx, &ap.Episode{
 		SessionID: sessionID,
@@ -106,20 +117,19 @@ func (a *App) getOrCreateAgent(sessionID string, model string) (ap.Agent, contex
 		SystemPrompt:    a.buildSystemPrompt(session),
 		Model:           provider,
 		Toolkit:         a.toolkit,
-		Memory:          ap.NewMemoryAdapter(a.memory),
 		EventPublisher:  ap.NewEventBusAdapter(a.eventBus),
 		Metrics:         ap.NewMetricsAdapter(a.metricsCollector),
 		ContextWindow:   ap.NewDefaultStrategy(80),
-		Hooks:           a.hooks,
 		Lifecycle:       a.lifecycle,
 		CheckpointStore: a.checkpointStore,
 		MaxTurns:        20,
-		RAG: &ap.RAGConfig{
+	}).WithMemory(ap.NewMemoryAdapter(a.memory)).
+		WithRAG(ap.RAGConfig{
 			Provider: ap.NewRAGProviderAdapter(a.ragStore),
 			Mode:     ap.RAGModeAuto,
 			TopK:     5,
-		},
-	})
+		}).
+		WithHooks(a.hooks)
 
 	a.mu.Lock()
 	a.sessionAgents[sessionID] = agent

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	ap "agentprimordia/pkg"
 )
@@ -116,4 +117,35 @@ func (a *App) CancelAgent(agentID string) error {
 // CancelSessionAgents cancels all agents for a session via AP Pool.CancelBySession.
 func (a *App) CancelSessionAgents(sessionID string) error {
 	return a.pool.CancelBySession(sessionID)
+}
+
+// createPoolAgentFactory returns a function that creates CapabilityAgents for the pool.
+func (a *App) createPoolAgentFactory() ap.AgentFactory {
+	return func(config ap.AgentFactoryConfig) ap.Agent {
+		a.mu.Lock()
+		provider, err := a.createProvider()
+		a.mu.Unlock()
+		if err != nil {
+			slog.Warn("createPoolAgentFactory: provider failed", "error", err)
+			return ap.NewReActAgent(ap.ReActConfig{
+				Name:         "Pool-" + config.Name,
+				SystemPrompt: config.SystemPrompt,
+				MaxTurns:     config.MaxTurns,
+			})
+		}
+
+		return ap.NewReActAgent(ap.ReActConfig{
+			Name:         "Pool-" + config.Name,
+			SystemPrompt: config.SystemPrompt,
+			Model:        provider,
+			Toolkit:      a.toolkit,
+			MaxTurns:     config.MaxTurns,
+		}).WithMemory(ap.NewMemoryAdapter(a.memory)).
+			WithRAG(ap.RAGConfig{
+				Provider: ap.NewRAGProviderAdapter(a.ragStore),
+				Mode:     ap.RAGModeAuto,
+				TopK:     3,
+			}).
+			WithHooks(a.hooks)
+	}
 }
