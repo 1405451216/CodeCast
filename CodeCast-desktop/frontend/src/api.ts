@@ -10,6 +10,8 @@ import type {
   GoEditorInfo,
   GoFileEntry,
   GoSettings,
+  APMetricsSnapshot,
+  CheckpointInfo,
 } from './api/types';
 
 export class WailsBridgeError extends Error {
@@ -196,6 +198,16 @@ interface GoAppMethods {
   // AP Lifecycle
   GetLifecycleState(): Promise<string>;
   GetAgentLifecycleStates(): Promise<Record<string, string>>;
+
+  // AP Checkpoints
+  GetCheckpoints(sessionId: string, limit: number): Promise<CheckpointInfo[]>;
+  LoadCheckpoint(checkpointId: string): Promise<void>;
+  DeleteCheckpoint(checkpointId: string): Promise<void>;
+  ResumeFromCheckpoint(sessionId: string, checkpointId: string): Promise<void>;
+
+  // AP Metrics
+  GetAPMetricsSnapshot(): Promise<APMetricsSnapshot>;
+  GetMetricsExportPrometheus(): Promise<string>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -603,3 +615,17 @@ export const resolveCheckpoint = (checkpointId: string, approved: boolean) =>
 // AP Lifecycle
 export const getLifecycleState = () => callGo('GetLifecycleState');
 export const getAgentLifecycleStates = () => callGo('GetAgentLifecycleStates');
+
+// AP Checkpoints
+export const getCheckpoints = (sessionId: string, limit: number) =>
+  callGo('GetCheckpoints', sessionId, limit);
+export const loadCheckpoint = (checkpointId: string) =>
+  callGo('LoadCheckpoint', checkpointId);
+export const deleteCheckpoint = (checkpointId: string) =>
+  callGo('DeleteCheckpoint', checkpointId);
+export const resumeFromCheckpoint = (sessionId: string, checkpointId: string) =>
+  callGo('ResumeFromCheckpoint', sessionId, checkpointId);
+
+// AP Metrics
+export const getAPMetricsSnapshot = () => callGo('GetAPMetricsSnapshot');
+export const getMetricsExportPrometheus = () => callGo('GetMetricsExportPrometheus');

@@ -52,6 +52,7 @@ type App struct {
 	mcpReg            *ap.MCPRegistry
 	eventBus          *ap.Bus
 	metricsCollector  *ap.AgentMetricsCollector
+	metricsExporter   *ap.MetricsExporter
 	guardrail         *ap.GuardrailEngine
 	guardrailHook     *ap.GuardrailHook
 	hooks             *ap.HookManager
@@ -67,6 +68,95 @@ type App struct {
 	cachedProviderConfigHash string // detects when provider config changes
 	// completor 字段已删除（代码补全迁到 ap.CachedProvider）
 	// notes 字段已删除（笔记功能迁到 cast_kb_* + ap.memory）
+}
+
+// APMetricsSnapshotData is the frontend-facing metrics snapshot struct.
+type APMetricsSnapshotData struct {
+	LLMTotalCalls     int64                       `json:"llmTotalCalls"`
+	LLMTotalErrors    int64                       `json:"llmTotalErrors"`
+	ToolTotalCalls    int64                       `json:"toolTotalCalls"`
+	ToolTotalErrors   int64                       `json:"toolTotalErrors"`
+	TotalTurns        int64                       `json:"totalTurns"`
+	TotalEpisodes     int64                       `json:"totalEpisodes"`
+	ActiveAgents      int64                       `json:"activeAgents"`
+	PoolQueueLength   int64                       `json:"poolQueueLength"`
+	MemorySizeBytes   int64                       `json:"memorySizeBytes"`
+	LLMLatencyP50     float64                     `json:"llmLatencyP50"`
+	LLMLatencyP99     float64                     `json:"llmLatencyP99"`
+	ToolLatencyP50    float64                     `json:"toolLatencyP50"`
+	ToolLatencyP99    float64                     `json:"toolLatencyP99"`
+	TokenUsageByModel map[string]TokenUsageData   `json:"tokenUsageByModel"`
+}
+
+// TokenUsageData is the frontend-facing token usage struct.
+type TokenUsageData struct {
+	PromptTokens     int64 `json:"promptTokens"`
+	CompletionTokens int64 `json:"completionTokens"`
+	TotalTokens      int64 `json:"totalTokens"`
+}
+
+// histogramPercentile computes the estimated value at the given percentile (0-1)
+// from a HistogramSnapshot.
+func histogramPercentile(h ap.HistogramSnapshot, p float64) float64 {
+	if h.Count == 0 {
+		return 0
+	}
+	target := float64(h.Count) * p
+	var cumulative int64
+	for i, bucket := range h.Buckets {
+		cumulative += h.Counts[i]
+		if float64(cumulative) >= target {
+			return bucket
+		}
+	}
+	return h.Buckets[len(h.Buckets)-1]
+}
+
+// GetAPMetricsSnapshot returns a metrics snapshot for the frontend.
+func (a *App) GetAPMetricsSnapshot() APMetricsSnapshotData {
+	if a.metricsCollector == nil {
+		return APMetricsSnapshotData{TokenUsageByModel: map[string]TokenUsageData{}}
+	}
+
+	snap := a.metricsCollector.Snapshot()
+
+	// Read TokenUsageByModel from the collector directly (not in MetricsSnapshot).
+	// The exported field is safe to read for display purposes.
+	tokenUsage := make(map[string]TokenUsageData)
+	if a.metricsCollector.TokenUsageByModel != nil {
+		for model, stats := range a.metricsCollector.TokenUsageByModel {
+			tokenUsage[model] = TokenUsageData{
+				PromptTokens:     stats.PromptTokens,
+				CompletionTokens: stats.CompletionTokens,
+				TotalTokens:      stats.TotalTokens,
+			}
+		}
+	}
+
+	return APMetricsSnapshotData{
+		LLMTotalCalls:     snap.LLMTotalCalls,
+		LLMTotalErrors:    snap.LLMTotalErrors,
+		ToolTotalCalls:    snap.ToolTotalCalls,
+		ToolTotalErrors:   snap.ToolTotalErrors,
+		TotalTurns:        snap.TotalTurns,
+		TotalEpisodes:     snap.TotalEpisodes,
+		ActiveAgents:      snap.ActiveAgents,
+		PoolQueueLength:   snap.PoolQueueLength,
+		MemorySizeBytes:   snap.MemorySizeBytes,
+		LLMLatencyP50:     histogramPercentile(snap.LLMLatencyMs, 0.50),
+		LLMLatencyP99:     histogramPercentile(snap.LLMLatencyMs, 0.99),
+		ToolLatencyP50:    histogramPercentile(snap.ToolLatencyMs, 0.50),
+		ToolLatencyP99:    histogramPercentile(snap.ToolLatencyMs, 0.99),
+		TokenUsageByModel: tokenUsage,
+	}
+}
+
+// GetMetricsExportPrometheus returns the Prometheus text-format metrics export.
+func (a *App) GetMetricsExportPrometheus() string {
+	if a.metricsCollector == nil {
+		return ""
+	}
+	return a.metricsCollector.String()
 }
 
 func NewApp() *App {
@@ -121,6 +211,12 @@ func (a *App) startup(ctx context.Context) {
 	// 3. AP Metrics
 	a.metricsCollector = ap.NewMetrics()
 	slog.Info("AP Metrics 已启动")
+
+	// 3b. AP MetricsExporter (periodic log export every 15s)
+	metricsLogExporter := ap.NewLogExporter()
+	a.metricsExporter = ap.NewMetricsExporter(a.metricsCollector, metricsLogExporter, 15*time.Second)
+	a.metricsExporter.Start()
+	slog.Info("AP MetricsExporter 已启动")
 
 	// 4. AP Guardrail + GuardrailHook
 	a.guardrail = ap.NewGuardrailEngine()
@@ -276,6 +372,10 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	a.mu.Unlock()
 
+	if a.metricsExporter != nil {
+		a.metricsExporter.Stop()
+		slog.Info("AP MetricsExporter 已关闭")
+	}
 	if a.pool != nil {
 		a.pool.Close()
 		slog.Info("AP Agent Pool 已关闭")

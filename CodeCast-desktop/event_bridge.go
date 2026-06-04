@@ -45,4 +45,21 @@ func (a *App) startEventBridge() {
 			}
 		}
 	}()
+
+	// AP Metrics snapshot broadcast (every 10s)
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.ctx.Done():
+				return
+			case <-ticker.C:
+				if a.metricsCollector != nil {
+					snap := a.GetAPMetricsSnapshot()
+					wailsRuntime.EventsEmit(a.ctx, "metrics:snapshot", snap)
+				}
+			}
+		}
+	}()
 }

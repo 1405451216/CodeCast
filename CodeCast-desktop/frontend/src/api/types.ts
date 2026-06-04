@@ -149,6 +149,16 @@ export interface GoSettings {
   [key: string]: string | string[] | boolean | undefined;
 }
 
+// AP Checkpoint info — mirrors Go CheckpointInfo struct
+export interface CheckpointInfo {
+  ID:        string;
+  SessionID: string;
+  Turn:      number;
+  Status:    string;
+  ToolName:  string;
+  CreatedAt: string;
+}
+
 // AP Lifecycle states (mirrors agentprimordia/internal/agent.AgentStatus)
 export type LifecycleState =
   | 'idle' | 'running' | 'paused' | 'waiting_for_input'
@@ -156,4 +166,28 @@ export type LifecycleState =
 
 export interface LifecycleStatesEvent {
   [sessionId: string]: LifecycleState;
+}
+
+// AP Metrics snapshot (mirrors Go APMetricsSnapshotData)
+export interface APMetricsSnapshot {
+  llmTotalCalls:     number;
+  llmTotalErrors:    number;
+  toolTotalCalls:    number;
+  toolTotalErrors:   number;
+  totalTurns:        number;
+  totalEpisodes:     number;
+  activeAgents:      number;
+  poolQueueLength:   number;
+  memorySizeBytes:   number;
+  llmLatencyP50:     number;
+  llmLatencyP99:     number;
+  toolLatencyP50:    number;
+  toolLatencyP99:    number;
+  tokenUsageByModel: Record<string, TokenUsageStats>;
+}
+
+export interface TokenUsageStats {
+  promptTokens:     number;
+  completionTokens: number;
+  totalTokens:      number;
 }

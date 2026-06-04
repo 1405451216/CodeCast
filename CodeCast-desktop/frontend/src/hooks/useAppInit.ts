@@ -18,6 +18,7 @@ const AP_EVENTS = [
   'pool:dispatch',
   'pool:complete',
   'lifecycle:states',
+  'metrics:snapshot',
 ] as const;
 
 export function useAppInit() {
@@ -45,6 +46,8 @@ export function useAppInit() {
       const cleanup = EventsOn(eventName, (payload: any) => {
         if (eventName === 'lifecycle:states') {
           useAppStore.getState().handleLifecycleEvent(payload);
+        } else if (eventName === 'metrics:snapshot') {
+          useAppStore.getState().handleMetricsEvent(payload);
         } else {
           useAppStore.getState().handleAPEvent(eventName, payload);
         }
