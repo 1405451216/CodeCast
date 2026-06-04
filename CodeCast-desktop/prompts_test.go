@@ -3,12 +3,12 @@ package main
 import (
 	"strings"
 	"testing"
-	"unicode/utf8"
 )
 
 // ==================== PromptBase 完整性测试 ====================
 
 func TestPromptBaseNotEmpty(t *testing.T) {
+	t.Parallel()
 	if PromptBase == "" {
 		t.Fatal("PromptBase should not be empty")
 	}
@@ -18,6 +18,7 @@ func TestPromptBaseNotEmpty(t *testing.T) {
 }
 
 func TestPromptBaseVersion(t *testing.T) {
+	t.Parallel()
 	if !strings.Contains(PromptBase, "v3.0") {
 		t.Error("PromptBase should contain version v3.0")
 	}
@@ -27,6 +28,7 @@ func TestPromptBaseVersion(t *testing.T) {
 }
 
 func TestPromptBaseContainsCoreSections(t *testing.T) {
+	t.Parallel()
 	requiredSections := []string{
 		"基础身份",
 		"公共行为准则",
@@ -51,6 +53,7 @@ func TestPromptBaseContainsCoreSections(t *testing.T) {
 // ==================== PromptCoding 完整性测试 ====================
 
 func TestPromptCodingNotEmpty(t *testing.T) {
+	t.Parallel()
 	if PromptCoding == "" {
 		t.Fatal("PromptCoding should not be empty")
 	}
@@ -60,6 +63,7 @@ func TestPromptCodingNotEmpty(t *testing.T) {
 }
 
 func TestPromptCodingContainsToolIndex(t *testing.T) {
+	t.Parallel()
 	if !strings.Contains(PromptCoding, "工具索引") {
 		t.Error("PromptCoding should have tool index (not full details)")
 	}
@@ -75,6 +79,7 @@ func TestPromptCodingContainsToolIndex(t *testing.T) {
 }
 
 func TestPromptCodingContainsKeyChapters(t *testing.T) {
+	t.Parallel()
 	chapters := []string{
 		"核心工作流程",
 		"代码质量标准",
@@ -102,6 +107,7 @@ func TestPromptCodingContainsKeyChapters(t *testing.T) {
 }
 
 func TestPromptCodingHasTestChapter(t *testing.T) {
+	t.Parallel()
 	testKeywords := []string{
 		"测试即代码的一部分",
 		"覆盖率目标",
@@ -123,6 +129,7 @@ func TestPromptCodingHasTestChapter(t *testing.T) {
 }
 
 func TestPromptCodingHasPerformanceSection(t *testing.T) {
+	t.Parallel()
 	perfKeywords := []string{
 		"N+1",
 		"连接池复用",
@@ -140,6 +147,7 @@ func TestPromptCodingHasPerformanceSection(t *testing.T) {
 // ==================== PromptDaily 完整性测试 ====================
 
 func TestPromptDailyNotEmpty(t *testing.T) {
+	t.Parallel()
 	if PromptDaily == "" {
 		t.Fatal("PromptDaily should not be empty")
 	}
@@ -149,6 +157,7 @@ func TestPromptDailyNotEmpty(t *testing.T) {
 }
 
 func TestPromptDailyContainsPersonality(t *testing.T) {
+	t.Parallel()
 	personality := []string{
 		"性格五维",
 		"坦诚",
@@ -166,6 +175,7 @@ func TestPromptDailyContainsPersonality(t *testing.T) {
 }
 
 func TestPromptDailyContainsScenarios(t *testing.T) {
+	t.Parallel()
 	scenarios := []string{
 		"寻求建议",
 		"创意工作",
@@ -190,6 +200,7 @@ func TestPromptDailyContainsScenarios(t *testing.T) {
 }
 
 func TestPromptDailySlimmerThanV2(t *testing.T) {
+	t.Parallel()
 	dailyRunes := []rune(PromptDaily)
 	if len(dailyRunes) > 8000 {
 		t.Errorf("PromptDaily seems too long for v3 slimmed version: %d runes", len(dailyRunes))
@@ -199,6 +210,7 @@ func TestPromptDailySlimmerThanV2(t *testing.T) {
 // ==================== ToolDetail 常量完整性 ====================
 
 func TestToolDetailReadFile(t *testing.T) {
+	t.Parallel()
 	if ToolDetailReadFile == "" {
 		t.Fatal("ToolDetailReadFile should not be empty")
 	}
@@ -211,6 +223,7 @@ func TestToolDetailReadFile(t *testing.T) {
 }
 
 func TestToolDetailWriteFile(t *testing.T) {
+	t.Parallel()
 	if ToolDetailWriteFile == "" {
 		t.Fatal("ToolDetailWriteFile should not be empty")
 	}
@@ -223,6 +236,7 @@ func TestToolDetailWriteFile(t *testing.T) {
 }
 
 func TestToolDetailCommand(t *testing.T) {
+	t.Parallel()
 	if ToolDetailCommand == "" {
 		t.Fatal("ToolDetailCommand should not be empty")
 	}
@@ -235,6 +249,7 @@ func TestToolDetailCommand(t *testing.T) {
 }
 
 func TestToolDetailAgents(t *testing.T) {
+	t.Parallel()
 	if ToolDetailAgents == "" {
 		t.Fatal("ToolDetailAgents should not be empty")
 	}
@@ -244,6 +259,7 @@ func TestToolDetailAgents(t *testing.T) {
 }
 
 func TestPromptBasePlusCodingFormat(t *testing.T) {
+	t.Parallel()
 	combined := PromptBase + "\n\n" + PromptCoding
 	if !strings.HasPrefix(combined, "# CodeCast System Prompt v3.0") {
 		t.Error("Combined prompt should start with PromptBase header")
@@ -255,48 +271,9 @@ func TestPromptBasePlusCodingFormat(t *testing.T) {
 }
 
 func TestPromptBasePlusDailyFormat(t *testing.T) {
+	t.Parallel()
 	combined := PromptBase + "\n\n" + PromptDaily
 	if !strings.HasPrefix(combined, "# CodeCast System Prompt v3.0") {
 		t.Error("Combined daily prompt should start with PromptBase header")
-	}
-}
-
-// ==================== truncateLine 工具函数 ====================
-
-func TestTruncateLineShort(t *testing.T) {
-	input := "short"
-	result := truncateLine(input, 10)
-	if result != "short" {
-		t.Error("Short line should not be truncated")
-	}
-}
-
-func TestTruncateLineExact(t *testing.T) {
-	input := "exact"
-	charBudget := utf8.RuneCountInString(input)
-	result := truncateLine(input, charBudget*3/2+1)
-	if result != input {
-		t.Error("Content fitting exactly in budget should not be truncated")
-	}
-}
-
-func TestTruncateLineLong(t *testing.T) {
-	input := strings.Repeat("a", 200)
-	result := truncateLine(input, 100)
-	runes := []rune(result)
-	if len(runes) > 103 {
-		t.Errorf("Truncated line too long: %d", len(runes))
-	}
-	if !strings.HasSuffix(result, "...") {
-		t.Error("Truncated line should end with ...")
-	}
-}
-
-func TestTruncateLineUnicode(t *testing.T) {
-	input := "你好世界这是中文内容测试"
-	result := truncateLine(input, 5)
-	runes := []rune(result)
-	if len(runes) > 8 {
-		t.Errorf("Unicode truncation wrong: got %d runes", len(runes))
 	}
 }

@@ -1009,8 +1009,8 @@ func (a *App) resolveCredentialsLocked(modelName string) (APICredentials, error)
 	return APICredentials{}, fmt.Errorf("未找到模型 %s 的配置，请在设置-模型管理中添加", modelName)
 }
 
-// guessProviderForModel 通过模型名前缀猜测其所属 provider
-func (a *App) guessProviderForModel(modelName string) string {
+// guessProviderForModel 通过模型名前缀猜测其所属 provider（纯函数，不依赖 App 状态）
+func guessProviderForModel(modelName string) string {
 	for _, p := range BuiltinProviders {
 		for _, m := range p.Models {
 			if m == modelName {

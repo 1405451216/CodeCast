@@ -12,6 +12,7 @@ import (
 // ==================== ACL Tests ====================
 
 func TestACLSetup_DenySystemPaths(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/home/user/project"})
 
 	// System paths should be denied for all agents
@@ -27,6 +28,7 @@ func TestACLSetup_DenySystemPaths(t *testing.T) {
 }
 
 func TestACLSetup_AllowProjectPath(t *testing.T) {
+	t.Parallel()
 	projectPath := "/home/user/project"
 	acl := setupSecurityACL([]string{projectPath})
 
@@ -40,6 +42,7 @@ func TestACLSetup_AllowProjectPath(t *testing.T) {
 }
 
 func TestACLSetup_EmptyProjectPath(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL(nil)
 	// Should still deny system paths
 	if acl.Check("*", "/etc/shadow", ap.AccessRead) {
@@ -50,6 +53,7 @@ func TestACLSetup_EmptyProjectPath(t *testing.T) {
 // ==================== Sandbox Tests ====================
 
 func TestSandboxSetup_DangerousCharsBlocked(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/tmp/project"})
 	sb := setupSecuritySandbox(acl)
 
@@ -79,6 +83,7 @@ func TestSandboxSetup_DangerousCharsBlocked(t *testing.T) {
 }
 
 func TestSandboxSetup_BlockedCommands(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/tmp/project"})
 	sb := setupSecuritySandbox(acl)
 
@@ -102,6 +107,7 @@ func TestSandboxSetup_BlockedCommands(t *testing.T) {
 }
 
 func TestSandboxSetup_AllowedCommands(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/tmp/project"})
 	sb := setupSecuritySandbox(acl)
 
@@ -134,6 +140,7 @@ func TestSandboxSetup_AllowedCommands(t *testing.T) {
 }
 
 func TestSandboxSetup_UnknownCommandRejected(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/tmp/project"})
 	sb := setupSecuritySandbox(acl)
 
@@ -145,6 +152,7 @@ func TestSandboxSetup_UnknownCommandRejected(t *testing.T) {
 }
 
 func TestSandboxSetup_CommandWithArgs(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/tmp/project"})
 	sb := setupSecuritySandbox(acl)
 
@@ -326,6 +334,7 @@ func TestIsPathAllowedBridge_FallbackWithoutSandbox(t *testing.T) {
 // ==================== Integration: Full Security Pipeline ====================
 
 func TestSecurityBridge_Integration(t *testing.T) {
+	t.Parallel()
 	projectPath := t.TempDir()
 
 	acl := setupSecurityACL([]string{projectPath})
@@ -403,6 +412,7 @@ func TestSecurityBridge_Integration(t *testing.T) {
 // ==================== Error Classification Tests ====================
 
 func TestIsDangerousCommandError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected bool
@@ -421,6 +431,7 @@ func TestIsDangerousCommandError(t *testing.T) {
 }
 
 func TestContainsAny(t *testing.T) {
+	t.Parallel()
 	if !containsAny("hello blocked world", "blocked") {
 		t.Error("should find 'blocked'")
 	}
@@ -446,6 +457,7 @@ func (e *testError) Error() string {
 // TestParity_OldDangerousPatterns verifies the AP Sandbox catches all patterns
 // that the old dangerousPatterns regexes used to catch.
 func TestParity_OldDangerousPatterns(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/tmp/project"})
 	sb := setupSecuritySandbox(acl)
 
@@ -477,6 +489,7 @@ func TestParity_OldDangerousPatterns(t *testing.T) {
 // TestParity_OldChainOperators verifies the AP Sandbox catches all chain operators
 // that the old chainOperators regex used to catch.
 func TestParity_OldChainOperators(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/tmp/project"})
 	sb := setupSecuritySandbox(acl)
 
@@ -499,6 +512,7 @@ func TestParity_OldChainOperators(t *testing.T) {
 // TestParity_OldAgentExtraDangerPatterns verifies coverage for the old
 // agentExtraDangerPatterns that the Sandbox blocks via command-level deny.
 func TestParity_OldAgentExtraDangerPatterns(t *testing.T) {
+	t.Parallel()
 	acl := setupSecurityACL([]string{"/tmp/project"})
 	sb := setupSecuritySandbox(acl)
 
@@ -536,6 +550,7 @@ func TestParity_OldAgentExtraDangerPatterns(t *testing.T) {
 // ==================== FileLockManager Tests ====================
 
 func TestFileLockManager_AcquireAndRelease(t *testing.T) {
+	t.Parallel()
 	mgr := ap.NewFileLockManager()
 
 	// Basic acquire + release should work without panic
@@ -548,6 +563,7 @@ func TestFileLockManager_AcquireAndRelease(t *testing.T) {
 }
 
 func TestFileLockManager_TryAcquire_Success(t *testing.T) {
+	t.Parallel()
 	mgr := ap.NewFileLockManager()
 
 	ok := mgr.TryAcquire("test.txt")
@@ -558,6 +574,7 @@ func TestFileLockManager_TryAcquire_Success(t *testing.T) {
 }
 
 func TestFileLockManager_TryAcquire_FailsWhenLocked(t *testing.T) {
+	t.Parallel()
 	mgr := ap.NewFileLockManager()
 
 	mgr.Acquire("test.txt")
@@ -570,6 +587,7 @@ func TestFileLockManager_TryAcquire_FailsWhenLocked(t *testing.T) {
 }
 
 func TestFileLockManager_DifferentPathsDontConflict(t *testing.T) {
+	t.Parallel()
 	mgr := ap.NewFileLockManager()
 
 	mgr.Acquire("file_a.txt")
@@ -609,6 +627,7 @@ func TestFileLockManager_AppIntegration_Locked(t *testing.T) {
 }
 
 func TestValidateScopes_NoOverlap(t *testing.T) {
+	t.Parallel()
 	scopes := [][]string{
 		{"/src/a"},
 		{"/src/b"},
@@ -622,6 +641,7 @@ func TestValidateScopes_NoOverlap(t *testing.T) {
 }
 
 func TestValidateScopes_OverlapDetected(t *testing.T) {
+	t.Parallel()
 	scopes := [][]string{
 		{"/src/a"},
 		{"/src/a/b"},
@@ -634,6 +654,7 @@ func TestValidateScopes_OverlapDetected(t *testing.T) {
 }
 
 func TestValidateScopes_MultipleGlobalScopes(t *testing.T) {
+	t.Parallel()
 	scopes := [][]string{
 		{"/"},
 		{"/"},
@@ -646,6 +667,7 @@ func TestValidateScopes_MultipleGlobalScopes(t *testing.T) {
 }
 
 func TestValidateScopes_EmptyList(t *testing.T) {
+	t.Parallel()
 	scopes := [][]string{}
 
 	err := ap.ValidateScopes(scopes)
@@ -655,6 +677,7 @@ func TestValidateScopes_EmptyList(t *testing.T) {
 }
 
 func TestValidateScopes_IdenticalPaths(t *testing.T) {
+	t.Parallel()
 	scopes := [][]string{
 		{"/src/main.go"},
 		{"/src/main.go"},

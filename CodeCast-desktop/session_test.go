@@ -9,6 +9,7 @@ import (
 // ==================== Session 基础测试 ====================
 
 func TestSessionModeField(t *testing.T) {
+	t.Parallel()
 	session := NewSession("test", "skill_1")
 	if session.Mode != "" {
 		t.Errorf("NewSession Mode should default to empty, got '%s'", session.Mode)
@@ -16,6 +17,7 @@ func TestSessionModeField(t *testing.T) {
 }
 
 func TestSessionModeCoding(t *testing.T) {
+	t.Parallel()
 	session := NewSession("test", "")
 	session.Mode = "coding"
 	if session.Mode != "coding" {
@@ -24,6 +26,7 @@ func TestSessionModeCoding(t *testing.T) {
 }
 
 func TestSessionModeDaily(t *testing.T) {
+	t.Parallel()
 	session := NewSession("test", "")
 	session.Mode = "daily"
 	if session.Mode != "daily" {
@@ -296,6 +299,7 @@ func TestBuildSystemPromptNonExistentSkill(t *testing.T) {
 // ==================== deepCopySession 测试 ====================
 
 func TestDeepCopySessionIndependence(t *testing.T) {
+	t.Parallel()
 	original := &Session{
 		ID:      "original",
 		Name:    "Original",
@@ -320,6 +324,7 @@ func TestDeepCopySessionIndependence(t *testing.T) {
 }
 
 func TestDeepCopySessionNilMessages(t *testing.T) {
+	t.Parallel()
 	original := &Session{
 		ID:       "test",
 		Name:     "Test",

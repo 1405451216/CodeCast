@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewDocumentPipelineConfig(t *testing.T) {
+	t.Parallel()
 	cfg := DocumentPipelineConfig{
 		ChunkSize:    512,
 		ChunkOverlap: 64,
@@ -103,6 +104,7 @@ func TestGetIngestionStatus(t *testing.T) {
 }
 
 func TestIsTextFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		ext  string
 		want bool

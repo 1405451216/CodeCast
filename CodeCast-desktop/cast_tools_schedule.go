@@ -5,6 +5,7 @@ import (
 	crypto_rand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -233,13 +234,22 @@ func parseNextRun(schedule string, lastRun int64) time.Time {
 		var d time.Duration
 		switch {
 		case len(interval) > 0 && interval[len(interval)-1] == 'm':
-			mins := parseInt(interval[:len(interval)-1])
+			mins, err := strconv.Atoi(interval[:len(interval)-1])
+			if err != nil || mins <= 0 {
+				mins = 1
+			}
 			d = time.Duration(mins) * time.Minute
 		case len(interval) > 0 && interval[len(interval)-1] == 'h':
-			hrs := parseInt(interval[:len(interval)-1])
+			hrs, err := strconv.Atoi(interval[:len(interval)-1])
+			if err != nil || hrs <= 0 {
+				hrs = 1
+			}
 			d = time.Duration(hrs) * time.Hour
 		case len(interval) > 0 && interval[len(interval)-1] == 'd':
-			days := parseInt(interval[:len(interval)-1])
+			days, err := strconv.Atoi(interval[:len(interval)-1])
+			if err != nil || days <= 0 {
+				days = 1
+			}
 			d = time.Duration(days) * 24 * time.Hour
 		default:
 			d = time.Hour
@@ -297,26 +307,15 @@ func parseCronField(field string, min, max int) (int, bool) {
 		return min, true
 	}
 	if strings.HasPrefix(field, "*/") {
-		n := parseInt(field[2:])
-		if n <= 0 {
+		n, err := strconv.Atoi(field[2:])
+		if err != nil || n <= 0 {
 			return min, false
 		}
 		return min, true // return the first occurrence
 	}
-	n := parseInt(field)
-	if n < min || n > max {
+	n, err := strconv.Atoi(field)
+	if err != nil || n < min || n > max {
 		return min, false
 	}
 	return n, true
-}
-
-func parseInt(s string) int {
-	n := 0
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return 1
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
 }

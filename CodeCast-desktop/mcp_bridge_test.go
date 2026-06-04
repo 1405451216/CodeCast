@@ -389,6 +389,7 @@ func TestTestMCPServerConnectionUnregisteredInSettings(t *testing.T) {
 // ==================== generateMCPID tests ====================
 
 func TestGenerateMCPID(t *testing.T) {
+	t.Parallel()
 	id1 := generateMCPID()
 	id2 := generateMCPID()
 

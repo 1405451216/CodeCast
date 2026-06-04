@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	ap "agentprimordia/pkg"
 )
@@ -59,7 +60,7 @@ func (a *App) castToolMarketplaceList(ctx context.Context, args json.RawMessage)
 	_ = json.Unmarshal(args, &in)
 	out := castMarketplaceListResult{}
 	for _, it := range marketplaceCatalog {
-		if in.Query != "" && !contains(it.Name, in.Query) && !contains(it.Description, in.Query) {
+		if in.Query != "" && !strings.Contains(it.Name, in.Query) && !strings.Contains(it.Description, in.Query) {
 			continue
 		}
 		out.Items = append(out.Items, struct {
@@ -94,17 +95,4 @@ func (a *App) castToolMarketplaceInstall(ctx context.Context, args json.RawMessa
 	out := castMarketplaceInstallResult{Installed: true, Message: "installed " + in.ItemID}
 	outJSON, _ := json.Marshal(out)
 	return a.recordCastInvocation("cast_marketplace_install", "marketplace", "", args, string(outJSON), false, 0), nil
-}
-
-func contains(s, sub string) bool {
-	return len(sub) > 0 && len(s) >= len(sub) && (s == sub || indexOf(s, sub) >= 0)
-}
-
-func indexOf(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
 }

@@ -381,7 +381,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// 10. Provider + RAG (createProvider requires a.mu — safe during startup, no contention)
 	a.mu.Lock()
-	provider, providerErr := a.createProvider()
+	provider, providerErr := a.createProvider("")
 	a.mu.Unlock()
 	if providerErr != nil {
 		slog.Warn("AP Provider 初始化失败", "error", providerErr)
@@ -524,6 +524,8 @@ func (a *App) startup(ctx context.Context) {
 	go a.autoCheckUpdate(a.updateStop)
 }
 
+// domReady is intentionally a no-op; retained as a Wails lifecycle placeholder.
+// If startup logic is ever needed when the DOM is ready, add it here.
 func (a *App) domReady(ctx context.Context) {
 }
 

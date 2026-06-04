@@ -250,7 +250,7 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 		providerID = a.settings.LLMProvider
 	}
 	if providerID == "" {
-		providerID = a.guessProviderForModel(creds.Model)
+		providerID = guessProviderForModel(creds.Model)
 	}
 
 	model = in.Model
@@ -558,6 +558,11 @@ func isAnthropicProvider(id string) bool {
 
 func escapeJSON(s string) string {
 	b, _ := json.Marshal(s)
+	// json.Marshal(s) returns a quoted JSON string like "\"foo\"",
+	// strip the outer quotes so it can be embedded inside a larger JSON value.
+	if len(b) >= 2 && b[0] == '"' && b[len(b)-1] == '"' {
+		return string(b[1 : len(b)-1])
+	}
 	return string(b)
 }
 

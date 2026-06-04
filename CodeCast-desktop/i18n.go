@@ -107,10 +107,13 @@ func InitI18n(defaultLocale Locale, fallback Locale, loaders ...TranslationLoade
 }
 
 // GetI18n 获取国际化管理器实例
+// Thread-safe: uses i18nOnce to ensure singleton initialization.
 func GetI18n() *I18nManager {
-	if i18nManager == nil {
-		InitI18n(LocaleZhCN, LocaleEnUS)
-	}
+	i18nOnce.Do(func() {
+		if i18nManager == nil {
+			InitI18n(LocaleZhCN, LocaleEnUS)
+		}
+	})
 	return i18nManager
 }
 
@@ -155,6 +158,13 @@ func (m *I18nManager) Translate(key string, params ...interface{}) string {
 	}
 
 	if len(params) > 0 {
+		// Recover from fmt.Sprintf panics caused by mismatched format verbs
+		// (e.g. template has %d but params contain a string).
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Warn("i18n format error", "key", key, "template", msg, "error", r)
+			}
+		}()
 		return fmt.Sprintf(msg, params...)
 	}
 
@@ -175,6 +185,12 @@ func (m *I18nManager) TranslateWithLocale(locale Locale, key string, params ...i
 	}
 
 	if len(params) > 0 {
+		// Recover from fmt.Sprintf panics caused by mismatched format verbs.
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Warn("i18n format error", "key", key, "template", msg, "error", r)
+			}
+		}()
 		return fmt.Sprintf(msg, params...)
 	}
 
@@ -465,6 +481,9 @@ func LoadBuiltinTranslations() {
 		return
 	}
 
+	i18nManager.mu.Lock()
+	defer i18nManager.mu.Unlock()
+
 	for locale, translations := range builtinTranslations {
 		if _, exists := i18nManager.messages[locale]; !exists {
 			i18nManager.messages[locale] = translations
@@ -503,6 +522,13 @@ func GenerateLocaleFiles(outputDir string) error {
 
 // DetectLocaleFromSystem 从系统检测语言偏好
 func DetectLocaleFromSystem() Locale {
+	// Try platform-specific detection first (Windows API / Unix env vars)
+	locale := detectSystemLocale()
+	if locale != "" {
+		return locale
+	}
+
+	// Fallback: Unix environment variables
 	lang := os.Getenv("LANG")
 	if lang == "" {
 		lang = os.Getenv("LC_ALL")
@@ -511,8 +537,12 @@ func DetectLocaleFromSystem() Locale {
 		lang = os.Getenv("LANGUAGE")
 	}
 
-	langLower := strings.ToLower(lang)
+	return localeFromLangString(lang)
+}
 
+// localeFromLangString maps a LANG/LC_ALL string to a Locale.
+func localeFromLangString(lang string) Locale {
+	langLower := strings.ToLower(lang)
 	switch {
 	case strings.HasPrefix(langLower, "zh"):
 		return LocaleZhCN

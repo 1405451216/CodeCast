@@ -16,13 +16,15 @@ import (
 // IMPORTANT: Caller MUST hold a.mu lock before calling this method.
 // resolveCredentialsLocked() requires the caller to hold a.mu (see config.go:862 comment).
 // Go's sync.RWMutex is NOT reentrant — do NOT add a.mu.RLock() here or it will deadlock.
-func (a *App) createProvider() (ap.Provider, error) {
-	creds, err := a.resolveCredentialsLocked("")
+//
+// modelOverride: if non-empty, overrides the default model from settings.
+func (a *App) createProvider(modelOverride string) (ap.Provider, error) {
+	creds, err := a.resolveCredentialsLocked(modelOverride)
 	if err != nil {
 		return nil, fmt.Errorf("resolve credentials: %w", err)
 	}
 
-	providerID := a.guessProviderForModel(creds.Model)
+	providerID := guessProviderForModel(creds.Model)
 
 	var primary ap.Provider
 	switch providerID {
@@ -133,7 +135,7 @@ func (a *App) createProvider() (ap.Provider, error) {
 // Now delegates to createProvider() since CacheManager-backed caching is always active.
 // IMPORTANT: Caller MUST hold a.mu lock (calls createProvider which requires it).
 func (a *App) createCachedProvider() (ap.Provider, error) {
-	return a.createProvider()
+	return a.createProvider("")
 }
 
 // simpleEmbeddingFunc provides a deterministic hash-based embedding for cache keys.

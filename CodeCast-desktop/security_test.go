@@ -120,6 +120,7 @@ func TestWindowsCommandInjection_VulnerabilityExists(t *testing.T) {
 }
 
 func TestChainOperatorsRegex_Coverage(t *testing.T) {
+	t.Parallel()
 	t.Log("Verify AP Sandbox dangerous character detection covers all shell metacharacters")
 
 	acl := setupSecurityACL([]string{"/tmp/project"})
@@ -161,6 +162,7 @@ func TestChainOperatorsRegex_Coverage(t *testing.T) {
 }
 
 func TestSanitizeWindowsCommand_Implementation(t *testing.T) {
+	t.Parallel()
 	t.Log("Testing sanitizeWindowsCommand implementation")
 
 	testCases := []struct {

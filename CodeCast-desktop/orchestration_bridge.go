@@ -262,7 +262,7 @@ func (a *App) createCapabilityAgent(name string) (ap.Agent, error) {
 		a.mu.Unlock()
 		return nil, fmt.Errorf("settings not initialized for agent %s", name)
 	}
-	provider, err := a.createProvider()
+	provider, err := a.createProvider("")
 	a.mu.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("create provider for %s: %w", name, err)

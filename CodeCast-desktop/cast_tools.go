@@ -140,7 +140,7 @@ func (a *App) castLLM(ctx context.Context, systemPrompt, userPrompt string) (str
 		provider = a.cachedProvider
 	} else {
 		var err error
-		provider, err = a.createProvider()
+		provider, err = a.createProvider("")
 		if err != nil {
 			a.mu.Unlock()
 			return "", fmt.Errorf("create provider: %w", err)

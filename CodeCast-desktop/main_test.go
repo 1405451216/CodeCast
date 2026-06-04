@@ -30,6 +30,7 @@ func TestNewApp(t *testing.T) {
 }
 
 func TestDefaultSettings(t *testing.T) {
+	t.Parallel()
 	settings := DefaultSettings
 
 	if settings.WorkMode != "daily" {
@@ -67,6 +68,7 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestNewSession(t *testing.T) {
+	t.Parallel()
 	session := NewSession("Test Session", "skill_123")
 
 	if session.ID == "" {
@@ -632,6 +634,7 @@ func init() {
 // ==================== 内存泄漏修复测试 (W-03) ====================
 
 func TestGenerateKey(t *testing.T) {
+	t.Parallel()
 	key, err := generateKey()
 	if err != nil {
 		t.Fatalf("generateKey failed: %v", err)
@@ -650,6 +653,7 @@ func TestGenerateKey(t *testing.T) {
 }
 
 func TestEncryptDecryptAPIKey(t *testing.T) {
+	t.Parallel()
 	key, _ := generateKey()
 
 	testCases := []string{
@@ -688,6 +692,7 @@ func TestEncryptDecryptAPIKey(t *testing.T) {
 }
 
 func TestDecryptUnencryptedValue(t *testing.T) {
+	t.Parallel()
 	key, _ := generateKey()
 
 	unencrypted := "plain-text-value"
@@ -701,6 +706,7 @@ func TestDecryptUnencryptedValue(t *testing.T) {
 }
 
 func TestIsEncrypted(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		value    string
 		expected bool
@@ -721,6 +727,7 @@ func TestIsEncrypted(t *testing.T) {
 }
 
 func TestEncryptWithInvalidKey(t *testing.T) {
+	t.Parallel()
 	invalidKey := make([]byte, 15) // AES 不支持 15 字节
 
 	_, err := encryptAPIKey("test-key", invalidKey)
@@ -730,6 +737,7 @@ func TestEncryptWithInvalidKey(t *testing.T) {
 }
 
 func TestDecryptWithCorruptedData(t *testing.T) {
+	t.Parallel()
 	key, _ := generateKey()
 
 	corruptedValues := []string{
@@ -776,6 +784,7 @@ func TestLoadOrCreateKey(t *testing.T) {
 }
 
 func TestGetKeyPath(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		settingsPath string
 		expected     string
@@ -917,6 +926,7 @@ func TestBackwardCompatibilityMigration(t *testing.T) {
 }
 
 func TestMultipleEncryptDecryptCycles(t *testing.T) {
+	t.Parallel()
 	key, _ := generateKey()
 	originalKey := "sk-test-api-key-multiple-cycles"
 

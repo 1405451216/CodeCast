@@ -35,7 +35,10 @@ func (a *App) SendMessageEx(sessionID, input, model, thinking string) ([]Message
 
 	a.mu.Lock()
 	requestIDBytes := make([]byte, 4)
-	rand.Read(requestIDBytes)
+	if _, err := rand.Read(requestIDBytes); err != nil {
+		a.mu.Unlock()
+		return nil, fmt.Errorf("generate request ID: %w", err)
+	}
 	requestKey := sessionID + "_" + hex.EncodeToString(requestIDBytes)
 	a.sessionCancels[requestKey] = reqCancel
 	a.mu.Unlock()
@@ -143,7 +146,7 @@ func (a *App) getOrCreateAgent(sessionID string, model string) (ap.Agent, contex
 		a.mu.Unlock()
 		return agent, nil, nil
 	}
-	provider, err := a.createProvider()
+	provider, err := a.createProvider(model)
 	a.mu.Unlock()
 	if err != nil {
 		return nil, nil, err

@@ -76,7 +76,12 @@ func deepCopySession(src *Session) *Session {
 	cp := *src
 	cp.Messages = make([]Message, len(src.Messages))
 	for i, m := range src.Messages {
-		cp.Messages[i] = m
+		cpMsg := m
+		if m.ToolCalls != nil {
+			cpMsg.ToolCalls = make([]ToolCall, len(m.ToolCalls))
+			copy(cpMsg.ToolCalls, m.ToolCalls)
+		}
+		cp.Messages[i] = cpMsg
 	}
 	return &cp
 }
@@ -370,14 +375,6 @@ func (a *App) emitToolEvent(toolName, detail string) {
 
 // ==================== Notes Recording ====================
 // 已迁移到 cast_kb_save（AI 主动调用） + ap.Memory（自动）
-
-func truncateLine(s string, max int) string {
-	runes := []rune(s)
-	if len(runes) <= max {
-		return s
-	}
-	return string(runes[:max]) + "..."
-}
 
 // ==================== Skills ====================
 
