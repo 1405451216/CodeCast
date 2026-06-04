@@ -279,7 +279,8 @@ func (a *App) createCapabilityAgent(name string) (ap.Agent, error) {
 			Mode:     ap.RAGModeAuto,
 			TopK:     3,
 		}).
-		WithHooks(a.hooks)
+		WithHooks(a.hooks).
+		WithCostTracker(a.costTracker)
 
 	return agent, nil
 }

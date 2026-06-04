@@ -69,6 +69,10 @@ type App struct {
 	orchestrationRuns map[string]*OrchestrationRun
 	orchestrationMu   sync.RWMutex
 
+	// AP CostTracker
+	costTracker  *ap.CostTracker
+	budgetConfig *ap.BudgetConfig
+
 	// AP Document Pipeline
 	ingestionStatus   *IngestionStatus
 
@@ -308,6 +312,9 @@ func (a *App) startup(ctx context.Context) {
 	a.lifecycle = ap.NewLifecycle()
 	slog.Info("AP Lifecycle 已启动")
 
+	// 9b. AP CostTracker
+	a.initCostTracker()
+
 	// 10. Provider + RAG (createProvider requires a.mu — safe during startup, no contention)
 	a.mu.Lock()
 	provider, providerErr := a.createProvider()
@@ -338,7 +345,8 @@ func (a *App) startup(ctx context.Context) {
 				Mode:     ap.RAGModeAuto,
 				TopK:     5,
 			}).
-			WithHooks(a.hooks)
+			WithHooks(a.hooks).
+			WithCostTracker(a.costTracker)
 		slog.Info("AP Default Agent 已创建")
 
 		// 12. AP Agent Pool
@@ -435,6 +443,14 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	// Notes store has no Close method — cleanup is handled by garbage collection
 	// legacy cleanup removed — AP sessionCancels handled in CancelRequest()
+	if a.costTracker != nil {
+		summary := a.costTracker.Summary()
+		slog.Info("AP CostTracker final summary",
+			"total_cost_usd", summary.TotalCostUSD,
+			"total_tokens", summary.TotalTokens,
+			"call_count", summary.CallCount,
+		)
+	}
 	slog.Info("应用即将关闭", "action", "cleaned_all_active_connections")
 }
 

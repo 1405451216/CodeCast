@@ -129,7 +129,8 @@ func (a *App) getOrCreateAgent(sessionID string, model string) (ap.Agent, contex
 			Mode:     ap.RAGModeAuto,
 			TopK:     5,
 		}).
-		WithHooks(a.hooks)
+		WithHooks(a.hooks).
+		WithCostTracker(a.costTracker)
 
 	a.mu.Lock()
 	a.sessionAgents[sessionID] = agent

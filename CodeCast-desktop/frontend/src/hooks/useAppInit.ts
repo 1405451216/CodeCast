@@ -22,6 +22,7 @@ const AP_EVENTS = [
   'orchestration:start',
   'orchestration:complete',
   'orchestration:error',
+  'cost:summary',
 ] as const;
 
 export function useAppInit() {
@@ -53,6 +54,8 @@ export function useAppInit() {
           useAppStore.getState().handleMetricsEvent(payload);
         } else if (eventName.startsWith('orchestration:')) {
           useAppStore.getState().handleOrchestrationEvent(eventName, payload);
+        } else if (eventName === 'cost:summary') {
+          useAppStore.getState().handleCostEvent(payload);
         } else {
           useAppStore.getState().handleAPEvent(eventName, payload);
         }

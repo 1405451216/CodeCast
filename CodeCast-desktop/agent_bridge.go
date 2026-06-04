@@ -146,6 +146,7 @@ func (a *App) createPoolAgentFactory() ap.AgentFactory {
 				Mode:     ap.RAGModeAuto,
 				TopK:     3,
 			}).
-			WithHooks(a.hooks)
+			WithHooks(a.hooks).
+			WithCostTracker(a.costTracker)
 	}
 }

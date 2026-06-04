@@ -62,4 +62,21 @@ func (a *App) startEventBridge() {
 			}
 		}
 	}()
+
+	// Cost summary broadcast (every 30s)
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.ctx.Done():
+				return
+			case <-ticker.C:
+				if a.costTracker != nil {
+					summary := a.costTracker.Summary()
+					wailsRuntime.EventsEmit(a.ctx, "cost:summary", summary)
+				}
+			}
+		}
+	}()
 }

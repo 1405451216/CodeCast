@@ -248,3 +248,25 @@ export interface IngestionStatus {
   totalChunks: number;
   isRunning: boolean;
 }
+
+// Cost tracking types
+export interface CostSummary {
+  total_cost_usd: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
+  call_count: number;
+  by_model: Record<string, ModelCost>;
+}
+
+export interface ModelCost {
+  cost_usd: number;
+  calls: number;
+  tokens: number;
+}
+
+export interface BudgetConfig {
+  max_total_cost_usd: number;
+  max_tokens_per_call: number;
+  max_tokens_per_session: number;
+}

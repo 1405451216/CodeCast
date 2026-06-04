@@ -19,6 +19,9 @@ import type {
   ParallelResult,
   IngestionResult,
   IngestionStatus,
+  CostSummary,
+  ModelCost,
+  BudgetConfig,
 } from './api/types';
 
 export class WailsBridgeError extends Error {
@@ -229,6 +232,13 @@ interface GoAppMethods {
   // AP Document Pipeline
   IngestDirectory(dirPath: string, config: { chunkSize: number; chunkOverlap: number; maxFileSize: number; extensions: string[] }): Promise<IngestionResult>;
   GetIngestionStatus(): Promise<IngestionStatus>;
+
+  // CostTracker
+  GetCostSummary(): Promise<CostSummary>;
+  ResetCostTracker(): Promise<void>;
+  CheckBudgetExceeded(): Promise<boolean>;
+  GetBudgetConfig(): Promise<BudgetConfig>;
+  SetBudgetLimit(maxCostUSD: number): Promise<void>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -674,3 +684,10 @@ export const ingestDirectory = (dirPath: string, config: { chunkSize: number; ch
   callGo('IngestDirectory', dirPath, config);
 export const getIngestionStatus = () =>
   callGo('GetIngestionStatus');
+
+// CostTracker
+export const getCostSummary = () => callGo('GetCostSummary');
+export const resetCostTracker = () => callGo('ResetCostTracker');
+export const checkBudgetExceeded = () => callGo('CheckBudgetExceeded');
+export const getBudgetConfig = () => callGo('GetBudgetConfig');
+export const setBudgetLimit = (maxCostUSD: number) => callGo('SetBudgetLimit', maxCostUSD);
