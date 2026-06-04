@@ -55,6 +55,7 @@ type App struct {
 	metricsExporter   *ap.MetricsExporter
 	guardrail         *ap.GuardrailEngine
 	guardrailHook     *ap.GuardrailHook
+	fileLockMgr       *ap.FileLockManager
 	acl               *ap.ACL
 	sandbox           *ap.Sandbox
 	hooks             *ap.HookManager
@@ -212,6 +213,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// 3. AP Metrics
 	a.metricsCollector = ap.NewMetrics()
+	initAPMetricsBridge(a.metricsCollector)
 	slog.Info("AP Metrics 已启动")
 
 	// 3b. AP MetricsExporter (periodic log export every 15s)
@@ -224,6 +226,10 @@ func (a *App) startup(ctx context.Context) {
 	a.guardrail = ap.NewGuardrailEngine()
 	a.guardrailHook = a.setupGuardrails() // checkpoint_hook.go
 	slog.Info("AP Guardrails 已启动")
+
+	// 4a. AP FileLockManager — cross-agent file-level mutual exclusion
+	a.fileLockMgr = ap.NewFileLockManager()
+	slog.Info("AP FileLockManager 已启动")
 
 	// 4b. AP Security (ACL + Sandbox) — replaces hand-rolled security in shell.go
 	projectPath := ""

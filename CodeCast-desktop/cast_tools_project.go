@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	ap "agentprimordia/pkg"
 )
@@ -121,6 +122,15 @@ func (a *App) castToolProjectWriteFile(ctx context.Context, args json.RawMessage
 	if err := json.Unmarshal(args, &in); err != nil {
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
 	}
+
+	// Acquire file lock before writing to prevent concurrent agent conflicts
+	if a.fileLockMgr != nil {
+		if !a.fileLockMgr.TryAcquire(in.FilePath) {
+			return &ap.ToolResult{Content: fmt.Sprintf("file locked by another agent: %s", in.FilePath), IsError: true}, nil
+		}
+		defer a.fileLockMgr.Release(in.FilePath)
+	}
+
 	start := nowMs()
 	if err := a.WriteFile(in.FilePath, in.Content); err != nil {
 		return a.recordCastInvocation("cast_project_write_file", "project", "", args, err.Error(), true, nowMs()-start), nil

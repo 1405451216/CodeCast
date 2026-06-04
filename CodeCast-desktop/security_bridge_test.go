@@ -524,3 +524,136 @@ func TestParity_OldAgentExtraDangerPatterns(t *testing.T) {
 		}
 	}
 }
+
+// ==================== FileLockManager Tests ====================
+
+func TestFileLockManager_AcquireAndRelease(t *testing.T) {
+	mgr := ap.NewFileLockManager()
+
+	// Basic acquire + release should work without panic
+	mgr.Acquire("test.txt")
+	mgr.Release("test.txt")
+
+	// Should be able to re-acquire after release
+	mgr.Acquire("test.txt")
+	mgr.Release("test.txt")
+}
+
+func TestFileLockManager_TryAcquire_Success(t *testing.T) {
+	mgr := ap.NewFileLockManager()
+
+	ok := mgr.TryAcquire("test.txt")
+	if !ok {
+		t.Fatal("TryAcquire should succeed when lock is free")
+	}
+	mgr.Release("test.txt")
+}
+
+func TestFileLockManager_TryAcquire_FailsWhenLocked(t *testing.T) {
+	mgr := ap.NewFileLockManager()
+
+	mgr.Acquire("test.txt")
+	defer mgr.Release("test.txt")
+
+	ok := mgr.TryAcquire("test.txt")
+	if ok {
+		t.Fatal("TryAcquire should fail when lock is already held")
+	}
+}
+
+func TestFileLockManager_DifferentPathsDontConflict(t *testing.T) {
+	mgr := ap.NewFileLockManager()
+
+	mgr.Acquire("file_a.txt")
+	ok := mgr.TryAcquire("file_b.txt")
+	if !ok {
+		t.Fatal("TryAcquire on a different file should succeed even when another file is locked")
+	}
+	mgr.Release("file_a.txt")
+	mgr.Release("file_b.txt")
+}
+
+func TestFileLockManager_AppIntegration(t *testing.T) {
+	app := createTestApp()
+	app.fileLockMgr = ap.NewFileLockManager()
+
+	// Simulate what cast_project_write_file does
+	filePath := "src/main.go"
+	if !app.fileLockMgr.TryAcquire(filePath) {
+		t.Fatal("TryAcquire should succeed on first attempt")
+	}
+	app.fileLockMgr.Release(filePath)
+}
+
+func TestFileLockManager_AppIntegration_Locked(t *testing.T) {
+	app := createTestApp()
+	app.fileLockMgr = ap.NewFileLockManager()
+
+	filePath := "src/main.go"
+	app.fileLockMgr.Acquire(filePath)
+	defer app.fileLockMgr.Release(filePath)
+
+	// Another attempt on the same file should fail
+	ok := app.fileLockMgr.TryAcquire(filePath)
+	if ok {
+		t.Fatal("TryAcquire should fail when file is already locked by another agent")
+	}
+}
+
+func TestValidateScopes_NoOverlap(t *testing.T) {
+	scopes := [][]string{
+		{"/src/a"},
+		{"/src/b"},
+		{"/docs"},
+	}
+
+	err := ap.ValidateScopes(scopes)
+	if err != nil {
+		t.Fatalf("expected no error for non-overlapping scopes, got: %v", err)
+	}
+}
+
+func TestValidateScopes_OverlapDetected(t *testing.T) {
+	scopes := [][]string{
+		{"/src/a"},
+		{"/src/a/b"},
+	}
+
+	err := ap.ValidateScopes(scopes)
+	if err == nil {
+		t.Fatal("expected error for overlapping scopes")
+	}
+}
+
+func TestValidateScopes_MultipleGlobalScopes(t *testing.T) {
+	scopes := [][]string{
+		{"/"},
+		{"/"},
+	}
+
+	err := ap.ValidateScopes(scopes)
+	if err == nil {
+		t.Fatal("expected error for multiple global scopes")
+	}
+}
+
+func TestValidateScopes_EmptyList(t *testing.T) {
+	scopes := [][]string{}
+
+	err := ap.ValidateScopes(scopes)
+	if err != nil {
+		t.Fatalf("expected no error for empty scopes list, got: %v", err)
+	}
+}
+
+func TestValidateScopes_IdenticalPaths(t *testing.T) {
+	scopes := [][]string{
+		{"/src/main.go"},
+		{"/src/main.go"},
+	}
+
+	err := ap.ValidateScopes(scopes)
+	if err == nil {
+		t.Fatal("expected error for identical file paths in scopes")
+	}
+}

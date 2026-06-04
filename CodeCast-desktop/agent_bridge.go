@@ -25,8 +25,9 @@ type AgentInfo struct {
 // DispatchAgents dispatches tasks via AP Pool.Dispatch (batch).
 func (a *App) DispatchAgents(tasksJSON string) ([]string, error) {
 	var tasks []struct {
-		Title  string `json:"title"`
-		Prompt string `json:"prompt"`
+		Title      string   `json:"title"`
+		Prompt     string   `json:"prompt"`
+		FilesScope []string `json:"files_scope,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(tasksJSON), &tasks); err != nil {
 		return nil, fmt.Errorf("parse tasks: %w", err)
@@ -35,13 +36,32 @@ func (a *App) DispatchAgents(tasksJSON string) ([]string, error) {
 	var taskConfigs []ap.TaskConfig
 	for _, t := range tasks {
 		taskConfigs = append(taskConfigs, ap.TaskConfig{
-			Title:    t.Title,
-			Prompt:   t.Prompt,
-			MaxTurns: 10,
+			Title:      t.Title,
+			Prompt:     t.Prompt,
+			FilesScope: t.FilesScope,
+			MaxTurns:   10,
 		})
 	}
 
-	results, err := a.pool.Dispatch(context.Background(), taskConfigs)
+	// Validate task scopes for overlap conflicts before dispatching
+	if a.fileLockMgr != nil {
+		var scopes [][]string
+		for _, t := range taskConfigs {
+			if t.FilesScope != nil {
+				scopes = append(scopes, t.FilesScope)
+			}
+		}
+		if err := ap.ValidateScopes(scopes); err != nil {
+			return nil, fmt.Errorf("scope conflict: %w", err)
+		}
+	}
+
+	// Use a.ctx as parent so agent dispatches are cancelled on app shutdown.
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	results, err := a.pool.Dispatch(ctx, taskConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("dispatch tasks: %w", err)
 	}
