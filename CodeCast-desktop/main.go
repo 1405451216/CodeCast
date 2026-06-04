@@ -73,6 +73,13 @@ type App struct {
 	costTracker  *ap.CostTracker
 	budgetConfig *ap.BudgetConfig
 
+	// AP CacheManager
+	cacheManager *ap.CacheManager
+
+	// AP Summarizer + SummaryEngine
+	summarizer    *ap.Summarizer
+	summaryEngine *ap.SummaryEngine
+
 	// AP Document Pipeline
 	ingestionStatus   *IngestionStatus
 
@@ -171,6 +178,19 @@ func (a *App) GetMetricsExportPrometheus() string {
 		return ""
 	}
 	return a.metricsCollector.String()
+}
+
+// GetSessionSummary triggers summarization for a session and returns the result.
+func (a *App) GetSessionSummary(sessionID string) *ap.SummaryResult {
+	if a.summaryEngine == nil {
+		return nil
+	}
+	result, err := a.summaryEngine.Run(a.ctx, sessionID)
+	if err != nil {
+		slog.Warn("GetSessionSummary failed", "session", sessionID, "error", err)
+		return nil
+	}
+	return result
 }
 
 func NewApp() *App {
@@ -315,6 +335,19 @@ func (a *App) startup(ctx context.Context) {
 	// 9b. AP CostTracker
 	a.initCostTracker()
 
+	// 9c. AP CacheManager
+	fpCache := ap.NewFingerprintCache(2000, 30*time.Minute)
+	vecCache := ap.NewInMemoryCache(simpleEmbeddingFunc, 4096, 0.9)
+	hybridCache, hybridErr := ap.NewHybridCache(fpCache, vecCache)
+	if hybridErr != nil {
+		slog.Warn("AP HybridCache 创建失败", "error", hybridErr)
+	}
+	a.cacheManager = ap.NewCacheManager(ap.CacheManagerConfig{
+		Cache:   hybridCache,
+		Enabled: true,
+	})
+	slog.Info("AP CacheManager 已启动")
+
 	// 10. Provider + RAG (createProvider requires a.mu — safe during startup, no contention)
 	a.mu.Lock()
 	provider, providerErr := a.createProvider()
@@ -361,6 +394,14 @@ func (a *App) startup(ctx context.Context) {
 		a.pool.SetModel(provider)
 		a.pool.SetAgentFactory(a.createPoolAgentFactory())
 		slog.Info("AP Agent Pool 已启动", "max_concurrency", 5)
+
+		// 9d. AP Summarizer + SummaryEngine
+		if providerErr == nil && a.memory != nil {
+			a.summarizer = ap.NewSummarizer(provider)
+			strategy := ap.NewWindowSummaryStrategy(10)
+			a.summaryEngine = ap.NewSummaryEngine(strategy, a.summarizer, a.memory)
+			slog.Info("AP SummaryEngine 已启动", "window_size", 10)
+		}
 	}
 
 	// 13. Event bridge (AP EventBus → Wails Events)
@@ -451,6 +492,10 @@ func (a *App) shutdown(ctx context.Context) {
 			"call_count", summary.CallCount,
 		)
 	}
+	if a.cacheManager != nil {
+		a.cacheManager.Clear(a.ctx)
+		slog.Info("AP CacheManager 已清理")
+	}
 	slog.Info("应用即将关闭", "action", "cleaned_all_active_connections")
 }
 
@@ -472,6 +517,38 @@ func (a *App) GetAgentLifecycleStates() map[string]string {
 	}
 	a.mu.RUnlock()
 	return states
+}
+
+// GetCacheStats returns the current cache statistics.
+func (a *App) GetCacheStats() ap.CacheStats {
+	if a.cacheManager == nil {
+		return ap.CacheStats{}
+	}
+	return a.cacheManager.Stats(a.ctx)
+}
+
+// ClearCache clears all cached LLM responses.
+func (a *App) ClearCache() error {
+	if a.cacheManager == nil {
+		return nil
+	}
+	return a.cacheManager.Clear(a.ctx)
+}
+
+// SetCacheEnabled enables or disables the LLM cache.
+func (a *App) SetCacheEnabled(enabled bool) {
+	if a.cacheManager != nil {
+		a.cacheManager.Enable(enabled)
+		slog.Info("AP CacheManager toggled", "enabled", enabled)
+	}
+}
+
+// InvalidateCacheKey removes cached entries matching a key substring.
+func (a *App) InvalidateCacheKey(key string) error {
+	if a.cacheManager == nil {
+		return nil
+	}
+	return a.cacheManager.Invalidate(a.ctx, key)
 }
 
 func main() {

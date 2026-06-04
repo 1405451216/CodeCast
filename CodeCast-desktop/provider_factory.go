@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"time"
+	"log/slog"
 
 	ap "agentprimordia/pkg"
 )
@@ -115,32 +115,25 @@ func (a *App) createProvider() (ap.Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create resilient provider: %w", err)
 	}
+
+	// Wrap with CacheManager-backed caching if available
+	if a.cacheManager != nil {
+		cached, cacheErr := ap.NewCachedProviderWithManager(resilient, a.cacheManager, 0.95)
+		if cacheErr != nil {
+			slog.Warn("AP CachedProviderWithManager creation failed, using uncached", "error", cacheErr)
+			return resilient, nil
+		}
+		return cached, nil
+	}
+
 	return resilient, nil
 }
 
 // createCachedProvider creates a cached provider for code completion use cases.
-// Uses AP's CachedProvider with fingerprint + vector similarity cache.
+// Now delegates to createProvider() since CacheManager-backed caching is always active.
 // IMPORTANT: Caller MUST hold a.mu lock (calls createProvider which requires it).
 func (a *App) createCachedProvider() (ap.Provider, error) {
-	primary, err := a.createProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	fpCache := ap.NewFingerprintCache(1000, 10*time.Minute)
-	// InMemoryCache needs an EmbeddingFunc, max size, and minimum similarity score.
-	// We use a simple hash-based embedding (deterministic, no LLM call needed for cache).
-	vecCache := ap.NewInMemoryCache(simpleEmbeddingFunc, 1536, 0.9)
-	hybridCache, cacheErr := ap.NewHybridCache(fpCache, vecCache)
-	if cacheErr != nil {
-		return nil, fmt.Errorf("create hybrid cache: %w", cacheErr)
-	}
-
-	cached, err := ap.NewCachedProvider(primary, hybridCache, 0.95)
-	if err != nil {
-		return nil, fmt.Errorf("create cached provider: %w", err)
-	}
-	return cached, nil
+	return a.createProvider()
 }
 
 // simpleEmbeddingFunc provides a deterministic hash-based embedding for cache keys.

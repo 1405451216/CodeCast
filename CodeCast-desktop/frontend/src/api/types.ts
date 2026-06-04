@@ -270,3 +270,20 @@ export interface BudgetConfig {
   max_tokens_per_call: number;
   max_tokens_per_session: number;
 }
+
+// Cache stats types
+export interface CacheStats {
+  total_queries: number;
+  cache_hits: number;
+  cache_misses: number;
+  hit_rate: number;
+  entry_count: number;
+  tokens_saved: number;
+  cost_saved_usd: number;
+}
+
+// Summarizer types
+export interface SummaryResult {
+  Summary: string;
+  Topics: string;
+}

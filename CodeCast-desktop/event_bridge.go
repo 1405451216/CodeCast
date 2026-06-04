@@ -79,4 +79,21 @@ func (a *App) startEventBridge() {
 			}
 		}
 	}()
+
+	// Cache stats broadcast (every 60s)
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.ctx.Done():
+				return
+			case <-ticker.C:
+				if a.cacheManager != nil {
+					stats := a.cacheManager.Stats(a.ctx)
+					wailsRuntime.EventsEmit(a.ctx, "cache:stats", stats)
+				}
+			}
+		}
+	}()
 }

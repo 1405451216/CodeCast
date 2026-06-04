@@ -22,6 +22,8 @@ import type {
   CostSummary,
   ModelCost,
   BudgetConfig,
+  CacheStats,
+  SummaryResult,
 } from './api/types';
 
 export class WailsBridgeError extends Error {
@@ -239,6 +241,15 @@ interface GoAppMethods {
   CheckBudgetExceeded(): Promise<boolean>;
   GetBudgetConfig(): Promise<BudgetConfig>;
   SetBudgetLimit(maxCostUSD: number): Promise<void>;
+
+  // CacheManager
+  GetCacheStats(): Promise<CacheStats>;
+  ClearCache(): Promise<void>;
+  SetCacheEnabled(enabled: boolean): Promise<void>;
+  InvalidateCacheKey(key: string): Promise<void>;
+
+  // Summarizer
+  GetSessionSummary(sessionId: string): Promise<SummaryResult | null>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -691,3 +702,12 @@ export const resetCostTracker = () => callGo('ResetCostTracker');
 export const checkBudgetExceeded = () => callGo('CheckBudgetExceeded');
 export const getBudgetConfig = () => callGo('GetBudgetConfig');
 export const setBudgetLimit = (maxCostUSD: number) => callGo('SetBudgetLimit', maxCostUSD);
+
+// CacheManager
+export const getCacheStats = () => callGo('GetCacheStats');
+export const clearCache = () => callGo('ClearCache');
+export const setCacheEnabled = (enabled: boolean) => callGo('SetCacheEnabled', enabled);
+export const invalidateCacheKey = (key: string) => callGo('InvalidateCacheKey', key);
+
+// Summarizer
+export const getSessionSummary = (sessionId: string) => callGo('GetSessionSummary', sessionId);
