@@ -20,6 +20,16 @@ const MCPTab: React.FC = () => {
   const [mcpStatus, setMcpStatus] = useState<Record<string, MCPStatusEntry>>({});
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
 
+  // Telemetry
+  const [telemetryEnabled, setTelemetryEnabled] = useState(false);
+  const [telemetryEndpoint, setTelemetryEndpoint] = useState('http://localhost:4318');
+
+  // Guardrail
+  const [sanitizerEnabled, setSanitizerEnabled] = useState(false);
+  const [sanitizerStrategy, setSanitizerStrategy] = useState('Mask');
+  const [topicConstraints, setTopicConstraints] = useState<string[]>([]);
+  const [newTopic, setNewTopic] = useState('');
+
   const loadMCPServers = async () => {
     try {
       const s = await api.getSettings();
@@ -65,6 +75,19 @@ const MCPTab: React.FC = () => {
   useEffect(() => {
     loadMCPServers();
     loadMCPStatus();
+    (async () => {
+      try {
+        const ts = await api.getTelemetryStatus();
+        setTelemetryEnabled(ts.enabled);
+        setTelemetryEndpoint(ts.endpoint || 'http://localhost:4318');
+      } catch (e) { /* ignore */ }
+      try {
+        const gs = await api.getGuardrailStatus();
+        setSanitizerEnabled(gs.sanitizerEnabled);
+        setSanitizerStrategy(gs.sanitizerStrategy || 'Mask');
+        setTopicConstraints(gs.topicConstraints || []);
+      } catch (e) { /* ignore */ }
+    })();
   }, []);
 
   return (
@@ -281,6 +304,147 @@ const MCPTab: React.FC = () => {
         >
           添加
         </button>
+      </div>
+
+      {/* Telemetry Section */}
+      <div className="settings-group" style={{ marginTop: 16 }}>
+        <div className="settings-group-title">OTLP 遥测</div>
+        <div className="form-group">
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className={`toggle${telemetryEnabled ? ' active' : ''}`}
+              style={{ width: '32px', height: '18px' }}
+              onClick={async () => {
+                try {
+                  await api.toggleTelemetry(!telemetryEnabled);
+                  setTelemetryEnabled(!telemetryEnabled);
+                } catch (e) {
+                  console.error('Toggle telemetry failed:', e);
+                }
+              }}
+            />
+            启用 OTLP 遥测
+          </label>
+        </div>
+        {telemetryEnabled && (
+          <div className="form-group">
+            <label className="form-label">Endpoint</label>
+            <input
+              className="form-input"
+              value={telemetryEndpoint}
+              onChange={(e) => setTelemetryEndpoint(e.target.value)}
+              onBlur={async () => {
+                if (!telemetryEndpoint) return;
+                try {
+                  await api.setTelemetryEndpoint(telemetryEndpoint);
+                } catch (e) {
+                  console.error('Set telemetry endpoint failed:', e);
+                }
+              }}
+              placeholder="http://localhost:4318"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Guardrail Section */}
+      <div className="settings-group" style={{ marginTop: 16 }}>
+        <div className="settings-group-title">安全防护</div>
+
+        <div className="form-group">
+          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className={`toggle${sanitizerEnabled ? ' active' : ''}`}
+              style={{ width: '32px', height: '18px' }}
+              onClick={async () => {
+                try {
+                  await api.toggleSanitizer(!sanitizerEnabled);
+                  setSanitizerEnabled(!sanitizerEnabled);
+                } catch (e) {
+                  console.error('Toggle sanitizer failed:', e);
+                }
+              }}
+            />
+            输出脱敏 (Sanitizer)
+          </label>
+        </div>
+
+        {sanitizerEnabled && (
+          <div className="form-group">
+            <label className="form-label">脱敏策略</label>
+            <select
+              className="settings-select"
+              value={sanitizerStrategy}
+              onChange={async (e) => {
+                const val = e.target.value;
+                try {
+                  await api.setSanitizerStrategy(val);
+                  setSanitizerStrategy(val);
+                } catch (err) {
+                  console.error('Set sanitizer strategy failed:', err);
+                }
+              }}
+              style={{ width: '100%' }}
+            >
+              <option value="Mask">Mask (部分遮盖)</option>
+              <option value="Redact">Redact (完全移除)</option>
+              <option value="Replace">Replace (替换为占位符)</option>
+              <option value="Hash">Hash (哈希替换)</option>
+            </select>
+          </div>
+        )}
+
+        <div className="form-group" style={{ marginTop: 12 }}>
+          <label className="form-label">话题约束 (留空则不限制)</label>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+            <input
+              className="form-input"
+              value={newTopic}
+              onChange={(e) => setNewTopic(e.target.value)}
+              placeholder="添加允许的话题"
+              style={{ flex: 1 }}
+            />
+            <button
+              className="settings-add-btn"
+              onClick={async () => {
+                const t = newTopic.trim();
+                if (!t) return;
+                const updated = [...topicConstraints, t];
+                try {
+                  await api.updateTopicConstraints(updated);
+                  setTopicConstraints(updated);
+                  setNewTopic('');
+                } catch (e) {
+                  console.error('Update topic constraints failed:', e);
+                }
+              }}
+            >
+              +
+            </button>
+          </div>
+          {topicConstraints.length > 0 && (
+            <div className="domain-list">
+              {topicConstraints.map((topic, idx) => (
+                <div className="domain-item" key={idx}>
+                  <span>{topic}</span>
+                  <button
+                    onClick={async () => {
+                      const updated = topicConstraints.filter((_, i) => i !== idx);
+                      try {
+                        await api.updateTopicConstraints(updated);
+                        setTopicConstraints(updated);
+                      } catch (e) {
+                        console.error('Remove topic constraint failed:', e);
+                      }
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
