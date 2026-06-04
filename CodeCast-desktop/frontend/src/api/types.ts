@@ -230,3 +230,21 @@ export interface ParallelResult {
   results: string[];
   errors?: string[];
 }
+
+export interface IngestionResult {
+  filesProcessed: number;
+  chunksCreated: number;
+  filesSkipped: number;
+  skippedReasons?: string[];
+  totalBytes: number;
+  durationMs: number;
+  directory: string;
+}
+
+export interface IngestionStatus {
+  lastIngestionDir?: string;
+  lastIngestionAt?: string;
+  totalDocuments: number;
+  totalChunks: number;
+  isRunning: boolean;
+}

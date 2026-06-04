@@ -17,6 +17,8 @@ import type {
   RefactoringResult,
   TestPipelineResult,
   ParallelResult,
+  IngestionResult,
+  IngestionStatus,
 } from './api/types';
 
 export class WailsBridgeError extends Error {
@@ -223,6 +225,10 @@ interface GoAppMethods {
   GetWorkflowStatus(runId: string): Promise<OrchestrationRun | null>;
   ListWorkflowRuns(): Promise<OrchestrationRun[]>;
   CancelWorkflowRun(runId: string): Promise<void>;
+
+  // AP Document Pipeline
+  IngestDirectory(dirPath: string, config: { chunkSize: number; chunkOverlap: number; maxFileSize: number; extensions: string[] }): Promise<IngestionResult>;
+  GetIngestionStatus(): Promise<IngestionStatus>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -662,3 +668,9 @@ export const listWorkflowRuns = () =>
   callGo('ListWorkflowRuns');
 export const cancelWorkflowRun = (runId: string) =>
   callGo('CancelWorkflowRun', runId);
+
+// AP Document Pipeline
+export const ingestDirectory = (dirPath: string, config: { chunkSize: number; chunkOverlap: number; maxFileSize: number; extensions: string[] }) =>
+  callGo('IngestDirectory', dirPath, config);
+export const getIngestionStatus = () =>
+  callGo('GetIngestionStatus');

@@ -54,6 +54,22 @@ func registerKBTools(a *App, toolkit *ap.ToolRegistry) error {
 				return a.castToolKBLink(ctx, args)
 			},
 		),
+		newCastTool(a, "cast_kb_ingest", "knowledge",
+			"将目录中的文档批量导入知识库（自动分块、存储到 RAG）",
+			json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"directory": {"type": "string", "description": "要导入的目录路径"},
+					"chunkSize": {"type": "integer", "description": "分块大小（字符数），默认 512"},
+					"chunkOverlap": {"type": "integer", "description": "分块重叠（字符数），默认 64"},
+					"extensions": {"type": "array", "items": {"type": "string"}, "description": "文件扩展名过滤，如 ['.go','.md']，空则自动检测文本文件"}
+				},
+				"required": ["directory"]
+			}`),
+			func(ctx context.Context, a *App, args json.RawMessage) (*ap.ToolResult, error) {
+				return a.castToolKBIngest(ctx, args)
+			},
+		),
 	}
 	return toolkit.RegisterMultiple(toolToApTools(tools)...)
 }
@@ -100,11 +116,14 @@ func (a *App) castToolKBSearch(ctx context.Context, args json.RawMessage) (*ap.T
 		Score   float64 `json:"score"`
 	}, 0, len(hits))}
 	for _, h := range hits {
+		title, _ := h["title"].(string)
+		snippet, _ := h["snippet"].(string)
+		score, _ := h["score"].(float64)
 		out.Hits = append(out.Hits, struct {
 			Title   string  `json:"title"`
 			Snippet string  `json:"snippet"`
 			Score   float64 `json:"score"`
-		}{Title: h["title"].(string), Snippet: h["snippet"].(string), Score: h["score"].(float64)})
+		}{Title: title, Snippet: snippet, Score: score})
 	}
 	outJSON, _ := json.Marshal(out)
 	return a.recordCastInvocation("cast_kb_search", "knowledge", "", args, string(outJSON), false, nowMs()-start), nil
@@ -167,6 +186,44 @@ func (a *App) castToolKBLink(ctx context.Context, args json.RawMessage) (*ap.Too
 	out := map[string]any{"from": in.From, "to": in.To, "linked": true}
 	outJSON, _ := json.Marshal(out)
 	return a.recordCastInvocation("cast_kb_link", "knowledge", "", args, string(outJSON), false, 0), nil
+}
+
+func (a *App) castToolKBIngest(ctx context.Context, args json.RawMessage) (*ap.ToolResult, error) {
+	var in struct {
+		Directory    string   `json:"directory"`
+		ChunkSize    int      `json:"chunkSize"`
+		ChunkOverlap int      `json:"chunkOverlap"`
+		Extensions   []string `json:"extensions"`
+	}
+	if err := json.Unmarshal(args, &in); err != nil {
+		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
+	}
+
+	if in.Directory == "" {
+		return a.recordCastInvocation("cast_kb_ingest", "knowledge", "", args, "directory is required", true, 0), nil
+	}
+
+	start := nowMs()
+	cfg := DocumentPipelineConfig{
+		ChunkSize:    in.ChunkSize,
+		ChunkOverlap: in.ChunkOverlap,
+		MaxFileSize:  1024 * 1024,
+		Extensions:   in.Extensions,
+	}
+	if cfg.ChunkSize <= 0 {
+		cfg.ChunkSize = 512
+	}
+	if cfg.ChunkOverlap < 0 {
+		cfg.ChunkOverlap = 64
+	}
+
+	result, err := a.IngestDirectory(in.Directory, cfg)
+	if err != nil {
+		return a.recordCastInvocation("cast_kb_ingest", "knowledge", "", args, err.Error(), true, nowMs()-start), nil
+	}
+
+	outJSON, _ := json.Marshal(result)
+	return a.recordCastInvocation("cast_kb_ingest", "knowledge", "", args, string(outJSON), false, nowMs()-start), nil
 }
 
 func truncate(s string, n int) string {

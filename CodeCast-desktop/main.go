@@ -69,6 +69,9 @@ type App struct {
 	orchestrationRuns map[string]*OrchestrationRun
 	orchestrationMu   sync.RWMutex
 
+	// AP Document Pipeline
+	ingestionStatus   *IngestionStatus
+
 	// CodeCast 应用层（保留）
 	llmConfig   LLMProviderConfig  // KEEP: syncSettingsToConfig() 依赖
 	cachedProvider ap.Provider // cached for castLLM to avoid re-creating per call
