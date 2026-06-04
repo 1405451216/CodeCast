@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 
 	ap "agentprimordia/pkg"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -87,6 +88,25 @@ func (a *App) SendMessageEx(sessionID, input, model, thinking string) ([]Message
 		Role:      string(ap.RoleAssistant),
 		Content:   fullContent,
 	})
+
+	// Auto-summarization: trigger SummaryEngine if threshold is met
+	if a.summaryEngine != nil {
+		go func() {
+			result, err := a.summaryEngine.RunAndStore(a.ctx, sessionID)
+			if err != nil {
+				slog.Debug("auto-summarization skipped or failed", "session", sessionID, "error", err)
+				return
+			}
+			if result != nil {
+				slog.Info("auto-summarization completed", "session", sessionID, "topics", result.Topics)
+				wailsRuntime.EventsEmit(a.ctx, "summary:ready", map[string]string{
+					"sessionID": sessionID,
+					"summary":   result.Summary,
+					"topics":    result.Topics,
+				})
+			}
+		}()
+	}
 
 	return []Message{
 		{Role: "user", Content: input},
