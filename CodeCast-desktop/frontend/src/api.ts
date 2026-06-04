@@ -100,6 +100,10 @@ interface GoAppMethods {
   // Memory
   GetMemoryStats(): Promise<Record<string, number>>;
   ClearMemory(): Promise<void>;
+  GetMemories(): Promise<unknown[]>;
+  DeleteMemory(id: string): Promise<void>;
+  AddMemory(memoryData: Record<string, unknown>): Promise<unknown>;
+  ClearExpiredMemories(daysThreshold: number): Promise<void>;
 
   // Environment
   GetEnvVars(): Promise<GoEnvVar[]>;
@@ -130,6 +134,7 @@ interface GoAppMethods {
   ToggleMCPServer(id: string, enabled: boolean): Promise<void>;
   TestMCPServerConnection(id: string): Promise<MCPConnectionResult>;
   GetMCPStatus(): Promise<MCPStatusEntry[]>;
+  GetMCPServerTools(id: string): Promise<string[]>;
 
   // Browser domains
   AddBlockedDomain(domain: string): Promise<void>;
@@ -383,6 +388,10 @@ export const resetMemory = () => callGo('ResetMemory');
 // Memory
 export const getMemoryStats = () => callGo('GetMemoryStats');
 export const clearMemory = () => callGo('ClearMemory');
+export const getMemories = () => callGo('GetMemories');
+export const deleteMemory = (id: string) => callGo('DeleteMemory', id);
+export const addMemory = (memoryData: Record<string, unknown>) => callGo('AddMemory', memoryData);
+export const clearExpiredMemories = (daysThreshold: number) => callGo('ClearExpiredMemories', daysThreshold);
 
 // Environment
 export const getEnvVars = () => callGo('GetEnvVars');
@@ -438,6 +447,7 @@ export const clearBrowserData = () => callGo('ClearBrowserData');
 // MCP Servers - status
 export const testMCPConnection = (id: string) => callGo('TestMCPServerConnection', id);
 export const getMCPStatus = () => callGo('GetMCPStatus');
+export const getMCPServerTools = (id: string) => callGo('GetMCPServerTools', id);
 
 // Domain
 export const isDomainBlocked = (url: string) => callGo('IsDomainBlocked', url);

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"embed"
-	"fmt"
 	"log/slog"
 	"path/filepath"
 	"runtime"
@@ -37,8 +36,9 @@ type App struct {
 	currentProjectID string
 	noProjectMode bool
 	activeSessionID string
-	memoryCleanupStop chan struct{}
+	// memoryCleanupStop removed — was never consumed (dead code)
 	taskSchedulerStop  chan struct{}
+	updateStop        chan struct{}
 	migrationPending bool
 	mu               sync.RWMutex
 
@@ -63,6 +63,8 @@ type App struct {
 
 	// CodeCast 应用层（保留）
 	llmConfig   LLMProviderConfig  // KEEP: syncSettingsToConfig() 依赖
+	cachedProvider ap.Provider // cached for castLLM to avoid re-creating per call
+	cachedProviderConfigHash string // detects when provider config changes
 	// completor 字段已删除（代码补全迁到 ap.CachedProvider）
 	// notes 字段已删除（笔记功能迁到 cast_kb_* + ap.memory）
 }
@@ -85,11 +87,13 @@ func NewApp() *App {
 	app.syncSettingsToConfig()
 
 	if app.migrationPending && app.encryptionKey != nil {
-		fmt.Println("migrating unencrypted API key to encrypted format...")
+		slog.Info("migrating unencrypted API key to encrypted format...")
 		if err := app.saveSettingsToFile(); err != nil {
-			fmt.Printf("warning: failed to migrate API key to encrypted storage: %v\n", err)
+			// Migration failed — keep migrationPending=true so startup() can retry
+			// after AP subsystems are fully initialized.
+			slog.Error("migration to encrypted API key storage failed; will retry after AP subsystems start", "error", err)
 		} else {
-			fmt.Println("API key migration completed successfully")
+			slog.Info("API key migration completed successfully")
 			app.migrationPending = false
 		}
 	}
@@ -160,11 +164,17 @@ func (a *App) startup(ctx context.Context) {
 
 	// 7. AP MCPRegistry
 	a.mcpReg = ap.NewMCPRegistry()
+	a.syncMCPServersToRegistry()
+	a.startMCPRegistry()
 	slog.Info("AP MCPRegistry 已启动")
 
 	// 8. AP CheckpointStore
 	checkpointPath := filepath.Join(filepath.Dir(a.settingsPath), "checkpoints.db")
-	a.checkpointStore, _ = ap.NewSQLiteCheckpointStore(checkpointPath)
+	checkpointStore, checkpointErr := ap.NewSQLiteCheckpointStore(checkpointPath)
+	if checkpointErr != nil {
+		slog.Warn("AP CheckpointStore 初始化失败", "error", checkpointErr)
+	}
+	a.checkpointStore = checkpointStore
 	slog.Info("AP CheckpointStore 已启动")
 
 	// 9. AP Lifecycle
@@ -232,15 +242,27 @@ func (a *App) startup(ctx context.Context) {
 	// 16. Notes 系统已迁移到 cast_kb_* + ap.memory（见 cast_tools_kb.go）
 
 	a.taskSchedulerStop = make(chan struct{})
+	a.updateStop = make(chan struct{})
 	go a.runScheduleDispatcher(a.taskSchedulerStop)
 	slog.Info("AP Pool 调度器已启动（cast_schedule_* Tool 通过此调度）")
 	slog.Info("AP 会话管理已启动")
+	// Retry migration if it failed during NewApp (before AP subsystems were ready)
+	a.mu.Lock()
+	if a.migrationPending && a.encryptionKey != nil {
+		if err := a.saveSettingsToFile(); err != nil {
+			slog.Error("API key migration retry failed after AP subsystems started", "error", err)
+		} else {
+			slog.Info("API key migration retry succeeded")
+			a.migrationPending = false
+		}
+	}
+	a.mu.Unlock()
 
 	// 从磁盘恢复持久化的 sessions
 	a.loadPersistedSessions()
 
 	// 后台自动检查更新
-	go a.autoCheckUpdate()
+	go a.autoCheckUpdate(a.updateStop)
 }
 
 func (a *App) domReady(ctx context.Context) {
@@ -266,11 +288,15 @@ func (a *App) shutdown(ctx context.Context) {
 		a.memory.Close()
 		slog.Info("AP 记忆系统已关闭")
 	}
-	if a.memoryCleanupStop != nil {
-		close(a.memoryCleanupStop)
+	if a.mcpReg != nil {
+		a.mcpReg.StopAll()
+		slog.Info("AP MCPRegistry 已关闭")
 	}
 	if a.taskSchedulerStop != nil {
 		close(a.taskSchedulerStop)
+	}
+	if a.updateStop != nil {
+		close(a.updateStop)
 	}
 	// Notes store has no Close method — cleanup is handled by garbage collection
 	// legacy cleanup removed — AP sessionCancels handled in CancelRequest()
@@ -317,6 +343,6 @@ func main() {
 	})
 
 	if err != nil {
-		println("Error:", err.Error())
+		slog.Error("wails run failed", "error", err)
 	}
 }
