@@ -1,6 +1,8 @@
 import type { LoadedPlugin } from '../plugins/PluginTypes';
+import type { PluginInfoData } from '../api/types';
 import type { SliceSet } from './storeTypes';
 import { logger } from '../utils/logger';
+import * as api from '../api';
 
 interface PluginConfig {
   [pluginId: string]: {
@@ -43,6 +45,12 @@ interface PluginSlice {
 
   installProgress: number;
   setInstallProgress: (progress: number) => void;
+
+  // AP PluginLoader integration
+  apPlugins: PluginInfoData[];
+  loadAPPlugins: () => Promise<void>;
+  loadAPPlugin: (path: string) => Promise<PluginInfoData | null>;
+  unloadAPPlugin: (pluginId: string) => Promise<void>;
 
   resetPluginState: () => void;
 }
@@ -192,6 +200,40 @@ const createPluginSlice = (set: SliceSet): PluginSlice => {
       set({ installProgress: progress });
     },
 
+    apPlugins: [] as PluginInfoData[],
+    loadAPPlugins: async () => {
+      try {
+        const plugins = await api.listPlugins();
+        set({ apPlugins: plugins });
+      } catch (e) {
+        logger.warn('PluginStore', 'Failed to load AP plugins', { error: e });
+      }
+    },
+    loadAPPlugin: async (path: string) => {
+      try {
+        const info = await api.loadPlugin(path);
+        set((state: any) => ({
+          apPlugins: [...(state.apPlugins || []), info],
+        }));
+        logger.info('PluginStore', 'AP plugin loaded', { pluginId: info.id, pluginName: info.name });
+        return info;
+      } catch (e) {
+        logger.error('PluginStore', 'Failed to load AP plugin', { path, error: e });
+        return null;
+      }
+    },
+    unloadAPPlugin: async (pluginId: string) => {
+      try {
+        await api.unloadPlugin(pluginId);
+        set((state: any) => ({
+          apPlugins: (state.apPlugins || []).filter((p: PluginInfoData) => p.id !== pluginId),
+        }));
+        logger.info('PluginStore', 'AP plugin unloaded', { pluginId });
+      } catch (e) {
+        logger.error('PluginStore', 'Failed to unload AP plugin', { pluginId, error: e });
+      }
+    },
+
     resetPluginState: () => {
       logger.warn('PluginStore', '↩️  All plugin state reset to defaults');
       set({
@@ -201,7 +243,8 @@ const createPluginSlice = (set: SliceSet): PluginSlice => {
         pluginEvents: [],
         selectedPluginId: null,
         isInstalling: false,
-        installProgress: 0
+        installProgress: 0,
+        apPlugins: [],
       });
     }
   };
