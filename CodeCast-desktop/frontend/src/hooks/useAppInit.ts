@@ -19,6 +19,9 @@ const AP_EVENTS = [
   'pool:complete',
   'lifecycle:states',
   'metrics:snapshot',
+  'orchestration:start',
+  'orchestration:complete',
+  'orchestration:error',
 ] as const;
 
 export function useAppInit() {
@@ -48,6 +51,8 @@ export function useAppInit() {
           useAppStore.getState().handleLifecycleEvent(payload);
         } else if (eventName === 'metrics:snapshot') {
           useAppStore.getState().handleMetricsEvent(payload);
+        } else if (eventName.startsWith('orchestration:')) {
+          useAppStore.getState().handleOrchestrationEvent(eventName, payload);
         } else {
           useAppStore.getState().handleAPEvent(eventName, payload);
         }

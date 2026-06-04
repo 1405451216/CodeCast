@@ -191,3 +191,42 @@ export interface TokenUsageStats {
   completionTokens: number;
   totalTokens:      number;
 }
+
+// Orchestration types — maps from Go OrchestrationRun struct (orchestration_bridge.go)
+export interface OrchestrationRun {
+  id: string;
+  type: 'code_review' | 'refactoring' | 'test_pipeline' | 'handoff' | 'parallel';
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  sessionId: string;
+  input: string;
+  output?: string;
+  error?: string;
+  startedAt: string;
+  endedAt?: string;
+}
+
+export interface CodeReviewResult {
+  summary: string;
+  issues: string[];
+  suggestions: string[];
+  score: number;
+}
+
+export interface RefactoringResult {
+  originalCode: string;
+  refactoredCode: string;
+  changes: string[];
+  explanation: string;
+}
+
+export interface TestPipelineResult {
+  testCode: string;
+  coverage: number;
+  skipped?: string[];
+  framework: string;
+}
+
+export interface ParallelResult {
+  results: string[];
+  errors?: string[];
+}

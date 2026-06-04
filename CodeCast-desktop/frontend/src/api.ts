@@ -12,6 +12,11 @@ import type {
   GoSettings,
   APMetricsSnapshot,
   CheckpointInfo,
+  OrchestrationRun,
+  CodeReviewResult,
+  RefactoringResult,
+  TestPipelineResult,
+  ParallelResult,
 } from './api/types';
 
 export class WailsBridgeError extends Error {
@@ -208,6 +213,16 @@ interface GoAppMethods {
   // AP Metrics
   GetAPMetricsSnapshot(): Promise<APMetricsSnapshot>;
   GetMetricsExportPrometheus(): Promise<string>;
+
+  // AP Orchestration
+  RunCodeReviewWorkflow(sessionId: string, code: string): Promise<CodeReviewResult>;
+  RunRefactoringWorkflow(sessionId: string, code: string): Promise<RefactoringResult>;
+  RunTestPipelineWorkflow(sessionId: string, code: string): Promise<TestPipelineResult>;
+  RunHandoffWorkflow(sessionId: string, message: string): Promise<string>;
+  RunParallelAnalysis(sessionId: string, input: string): Promise<ParallelResult>;
+  GetWorkflowStatus(runId: string): Promise<OrchestrationRun | null>;
+  ListWorkflowRuns(): Promise<OrchestrationRun[]>;
+  CancelWorkflowRun(runId: string): Promise<void>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -629,3 +644,21 @@ export const resumeFromCheckpoint = (sessionId: string, checkpointId: string) =>
 // AP Metrics
 export const getAPMetricsSnapshot = () => callGo('GetAPMetricsSnapshot');
 export const getMetricsExportPrometheus = () => callGo('GetMetricsExportPrometheus');
+
+// AP Orchestration
+export const runCodeReviewWorkflow = (sessionId: string, code: string) =>
+  callGo('RunCodeReviewWorkflow', sessionId, code);
+export const runRefactoringWorkflow = (sessionId: string, code: string) =>
+  callGo('RunRefactoringWorkflow', sessionId, code);
+export const runTestPipelineWorkflow = (sessionId: string, code: string) =>
+  callGo('RunTestPipelineWorkflow', sessionId, code);
+export const runHandoffWorkflow = (sessionId: string, message: string) =>
+  callGo('RunHandoffWorkflow', sessionId, message);
+export const runParallelAnalysis = (sessionId: string, input: string) =>
+  callGo('RunParallelAnalysis', sessionId, input);
+export const getWorkflowStatus = (runId: string) =>
+  callGo('GetWorkflowStatus', runId);
+export const listWorkflowRuns = () =>
+  callGo('ListWorkflowRuns');
+export const cancelWorkflowRun = (runId: string) =>
+  callGo('CancelWorkflowRun', runId);

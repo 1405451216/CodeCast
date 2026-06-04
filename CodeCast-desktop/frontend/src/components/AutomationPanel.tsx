@@ -128,7 +128,7 @@ interface Task {
 
 // ─── Views ──────────────────────────────────────────────────────
 
-type PanelView = 'list' | 'create';
+type PanelView = 'list' | 'create' | 'workflows';
 
 // ─── Component ──────────────────────────────────────────────────
 
@@ -139,6 +139,7 @@ const AutomationPanel: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<PanelView>('list');
+  const [workflowRuns, setWorkflowRuns] = useState<any[]>([]);
 
   // Create form
   const [formName, setFormName] = useState('');
@@ -149,7 +150,12 @@ const AutomationPanel: React.FC = () => {
 
   useEffect(() => {
     if (activePanel !== 'automation') return;
-    loadTasks();
+    let cancelled = false;
+    loadTasks().then(() => {
+      if (cancelled) return;
+    });
+    loadWorkflowRuns();
+    return () => { cancelled = true; };
   }, [activePanel]);
 
   const loadTasks = async () => {
@@ -161,6 +167,15 @@ const AutomationPanel: React.FC = () => {
       setTasks([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorkflowRuns = async () => {
+    try {
+      const runs = await api.listWorkflowRuns();
+      setWorkflowRuns(Array.isArray(runs) ? runs : []);
+    } catch {
+      setWorkflowRuns([]);
     }
   };
 
@@ -226,6 +241,76 @@ const AutomationPanel: React.FC = () => {
     setView('create');
   };
 
+  const handleCodeReview = async () => {
+    try {
+      setError(null);
+      const currentSessionId = useAppStore.getState().currentSessionId;
+      if (!currentSessionId) {
+        setError('请先选择一个会话');
+        return;
+      }
+      await api.runCodeReviewWorkflow(currentSessionId, 'current-file');
+      loadWorkflowRuns();
+    } catch (e: any) {
+      setError('代码审查失败: ' + (e?.message || '未知错误'));
+    }
+  };
+
+  const handleRefactoring = async () => {
+    try {
+      setError(null);
+      const currentSessionId = useAppStore.getState().currentSessionId;
+      if (!currentSessionId) {
+        setError('请先选择一个会话');
+        return;
+      }
+      await api.runRefactoringWorkflow(currentSessionId, 'current-file');
+      loadWorkflowRuns();
+    } catch (e: any) {
+      setError('重构工作流失败: ' + (e?.message || '未知错误'));
+    }
+  };
+
+  const handleTestPipeline = async () => {
+    try {
+      setError(null);
+      const currentSessionId = useAppStore.getState().currentSessionId;
+      if (!currentSessionId) {
+        setError('请先选择一个会话');
+        return;
+      }
+      await api.runTestPipelineWorkflow(currentSessionId, 'current-file');
+      loadWorkflowRuns();
+    } catch (e: any) {
+      setError('测试生成失败: ' + (e?.message || '未知错误'));
+    }
+  };
+
+  const handleParallelAnalysis = async () => {
+    try {
+      setError(null);
+      const currentSessionId = useAppStore.getState().currentSessionId;
+      if (!currentSessionId) {
+        setError('请先选择一个会话');
+        return;
+      }
+      await api.runParallelAnalysis(currentSessionId, 'analyze current context');
+      loadWorkflowRuns();
+    } catch (e: any) {
+      setError('并行分析失败: ' + (e?.message || '未知错误'));
+    }
+  };
+
+  const handleCancelWorkflow = async (runId: string) => {
+    try {
+      setError(null);
+      await api.cancelWorkflowRun(runId);
+      loadWorkflowRuns();
+    } catch (e: any) {
+      setError('取消工作流失败: ' + (e?.message || '未知错误'));
+    }
+  };
+
   if (activePanel !== 'automation') return null;
 
   return (
@@ -254,6 +339,38 @@ const AutomationPanel: React.FC = () => {
               + 创建定时任务
             </button>
           )}
+          <div className="panel-header-tabs" style={{ display: 'flex', gap: '2px', marginLeft: '8px' }}>
+            <button
+              className={`panel-tab ${view === 'list' || view === 'create' ? 'active' : ''}`}
+              onClick={() => setView('list')}
+              style={{
+                padding: '4px 12px',
+                border: 'none',
+                background: (view === 'list' || view === 'create') ? 'var(--accent-bg, rgba(139,92,246,0.15))' : 'transparent',
+                color: 'var(--text-primary)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px',
+              }}
+            >
+              定时任务
+            </button>
+            <button
+              className={`panel-tab ${view === 'workflows' ? 'active' : ''}`}
+              onClick={() => setView('workflows')}
+              style={{
+                padding: '4px 12px',
+                border: 'none',
+                background: view === 'workflows' ? 'var(--accent-bg, rgba(139,92,246,0.15))' : 'transparent',
+                color: 'var(--text-primary)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px',
+              }}
+            >
+              工作流
+            </button>
+          </div>
           <button
             className="panel-close-btn"
             onClick={() => setActivePanel(null)}
@@ -286,7 +403,7 @@ const AutomationPanel: React.FC = () => {
             <ul className="atm-tips">
               <li>已开启"阻止系统休眠"</li>
               <li>如需笔记本关上盖子时仍能运行，参考设置：控制面板\硬件和声音\电源选项\系统设置，将"关闭盖子时"的操作设置为"不采取任何操作"</li>
-              <li>内网可达（连接 Meituan 网络或开启 VPN）</li>
+              <li>内网可达（连接公司网络或开启 VPN）</li>
               <li>连接电源线，防止电脑强制休眠</li>
             </ul>
 
@@ -392,6 +509,91 @@ const AutomationPanel: React.FC = () => {
               <button className="atm-cancel-btn" onClick={() => setView('list')}>取消</button>
               <button className="atm-submit-btn" onClick={handleCreate}>创建任务</button>
             </div>
+          </div>
+        )}
+
+        {view === 'workflows' && (
+          <div className="atm-workflows">
+            <div className="atm-desc">
+              使用 AI 工作流自动化代码审查、重构和测试生成
+            </div>
+
+            {/* Pre-built workflow buttons */}
+            <div className="atm-workflow-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
+              <div className="atm-workflow-card" onClick={handleCodeReview} style={{
+                padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer',
+                background: 'var(--card-bg)', transition: 'background 0.15s',
+              }}>
+                <div style={{ fontSize: '18px' }}>&#128269;</div>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginTop: '4px' }}>代码审查</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px' }}>自动分析安全、风格、性能</div>
+              </div>
+              <div className="atm-workflow-card" onClick={handleRefactoring} style={{
+                padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer',
+                background: 'var(--card-bg)', transition: 'background 0.15s',
+              }}>
+                <div style={{ fontSize: '18px' }}>&#9851;</div>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginTop: '4px' }}>智能重构</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px' }}>评估-重构-验证三步流程</div>
+              </div>
+              <div className="atm-workflow-card" onClick={handleTestPipeline} style={{
+                padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer',
+                background: 'var(--card-bg)', transition: 'background 0.15s',
+              }}>
+                <div style={{ fontSize: '18px' }}>&#129514;</div>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginTop: '4px' }}>测试生成</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px' }}>自动识别目标并生成测试</div>
+              </div>
+              <div className="atm-workflow-card" onClick={handleParallelAnalysis} style={{
+                padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer',
+                background: 'var(--card-bg)', transition: 'background 0.15s',
+              }}>
+                <div style={{ fontSize: '18px' }}>&#9889;</div>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginTop: '4px' }}>并行分析</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px' }}>多视角同时分析代码</div>
+              </div>
+            </div>
+
+            {/* Running/recent workflows */}
+            {workflowRuns.length > 0 && (
+              <div className="atm-existing" style={{ marginTop: '16px' }}>
+                <div className="atm-existing-title">工作流运行记录</div>
+                {workflowRuns.map((run) => (
+                  <div className="atm-task-card" key={run.id}>
+                    <div className="atm-task-card-left">
+                      <div className="atm-task-card-name">
+                        {run.type === 'code_review' && '&#128269; 代码审查'}
+                        {run.type === 'refactoring' && '&#9851; 智能重构'}
+                        {run.type === 'test_pipeline' && '&#129514; 测试生成'}
+                        {run.type === 'handoff' && '&#129309; 专家接力'}
+                        {run.type === 'parallel' && '&#9889; 并行分析'}
+                      </div>
+                      <div className="atm-task-card-meta">
+                        {run.status === 'running' && '运行中...'}
+                        {run.status === 'completed' && '已完成'}
+                        {run.status === 'failed' && `失败: ${run.error || '未知'}`}
+                        {run.status === 'cancelled' && '已取消'}
+                        {' \u00B7 '}
+                        {run.startedAt ? new Date(run.startedAt).toLocaleTimeString() : ''}
+                      </div>
+                    </div>
+                    <div className="atm-task-card-actions">
+                      {run.status === 'running' && (
+                        <button
+                          className="atm-action-btn atm-action-delete"
+                          onClick={() => handleCancelWorkflow(run.id)}
+                          title="取消"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
