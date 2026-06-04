@@ -192,6 +192,10 @@ interface GoAppMethods {
   CancelAgent(agentId: string): Promise<void>;
   CancelSessionAgents(sessionId: string): Promise<void>;
   ResolveCheckpoint(checkpointId: string, approved: boolean): Promise<void>;
+
+  // AP Lifecycle
+  GetLifecycleState(): Promise<string>;
+  GetAgentLifecycleStates(): Promise<Record<string, string>>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -595,3 +599,7 @@ export const cancelAgent = (agentId: string) => callGo('CancelAgent', agentId);
 export const cancelSessionAgents = (sessionId: string) => callGo('CancelSessionAgents', sessionId);
 export const resolveCheckpoint = (checkpointId: string, approved: boolean) =>
   callGo('ResolveCheckpoint', checkpointId, approved);
+
+// AP Lifecycle
+export const getLifecycleState = () => callGo('GetLifecycleState');
+export const getAgentLifecycleStates = () => callGo('GetAgentLifecycleStates');

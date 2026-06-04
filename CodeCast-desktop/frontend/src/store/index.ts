@@ -16,6 +16,7 @@ import { createAgentSlice } from './useAgentStore';
 import { createPerformanceSlice } from './usePerformanceStore';
 import { createPluginSlice } from './usePluginStore';
 import { createToolsSlice } from './useToolsStore';
+import { createLifecycleSlice } from './useLifecycleStore';
 
 import type { SessionSlice } from './useSessionStore';
 import type { ProjectSlice } from './useProjectStore';
@@ -32,6 +33,7 @@ import type { AgentSlice } from './useAgentStore';
 import type { PerformanceSlice } from './usePerformanceStore';
 import type { PluginSlice } from './usePluginStore';
 import type { ToolsSlice } from './useToolsStore';
+import type { LifecycleSlice } from './useLifecycleStore';
 import type { SliceSet } from './storeTypes';
 
 export interface AppState extends
@@ -49,7 +51,8 @@ export interface AppState extends
   AgentSlice,
   PerformanceSlice,
   PluginSlice,
-  ToolsSlice {
+  ToolsSlice,
+  LifecycleSlice {
   isStreaming: boolean;
   setIsStreaming: (val: boolean) => void;
 }
@@ -76,6 +79,7 @@ export const useAppStore = create<AppState>((set, _get, _api) => {
     ...createPerformanceSlice(sliceSet),
     ...createPluginSlice(sliceSet),
     ...createToolsSlice(sliceSet),
+    ...createLifecycleSlice(sliceSet),
 
     isStreaming: false,
     setIsStreaming: (val: boolean) => {
@@ -87,11 +91,12 @@ export const useAppStore = create<AppState>((set, _get, _api) => {
   const endTime = performance.now();
   logger.info('Store', '✅ AppState initialized successfully', {
     duration: `${(endTime - startTime).toFixed(2)}ms`,
-    totalSlices: 15,
+    totalSlices: 16,
     sliceNames: [
       'Session', 'Project', 'UI', 'Model', 'Attachment',
-      'Todo', 'ChangedFiles', 'SlashCommands', 'Menu', 
-      'Platform', 'Messages', 'Agent', 'Performance', 'Plugin'
+      'Todo', 'ChangedFiles', 'SlashCommands', 'Menu',
+      'Platform', 'Messages', 'Agent', 'Performance', 'Plugin',
+      'Tools', 'Lifecycle'
     ]
   });
 

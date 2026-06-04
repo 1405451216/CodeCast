@@ -303,6 +303,26 @@ func (a *App) shutdown(ctx context.Context) {
 	slog.Info("应用即将关闭", "action", "cleaned_all_active_connections")
 }
 
+// GetLifecycleState returns the global lifecycle state.
+func (a *App) GetLifecycleState() string {
+	if a.lifecycle == nil {
+		return "unknown"
+	}
+	return string(a.lifecycle.Status())
+}
+
+// GetAgentLifecycleStates returns lifecycle states for all session agents.
+func (a *App) GetAgentLifecycleStates() map[string]string {
+	states := make(map[string]string)
+	a.mu.RLock()
+	for id, agent := range a.sessionAgents {
+		stats := agent.Stats()
+		states[id] = string(stats.Status)
+	}
+	a.mu.RUnlock()
+	return states
+}
+
 func main() {
 	app := NewApp()
 

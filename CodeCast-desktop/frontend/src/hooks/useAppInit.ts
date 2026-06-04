@@ -17,6 +17,7 @@ const AP_EVENTS = [
   'agent:tool_result',
   'pool:dispatch',
   'pool:complete',
+  'lifecycle:states',
 ] as const;
 
 export function useAppInit() {
@@ -42,7 +43,11 @@ export function useAppInit() {
 
     for (const eventName of AP_EVENTS) {
       const cleanup = EventsOn(eventName, (payload: any) => {
-        useAppStore.getState().handleAPEvent(eventName, payload);
+        if (eventName === 'lifecycle:states') {
+          useAppStore.getState().handleLifecycleEvent(payload);
+        } else {
+          useAppStore.getState().handleAPEvent(eventName, payload);
+        }
       });
       cleanups.push(cleanup);
     }

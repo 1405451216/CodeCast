@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	ap "agentprimordia/pkg"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -28,4 +30,19 @@ func (a *App) startEventBridge() {
 			}
 		}(ch, wailsEventName)
 	}
+
+	// Lifecycle state broadcast (every 5s)
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.ctx.Done():
+				return
+			case <-ticker.C:
+				states := a.GetAgentLifecycleStates()
+				wailsRuntime.EventsEmit(a.ctx, "lifecycle:states", states)
+			}
+		}
+	}()
 }

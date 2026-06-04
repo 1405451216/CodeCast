@@ -148,3 +148,12 @@ export interface GoSettings {
   always_on_top?: boolean;
   [key: string]: string | string[] | boolean | undefined;
 }
+
+// AP Lifecycle states (mirrors agentprimordia/internal/agent.AgentStatus)
+export type LifecycleState =
+  | 'idle' | 'running' | 'paused' | 'waiting_for_input'
+  | 'completed' | 'failed' | 'cancelled' | 'unknown';
+
+export interface LifecycleStatesEvent {
+  [sessionId: string]: LifecycleState;
+}
