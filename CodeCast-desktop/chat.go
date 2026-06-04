@@ -139,7 +139,7 @@ func (a *App) getOrCreateAgent(sessionID string, model string) (ap.Agent, contex
 		Toolkit:         a.toolkit,
 		EventPublisher:  ap.NewEventBusAdapter(a.eventBus),
 		Metrics:         ap.NewMetricsAdapter(a.metricsCollector),
-		ContextWindow:   ap.NewDefaultStrategy(80),
+		ContextWindow:   a.contextWindowStrategy,
 		Lifecycle:       a.lifecycle,
 		CheckpointStore: a.checkpointStore,
 		MaxTurns:        20,
