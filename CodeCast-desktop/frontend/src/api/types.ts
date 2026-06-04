@@ -297,3 +297,53 @@ export type PredefinedSchemaName =
   | 'multi_label_classification'
   | 'summary'
   | 'extractive_summary';
+
+// Multimodal types
+export interface MultimodalCapabilities {
+  image: boolean;
+  audio: boolean;
+  video: boolean;
+}
+
+export interface ImageAnalysisResult {
+  content: string;
+  model: string;
+  inputTokens: number;
+}
+
+export interface ImageAttachment {
+  type: 'image';
+  data: string; // file path, URL, or data:image/...;base64,...
+}
+
+// Telemetry types
+export interface TelemetryStatus {
+  enabled: boolean;
+  endpoint: string;
+  active: boolean;
+  error?: string;
+}
+
+// AP Plugin types
+export interface PluginInfoData {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  path?: string;
+  status: string;
+  error?: string;
+}
+
+export interface PluginStatusData {
+  loadedCount: number;
+  plugins: PluginInfoData[];
+}
+
+// Guardrail types
+export interface GuardrailStatusData {
+  sanitizerEnabled: boolean;
+  sanitizerStrategy: string;
+  topicConstraints: string[];
+  ruleCount: number;
+}

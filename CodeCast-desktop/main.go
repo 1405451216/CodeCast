@@ -89,6 +89,17 @@ type App struct {
 	// AP Document Pipeline
 	ingestionStatus   *IngestionStatus
 
+	// AP MultimodalProvider (vision/image/audio/video)
+	multimodalProvider ap.MultimodalProvider
+
+	// AP OTLP Telemetry
+	telemetryProvider *ap.TelemetryProvider
+
+	// AP PluginLoader + MessageBus + HTTPTransport
+	pluginLoader  *ap.PluginLoader
+	messageBus    *ap.LocalMessageBus
+	httpTransport *ap.HTTPTransport
+
 	// CodeCast 应用层（保留）
 	llmConfig   LLMProviderConfig  // KEEP: syncSettingsToConfig() 依赖
 	cachedProvider ap.Provider // cached for castLLM to avoid re-creating per call
@@ -426,11 +437,35 @@ func (a *App) startup(ctx context.Context) {
 				slog.Info("AP StructuredExtractor 已启动", "model", modelName)
 			}
 		}
+
+		// 9g. AP MultimodalProvider (vision/image/audio/video)
+		a.mu.Lock()
+		mmProvider, mmErr := a.createMultimodalProvider()
+		a.mu.Unlock()
+		if mmErr != nil {
+			slog.Warn("AP MultimodalProvider 初始化失败", "error", mmErr)
+		} else {
+			a.multimodalProvider = mmProvider
+			mmCaps := mmProvider.Capabilities()
+			slog.Info("AP MultimodalProvider 已启动",
+				"vision", mmCaps.HasCapability(ap.CapVision),
+				"audio", mmCaps.HasCapability(ap.CapAudio),
+				"video", mmCaps.HasCapability(ap.CapVideo),
+			)
+		}
 	}
 
 	// 13. Event bridge (AP EventBus → Wails Events)
 	a.startEventBridge()
 	slog.Info("AP Event Bridge 已启动")
+
+	// 13b. OTLP Telemetry (optional, controlled by settings)
+	a.initTelemetry()
+
+	// 13c. AP PluginLoader + MessageBus
+	a.pluginLoader = ap.NewPluginLoader(a.toolkit)
+	a.messageBus = ap.NewLocalMessageBus()
+	slog.Info("AP PluginLoader + MessageBus 已启动")
 
 	// 14. Session caches
 	a.sessionAgents = make(map[string]ap.Agent)
@@ -519,6 +554,14 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.cacheManager != nil {
 		a.cacheManager.Clear(a.ctx)
 		slog.Info("AP CacheManager 已清理")
+	}
+	if a.telemetryProvider != nil {
+		_ = a.telemetryProvider.Shutdown()
+		slog.Info("AP Telemetry 已关闭")
+	}
+	if a.httpTransport != nil {
+		_ = a.httpTransport.Close()
+		slog.Info("AP HTTPTransport 已关闭")
 	}
 	slog.Info("应用即将关闭", "action", "cleaned_all_active_connections")
 }

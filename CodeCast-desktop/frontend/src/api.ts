@@ -25,6 +25,12 @@ import type {
   CacheStats,
   SummaryResult,
   PredefinedSchemaName,
+  MultimodalCapabilities,
+  ImageAnalysisResult,
+  TelemetryStatus,
+  PluginInfoData,
+  PluginStatusData,
+  GuardrailStatusData,
 } from './api/types';
 
 export class WailsBridgeError extends Error {
@@ -259,6 +265,33 @@ interface GoAppMethods {
   // ContextWindow
   GetContextWindowConfig(): Promise<Record<string, unknown>>;
   SetContextWindowKeepLast(keepLast: number): Promise<void>;
+
+  // Multimodal
+  GetMultimodalCapabilities(): Promise<MultimodalCapabilities>;
+  AnalyzeImage(imagePath: string, prompt: string): Promise<ImageAnalysisResult>;
+  SendMessageWithAttachments(sessionId: string, input: string, attachmentsJSON: string): Promise<GoMessage[]>;
+
+  // OTLP Telemetry
+  GetTelemetryStatus(): Promise<TelemetryStatus>;
+  ToggleTelemetry(enabled: boolean): Promise<void>;
+  SetTelemetryEndpoint(endpoint: string): Promise<void>;
+
+  // AP Plugins
+  ListPlugins(): Promise<PluginInfoData[]>;
+  LoadPlugin(path: string): Promise<PluginInfoData>;
+  UnloadPlugin(pluginId: string): Promise<void>;
+  GetPluginStatus(): Promise<PluginStatusData>;
+  SendPluginMessage(targetAgentId: string, content: string): Promise<void>;
+  BroadcastMessage(content: string): Promise<void>;
+  StartHTTPTransport(addr: string): Promise<void>;
+  StopHTTPTransport(): Promise<void>;
+
+  // Guardrails
+  UpdateTopicConstraints(topics: string[]): Promise<void>;
+  GetTopicConstraints(): Promise<string[]>;
+  ToggleSanitizer(enabled: boolean): Promise<void>;
+  SetSanitizerStrategy(strategy: string): Promise<void>;
+  GetGuardrailStatus(): Promise<GuardrailStatusData>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -731,3 +764,33 @@ export const extractStructuredCustom = (text: string, schemaJSON: string) =>
 export const getContextWindowConfig = () => callGo('GetContextWindowConfig');
 export const setContextWindowKeepLast = (keepLast: number) =>
   callGo('SetContextWindowKeepLast', keepLast);
+
+// Multimodal
+export const getMultimodalCapabilities = () => callGo('GetMultimodalCapabilities');
+export const analyzeImage = (imagePath: string, prompt: string) =>
+  callGo('AnalyzeImage', imagePath, prompt);
+export const sendMessageWithAttachments = (sessionId: string, input: string, attachmentsJSON: string) =>
+  callGo('SendMessageWithAttachments', sessionId, input, attachmentsJSON);
+
+// OTLP Telemetry
+export const getTelemetryStatus = () => callGo('GetTelemetryStatus');
+export const toggleTelemetry = (enabled: boolean) => callGo('ToggleTelemetry', enabled);
+export const setTelemetryEndpoint = (endpoint: string) => callGo('SetTelemetryEndpoint', endpoint);
+
+// AP Plugins
+export const listPlugins = () => callGo('ListPlugins');
+export const loadPlugin = (path: string) => callGo('LoadPlugin', path);
+export const unloadPlugin = (pluginId: string) => callGo('UnloadPlugin', pluginId);
+export const getPluginStatus = () => callGo('GetPluginStatus');
+export const sendPluginMessage = (targetAgentId: string, content: string) =>
+  callGo('SendPluginMessage', targetAgentId, content);
+export const broadcastMessage = (content: string) => callGo('BroadcastMessage', content);
+export const startHTTPTransport = (addr: string) => callGo('StartHTTPTransport', addr);
+export const stopHTTPTransport = () => callGo('StopHTTPTransport');
+
+// Guardrails
+export const updateTopicConstraints = (topics: string[]) => callGo('UpdateTopicConstraints', topics);
+export const getTopicConstraints = () => callGo('GetTopicConstraints');
+export const toggleSanitizer = (enabled: boolean) => callGo('ToggleSanitizer', enabled);
+export const setSanitizerStrategy = (strategy: string) => callGo('SetSanitizerStrategy', strategy);
+export const getGuardrailStatus = () => callGo('GetGuardrailStatus');

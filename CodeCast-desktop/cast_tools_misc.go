@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -187,8 +188,8 @@ func (a *App) castToolOCR(ctx context.Context, args json.RawMessage) (*ap.ToolRe
 	return a.recordCastInvocation("cast_ocr_image", "misc", "", args, string(outJSON), false, nowMs()-start), nil
 }
 
-// doOCR 真实实现：读图片 → base64 → 调当前 LLM provider 的 vision API → 提取文字
-// 支持 Anthropic / OpenAI / Google Gemini（任何有 vision 能力的模型）
+// doOCR 真实实现：读图片 → base64 → 通过 AP MultimodalProvider 调 vision API → 提取文字
+// 如果当前 Provider 不支持多模态，回退到原 HTTP 实现
 func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, inTok, outTok int, err error) {
 	// 1. 读取图片
 	imgData, mimeType, err := a.loadImageAsBase64(in.ImagePath)
@@ -196,30 +197,7 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 		return "", "", 0, 0, fmt.Errorf("load image: %w", err)
 	}
 
-	// 2. 取 credentials
-	a.mu.RLock()
-	creds, credsErr := a.resolveCredentialsLocked("")
-	a.mu.RUnlock()
-	if credsErr != nil || creds.APIKey == "" {
-		return "", "", 0, 0, fmt.Errorf("API key not configured (Settings → API Key)")
-	}
-
-	// 3. 推断 provider
-	providerID := ""
-	if a.settings != nil {
-		providerID = a.settings.LLMProvider
-	}
-	if providerID == "" {
-		providerID = a.guessProviderForModel(creds.Model)
-	}
-
-	// 4. 选 model（用户可在 args 指定，否则用当前 model）
-	model = in.Model
-	if model == "" {
-		model = creds.Model
-	}
-
-	// 5. 构造 prompt
+	// 2. 构造 prompt
 	prompt := in.Prompt
 	if prompt == "" {
 		prompt = "请提取这张图片中的所有文字，保持原始排版结构。如果是表格请用 Markdown 表格输出。"
@@ -233,7 +211,53 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 		maxTokens = 4096
 	}
 
-	// 6. 按 provider 分发
+	// 3. 优先走 AP MultimodalProvider
+	if a.multimodalProvider != nil && a.multimodalProvider.Capabilities().HasCapability(ap.CapVision) {
+		req := &ap.CompletionRequestExt{
+			Model:     in.Model,
+			MaxTokens: maxTokens,
+			Messages: []*ap.ChatMessageExt{
+				ap.NewUserMultimodalMessage(
+					ap.NewImageB64Content(imgData, mimeType),
+					ap.NewTextContent(prompt),
+				),
+			},
+		}
+		ocrCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
+		defer cancel()
+
+		resp, mmErr := a.multimodalProvider.CompleteMultimodal(ocrCtx, req)
+		if mmErr == nil {
+			modelUsed := in.Model
+			if resp.Model != "" {
+				modelUsed = resp.Model
+			}
+			return resp.Content, modelUsed, resp.Usage.PromptTokens, resp.Usage.CompletionTokens, nil
+		}
+		slog.Warn("MultimodalProvider OCR failed, falling back to manual HTTP", "error", mmErr)
+	}
+
+	// 4. 回退：原始 HTTP 实现
+	a.mu.RLock()
+	creds, credsErr := a.resolveCredentialsLocked("")
+	a.mu.RUnlock()
+	if credsErr != nil || creds.APIKey == "" {
+		return "", "", 0, 0, fmt.Errorf("API key not configured (Settings → API Key)")
+	}
+
+	providerID := ""
+	if a.settings != nil {
+		providerID = a.settings.LLMProvider
+	}
+	if providerID == "" {
+		providerID = a.guessProviderForModel(creds.Model)
+	}
+
+	model = in.Model
+	if model == "" {
+		model = creds.Model
+	}
+
 	switch {
 	case isAnthropicProvider(providerID):
 		return doAnthropicVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
@@ -242,7 +266,6 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 	case isGeminiProvider(providerID):
 		return doGeminiVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
 	default:
-		// 兜底：尝试 OpenAI 兼容协议（很多第三方 vision API 都用这格式）
 		return doOpenAIVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
 	}
 }

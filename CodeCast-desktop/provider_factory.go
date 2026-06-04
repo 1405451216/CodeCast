@@ -148,3 +148,25 @@ func simpleEmbeddingFunc(ctx context.Context, text string) ([]float32, error) {
 	}
 	return vec, nil
 }
+
+// createMultimodalProvider creates an AP MultimodalProvider from current settings.
+// Returns the multimodal provider for vision/image/audio/video capabilities.
+//
+// IMPORTANT: Caller MUST hold a.mu lock — calls createProvider (and resolveCredentialsLocked)
+// which require it. Do NOT add a.mu.Lock() here; Go's sync.RWMutex is not reentrant.
+func (a *App) createMultimodalProvider() (ap.MultimodalProvider, error) {
+	creds, err := a.resolveCredentialsLocked("")
+	if err != nil {
+		return nil, fmt.Errorf("resolve credentials for multimodal: %w", err)
+	}
+
+	mm, err := ap.NewMultimodalProvider(ap.Config{
+		APIKey:  creds.APIKey,
+		BaseURL: creds.APIURL,
+		Model:   creds.Model,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create multimodal provider: %w", err)
+	}
+	return mm, nil
+}
