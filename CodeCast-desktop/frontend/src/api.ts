@@ -24,6 +24,7 @@ import type {
   BudgetConfig,
   CacheStats,
   SummaryResult,
+  PredefinedSchemaName,
 } from './api/types';
 
 export class WailsBridgeError extends Error {
@@ -250,6 +251,14 @@ interface GoAppMethods {
 
   // Summarizer
   GetSessionSummary(sessionId: string): Promise<SummaryResult | null>;
+
+  // StructuredExtractor
+  ExtractStructured(text: string, schemaName: string): Promise<string>;
+  ExtractStructuredCustom(text: string, schemaJSON: string): Promise<string>;
+
+  // ContextWindow
+  GetContextWindowConfig(): Promise<Record<string, unknown>>;
+  SetContextWindowKeepLast(keepLast: number): Promise<void>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -711,3 +720,14 @@ export const invalidateCacheKey = (key: string) => callGo('InvalidateCacheKey', 
 
 // Summarizer
 export const getSessionSummary = (sessionId: string) => callGo('GetSessionSummary', sessionId);
+
+// StructuredExtractor
+export const extractStructured = (text: string, schemaName: string) =>
+  callGo('ExtractStructured', text, schemaName);
+export const extractStructuredCustom = (text: string, schemaJSON: string) =>
+  callGo('ExtractStructuredCustom', text, schemaJSON);
+
+// ContextWindow
+export const getContextWindowConfig = () => callGo('GetContextWindowConfig');
+export const setContextWindowKeepLast = (keepLast: number) =>
+  callGo('SetContextWindowKeepLast', keepLast);

@@ -287,3 +287,13 @@ export interface SummaryResult {
   Summary: string;
   Topics: string;
 }
+
+// Structured extraction schema names
+export type PredefinedSchemaName =
+  | 'sentiment'
+  | 'sentiment_detail'
+  | 'ner'
+  | 'classification'
+  | 'multi_label_classification'
+  | 'summary'
+  | 'extractive_summary';

@@ -80,6 +80,12 @@ type App struct {
 	summarizer    *ap.Summarizer
 	summaryEngine *ap.SummaryEngine
 
+	// AP StructuredExtractor
+	structuredExtractor *ap.StructuredExtractor
+
+	// ContextWindowStrategy
+	contextWindowStrategy ap.ContextWindowStrategy
+
 	// AP Document Pipeline
 	ingestionStatus   *IngestionStatus
 
@@ -348,6 +354,10 @@ func (a *App) startup(ctx context.Context) {
 	})
 	slog.Info("AP CacheManager 已启动")
 
+	// 9f. AP ContextWindowStrategy
+	a.contextWindowStrategy = ap.NewDefaultStrategy(80)
+	slog.Info("AP ContextWindowStrategy 已启动", "keep_last", 80)
+
 	// 10. Provider + RAG (createProvider requires a.mu — safe during startup, no contention)
 	a.mu.Lock()
 	provider, providerErr := a.createProvider()
@@ -368,7 +378,7 @@ func (a *App) startup(ctx context.Context) {
 			Toolkit:         a.toolkit,
 			EventPublisher:  ap.NewEventBusAdapter(a.eventBus),
 			Metrics:         ap.NewMetricsAdapter(a.metricsCollector),
-			ContextWindow:   ap.NewDefaultStrategy(80),
+			ContextWindow:   a.contextWindowStrategy,
 			Lifecycle:       a.lifecycle,
 			CheckpointStore: a.checkpointStore,
 			MaxTurns:        20,
@@ -401,6 +411,20 @@ func (a *App) startup(ctx context.Context) {
 			strategy := ap.NewWindowSummaryStrategy(10)
 			a.summaryEngine = ap.NewSummaryEngine(strategy, a.summarizer, a.memory)
 			slog.Info("AP SummaryEngine 已启动", "window_size", 10)
+		}
+
+		// 9e. AP StructuredExtractor
+		if providerErr == nil {
+			a.mu.RLock()
+			modelName := a.llmConfig.Model
+			a.mu.RUnlock()
+			extractor, extractorErr := ap.NewStructuredExtractor(provider, modelName)
+			if extractorErr != nil {
+				slog.Warn("AP StructuredExtractor 创建失败", "error", extractorErr)
+			} else {
+				a.structuredExtractor = extractor
+				slog.Info("AP StructuredExtractor 已启动", "model", modelName)
+			}
 		}
 	}
 
@@ -549,6 +573,32 @@ func (a *App) InvalidateCacheKey(key string) error {
 		return nil
 	}
 	return a.cacheManager.Invalidate(a.ctx, key)
+}
+
+// GetContextWindowConfig returns the current context window configuration.
+func (a *App) GetContextWindowConfig() map[string]any {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if ds, ok := a.contextWindowStrategy.(*ap.DefaultStrategy); ok {
+		return map[string]any{
+			"type":      "default",
+			"keep_last": ds.KeepLast,
+		}
+	}
+	return map[string]any{
+		"type": "custom",
+	}
+}
+
+// SetContextWindowKeepLast updates the keep_last parameter of the DefaultStrategy.
+func (a *App) SetContextWindowKeepLast(keepLast int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if keepLast <= 0 {
+		keepLast = 80
+	}
+	a.contextWindowStrategy = ap.NewDefaultStrategy(keepLast)
+	slog.Info("AP ContextWindowStrategy updated", "keep_last", keepLast)
 }
 
 func main() {

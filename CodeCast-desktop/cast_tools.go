@@ -127,14 +127,26 @@ func (r *castToolRegistry) recordInvocation(inv CastToolInvocation) {
 // 复用 createProvider() 拿 AP Provider，构造系统+用户 Prompt，单轮 Complete 返回。
 // 所有 Cast 内容生成类 Tool 都通过这个函数调 LLM，避免每个 Tool 重复样板代码。
 //
-// IMPORTANT: 调用方必须已持有 a.mu（因为 createProvider 要求）。
+// The provider is cached and reused across calls; it is refreshed only when
+// the provider config (APIURL/Model/APIKey) changes.
 func (a *App) castLLM(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	a.mu.Lock()
-	provider, err := a.createProvider()
-	a.mu.Unlock()
-	if err != nil {
-		return "", fmt.Errorf("create provider: %w", err)
+	// Compute a simple hash of the current config to detect changes.
+	configHash := a.llmConfig.APIURL + "|" + a.llmConfig.Model
+	var provider ap.Provider
+	if a.cachedProvider != nil && a.cachedProviderConfigHash == configHash {
+		provider = a.cachedProvider
+	} else {
+		var err error
+		provider, err = a.createProvider()
+		if err != nil {
+			a.mu.Unlock()
+			return "", fmt.Errorf("create provider: %w", err)
+		}
+		a.cachedProvider = provider
+		a.cachedProviderConfigHash = configHash
 	}
+	a.mu.Unlock()
 
 	temp := 0.7
 	resp, err := provider.Complete(ctx, &ap.CompletionRequest{
@@ -223,6 +235,69 @@ func isAllDigit(s string) bool {
 		}
 	}
 	return true
+}
+
+// resolvePredefinedSchema returns the SchemaDef for a well-known schema name.
+func (a *App) resolvePredefinedSchema(name string) *ap.SchemaDef {
+	switch name {
+	case "sentiment":
+		return ap.SentimentSchema()
+	case "sentiment_detail":
+		return ap.SentimentDetailSchema()
+	case "ner":
+		return ap.NERSchema()
+	case "classification":
+		return ap.ClassificationSchema()
+	case "multi_label_classification":
+		return ap.MultiLabelClassificationSchema()
+	case "summary":
+		return ap.SummarySchema()
+	case "extractive_summary":
+		return ap.ExtractiveSummarySchema()
+	default:
+		return nil
+	}
+}
+
+// ExtractStructured is a Wails binding that extracts structured data from text.
+func (a *App) ExtractStructured(text, schemaName string) (string, error) {
+	if a.structuredExtractor == nil {
+		return "", fmt.Errorf("structured extractor not initialized")
+	}
+
+	schema := a.resolvePredefinedSchema(schemaName)
+	if schema == nil {
+		return "", fmt.Errorf("unknown schema: %s (available: sentiment, sentiment_detail, ner, classification, multi_label_classification, summary, extractive_summary)", schemaName)
+	}
+
+	raw, err := a.structuredExtractor.Extract(a.ctx, text, schema)
+	if err != nil {
+		return "", fmt.Errorf("extraction failed: %w", err)
+	}
+	return string(raw), nil
+}
+
+// ExtractStructuredCustom is a Wails binding that extracts structured data using a custom JSON Schema.
+func (a *App) ExtractStructuredCustom(text, schemaJSON string) (string, error) {
+	if a.structuredExtractor == nil {
+		return "", fmt.Errorf("structured extractor not initialized")
+	}
+
+	var schemaMap map[string]any
+	if err := json.Unmarshal([]byte(schemaJSON), &schemaMap); err != nil {
+		return "", fmt.Errorf("invalid schema JSON: %w", err)
+	}
+
+	schema := &ap.SchemaDef{
+		Name:   "custom",
+		Schema: schemaMap,
+	}
+
+	raw, err := a.structuredExtractor.Extract(a.ctx, text, schema)
+	if err != nil {
+		return "", fmt.Errorf("extraction failed: %w", err)
+	}
+	return string(raw), nil
 }
 
 // GetToolHistory 返回最近的工具调用历史。
