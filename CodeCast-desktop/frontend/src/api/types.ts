@@ -347,3 +347,83 @@ export interface GuardrailStatusData {
   topicConstraints: string[];
   ruleCount: number;
 }
+
+// Workflow execution types (AP WorkflowExecution Phase 6)
+export type WorkflowType = 'linear' | 'conditional' | 'loop' | 'parallel_fork_join' | 'state_machine';
+export type WorkflowStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+export type NodeType = 'task' | 'condition' | 'parallel' | 'loop_start' | 'loop_end' | 'fallback' | 'sub_workflow';
+
+export interface WorkflowConditionDef {
+  field: string;
+  operator: string;
+  value: unknown;
+}
+
+export interface WorkflowNodeDef {
+  id: string;
+  name: string;
+  type: NodeType;
+  systemPrompt?: string;
+  promptTemplate?: string;
+  condition?: WorkflowConditionDef;
+}
+
+export interface WorkflowTransitionDef {
+  from: string;
+  to: string;
+  condition?: WorkflowConditionDef;
+  weight?: number;
+  type?: string;
+  probability?: number;
+}
+
+export interface WorkflowErrorHandlingDef {
+  onError?: string;
+  maxRetries?: number;
+  fallbackStep?: string;
+  continueOnError?: boolean;
+}
+
+export interface WorkflowDefinition {
+  type: WorkflowType;
+  name: string;
+  description?: string;
+  startNodeId: string;
+  errorHandling: WorkflowErrorHandlingDef;
+  maxIterations: number;
+  timeoutSec: number;
+  nodes: WorkflowNodeDef[];
+  transitions: WorkflowTransitionDef[];
+}
+
+export interface WorkflowMetrics {
+  total_nodes: number;
+  executed_nodes: number;
+  failed_nodes: number;
+  skipped_nodes: number;
+  total_duration: number;
+  avg_node_duration: number;
+  iterations: number;
+  branches_taken: number;
+  retries_attempted: number;
+}
+
+export interface WorkflowRunData {
+  id: string;
+  name: string;
+  type: string;
+  status: WorkflowStatus;
+  startedAt: string;
+  endedAt?: string;
+  output?: Record<string, unknown>;
+  metrics?: WorkflowMetrics;
+  error?: string;
+}
+
+export interface WorkflowEvent {
+  runId: string;
+  type: string;
+  nodeId?: string;
+  data?: unknown;
+  timestamp: string;
+}

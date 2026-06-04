@@ -31,6 +31,8 @@ import type {
   PluginInfoData,
   PluginStatusData,
   GuardrailStatusData,
+  WorkflowDefinition,
+  WorkflowRunData,
 } from './api/types';
 
 export class WailsBridgeError extends Error {
@@ -292,6 +294,15 @@ interface GoAppMethods {
   ToggleSanitizer(enabled: boolean): Promise<void>;
   SetSanitizerStrategy(strategy: string): Promise<void>;
   GetGuardrailStatus(): Promise<GuardrailStatusData>;
+
+  // AP WorkflowExecution (Phase 6)
+  RunWorkflow(workflowJSON: string, ctx?: unknown): Promise<string>;
+  PauseWorkflow(runId: string): Promise<void>;
+  ResumeWorkflow(runId: string): Promise<void>;
+  CancelWorkflow(runId: string): Promise<void>;
+  GetWorkflowRun(runId: string): Promise<WorkflowRunData | null>;
+  ListWorkflowExecutions(): Promise<WorkflowRunData[]>;
+  ExportWorkflow(runId: string): Promise<string>;
 }
 
 // Provider preset interface (matches Go ProviderPreset)
@@ -794,3 +805,12 @@ export const getTopicConstraints = () => callGo('GetTopicConstraints');
 export const toggleSanitizer = (enabled: boolean) => callGo('ToggleSanitizer', enabled);
 export const setSanitizerStrategy = (strategy: string) => callGo('SetSanitizerStrategy', strategy);
 export const getGuardrailStatus = () => callGo('GetGuardrailStatus');
+
+// WorkflowExecution (Phase 6)
+export const runWorkflow = (workflowJSON: string) => callGo('RunWorkflow', workflowJSON, {});
+export const pauseWorkflow = (runId: string) => callGo('PauseWorkflow', runId);
+export const resumeWorkflow = (runId: string) => callGo('ResumeWorkflow', runId);
+export const cancelWorkflow = (runId: string) => callGo('CancelWorkflow', runId);
+export const getWorkflowRun = (runId: string) => callGo('GetWorkflowRun', runId);
+export const listWorkflowExecutions = () => callGo('ListWorkflowExecutions');
+export const exportWorkflow = (runId: string) => callGo('ExportWorkflow', runId);
