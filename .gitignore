@@ -63,7 +63,7 @@ coverage/
 
 # ---------- Backup & Personal ----------
 **/frontend-backup/
-Design/
+docs/Design/
 AGENTS.md
 ref_*.txt
 ref_*.png

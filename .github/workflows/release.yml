@@ -6,11 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
-
-env:
-  GITEE_REPO: ${{ vars.GITEE_REPO || 'CodeCast/code-cast' }}
-  GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+  contents: read
 
 jobs:
   call-build-windows:
@@ -33,15 +29,16 @@ jobs:
     needs: [call-build-windows, call-build-linux, call-build-macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: dist
 
@@ -81,15 +78,16 @@ jobs:
     needs: publish-release
     if: always() && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
 
       - name: Install upload deps
         working-directory: .github/scripts
-        run: npm init -y && npm install axios form-data
+        run: npm ci
 
       - name: Determine version tag
         id: version
@@ -109,9 +107,10 @@ jobs:
           FILES_DIR: ${{ github.workspace }}/dist
         working-directory: .github/scripts
         run: |
-          echo "🔄 同步到 Gitee..."
+          echo "Syncing to Gitee..."
           git clone --bare https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git repo.git 2>/dev/null || true
-          cd repo.git 2>/dev/null && git push --mirror https://${GITEE_OWNER}:${GITEE_TOKEN}@gitee.com/${GITEE_OWNER}/${GITEE_REPO_NAME}.git 2>/dev/null && echo "✅ 代码同步成功" || echo "⚠️ 代码同步跳过"
+          cd repo.git 2>/dev/null || true
+          git -c credential.helper='!f() { echo "password=${GITEE_TOKEN}"; echo "username=${GITEE_OWNER}"; }; f' push --mirror https://gitee.com/${GITEE_OWNER}/${GITEE_REPO_NAME}.git 2>/dev/null && echo "Code sync succeeded" || echo "Code sync skipped"
           cd ..
           rm -rf repo.git 2>/dev/null || true
 

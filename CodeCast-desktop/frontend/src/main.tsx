@@ -9,7 +9,12 @@ import './styles/index.css';
 initSentry();
 globalErrorHandler.init();
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const rootEl = document.getElementById('root');
+if (!rootEl) {
+  throw new Error('Root element not found. Cannot mount CodeCast application.');
+}
+
+ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <ErrorBoundary>
       <App />

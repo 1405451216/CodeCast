@@ -53,6 +53,10 @@ const AutoFixPipeline: React.FC<AutoFixPipelineProps> = ({
   const [selectedError, setSelectedError] = useState<FixError | null>(null);
   const [fixHistory, setFixHistory] = useState<FixAttempt[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const setIsProcessingSync = (value: boolean) => {
+    processingRef.current = value;
+    setIsProcessing(value);
+  };
   const [isAutoMode, setIsAutoMode] = useState(false);
   const [config, setConfig] = useState<PipelineConfig>({
     autoFixOnCompile: true,
@@ -67,6 +71,7 @@ const AutoFixPipeline: React.FC<AutoFixPipelineProps> = ({
   const processingRef = useRef(false);
   const pipelineLogRef = useRef<Array<{ time: string; message: string; type: 'info' | 'success' | 'error' | 'warning' }>>([]);
   const logUpdateCounterRef = useRef(0);
+  const idCounterRef = useRef(0);
 
   const sanitizeErrorMessage = useCallback((message: string): string => {
     return message
@@ -87,7 +92,7 @@ const AutoFixPipeline: React.FC<AutoFixPipelineProps> = ({
       const tscMatch = line.match(/^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+(TS\d+):\s*(.+)$/);
       if (tscMatch) {
         errors.push({
-          id: `err-${Date.now()}-${i}`,
+          id: `err-${Date.now()}-${i}-${++idCounterRef.current}`,
           file: tscMatch[1],
           line: parseInt(tscMatch[2], 10),
           column: parseInt(tscMatch[3], 10),
@@ -102,7 +107,7 @@ const AutoFixPipeline: React.FC<AutoFixPipelineProps> = ({
       const eslintMatch = line.match(/^(.+?):(\d+):(\d+):\s+(error|warning|info)\s+\[([^\]]+)\]\s*(.+)$/);
       if (eslintMatch) {
         errors.push({
-          id: `eslint-${Date.now()}-${i}`,
+          id: `eslint-${Date.now()}-${i}-${++idCounterRef.current}`,
           file: eslintMatch[1],
           line: parseInt(eslintMatch[2], 10),
           column: parseInt(eslintMatch[3], 10),
@@ -233,7 +238,7 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
   }, [addLog]);
 
   const applyFix = useCallback(async (error: FixError, solution: string): Promise<boolean> => {
-    const attemptId = `fix-${Date.now()}`;
+    const attemptId = `fix-${Date.now()}-${++idCounterRef.current}`;
     const startTime = Date.now();
 
     const attempt: FixAttempt = {
@@ -245,12 +250,22 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
     };
 
     setFixHistory(prev => [attempt, ...prev]);
-    setIsProcessing(true);
+    setIsProcessingSync(true);
 
     try {
       attempt.status = 'fixing';
       setFixHistory(prev => prev.map(f => f.id === attemptId ? { ...f, status: 'fixing' } : f));
       addLog(`🔧 正在应用修复到 ${error.file}...`, 'info');
+
+      // Write the fix to the file via API
+      if (solution && error.file) {
+        try {
+          await api.writeFile(error.file, solution);
+          addLog(`📝 修复已写入 ${error.file}`, 'info');
+        } catch (writeError: any) {
+          addLog(`⚠️ 写入修复失败: ${writeError.message}`, 'warning');
+        }
+      }
 
       await new Promise(resolve => setTimeout(resolve, 1200));
 
@@ -311,7 +326,7 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
           success: false,
           newErrors: [
             {
-              id: `new-${Date.now()}`,
+              id: `new-${Date.now()}-${++idCounterRef.current}`,
               file: error.file,
               line: error.line,
               message: '修复引入了新问题，需要人工审查',
@@ -339,27 +354,25 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
       addLog(`❌ 修复过程出错: ${error.message}`, 'error');
       return false;
     } finally {
-      setIsProcessing(false);
+      setIsProcessingSync(false);
     }
   }, [addLog, onFileChange]);
 
   const handleSingleFix = useCallback(async (error: FixError) => {
     if (processingRef.current) return;
-    processingRef.current = true;
+    setIsProcessingSync(true);
 
     setSelectedError(error);
     
     const solution = await analyzeAndGenerateFix(error);
     await applyFix(error, solution);
 
-    processingRef.current = false;
+    setIsProcessingSync(false);
   }, [analyzeAndGenerateFix, applyFix]);
 
   const handleBatchFix = useCallback(async () => {
     if (processingRef.current || errors.length === 0) return;
-    processingRef.current = true;
-
-    setIsProcessing(true);
+    setIsProcessingSync(true);
     addLog(`🚀 开始批量修复 ${errors.length} 个错误...`, 'info');
 
     for (let i = 0; i < errors.length; i++) {
@@ -376,8 +389,7 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
     }
 
     addLog('\n🎉 批量修复完成！', 'success');
-    setIsProcessing(false);
-    processingRef.current = false;
+    setIsProcessingSync(false);
   }, [errors, config.fixTypes, analyzeAndGenerateFix, applyFix, addLog]);
 
   const toggleAutoMode = useCallback(() => {
@@ -405,8 +417,14 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
   }, [fixHistory, addLog]);
 
   useEffect(() => {
-    detectErrors();
-  }, [detectErrors]);
+    let cancelled = false;
+    if (!compact) {
+      detectErrors().then(() => {
+        if (cancelled) return;
+      });
+    }
+    return () => { cancelled = true; };
+  }, [compact, detectErrors]);
 
   if (compact) {
     return (

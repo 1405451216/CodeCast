@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { BUILTIN_PROVIDERS, getProviderById, getModelById } from '../types/builtin-providers';
 import type { ModelProvider, ModelConfig, ProviderConfig, MultiModelSettings, ModelUseCase, TokenUsage } from '../types/models';
 import { DEFAULT_MODEL, type AvailableModel } from './types';
+import { StorageEncryption } from '../utils/StorageEncryption';
 
 const STORAGE_KEY = 'codecast_multi_model_settings';
 
@@ -70,26 +71,21 @@ async function saveSettingsToStorage(settings: MultiModelSettings): Promise<void
   }
 }
 
-function encryptApiKey(key: string): string {
-  if (!key) return '';
-  try {
-    return StorageEncryption.encryptSync(key);
-  } catch {
-    return key;
-  }
+function encryptApiKey(key: string): Promise<string> {
+  if (!key) return Promise.resolve('');
+  return StorageEncryption.encrypt(key).catch(() => key);
 }
 
-function decryptApiKey(encrypted: string): string {
-  if (!encrypted) return '';
-  try {
-    const decrypted = StorageEncryption.decryptSync(encrypted);
-    if (decrypted && !decrypted.includes(':')) {
-      return decrypted;
-    }
-    return encrypted;
-  } catch {
-    return encrypted;
-  }
+function decryptApiKey(encrypted: string): Promise<string> {
+  if (!encrypted) return Promise.resolve('');
+  return StorageEncryption.decrypt(encrypted)
+    .then(decrypted => {
+      if (decrypted && !decrypted.includes(':')) {
+        return decrypted;
+      }
+      return encrypted;
+    })
+    .catch(() => encrypted);
 }
 
 const createModelSlice = (set: SliceSet): ModelSlice => {
@@ -166,7 +162,7 @@ const createModelSlice = (set: SliceSet): ModelSlice => {
         for (const pc of savedSettings.providers) {
           configs[pc.providerId] = {
             ...pc,
-            apiKey: decryptApiKey(pc.apiKey || ''),
+            apiKey: await decryptApiKey(pc.apiKey || ''),
           };
         }
 
@@ -290,13 +286,17 @@ const createModelSlice = (set: SliceSet): ModelSlice => {
         }
 
         const testEndpoint = getTestEndpoint(providerId, baseUrl);
+        // Google AI API uses query param for auth; others use Authorization header
+        const finalEndpoint = providerId === 'google' && apiKey
+          ? `${testEndpoint}?key=${apiKey}`
+          : testEndpoint;
         logger.info('ModelStore', '🔌 Testing connection...', { providerId, endpoint: testEndpoint });
 
-        const response = await fetch(testEndpoint, {
+        const response = await fetch(finalEndpoint, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
+            ...(apiKey && providerId !== 'google' ? { 'Authorization': `Bearer ${apiKey}` } : {}),
           },
           signal: AbortSignal.timeout(10000),
         });
@@ -384,7 +384,9 @@ function getTestEndpoint(providerId: string, baseUrl: string): string {
     case 'anthropic':
       return `${baseUrl.replace(/\/v1$/, '')}/v1/models`;
     case 'google':
-      return `${baseUrl}/models?key=`;
+      // Google AI API requires the key as a query parameter, not in Authorization header.
+      // The test endpoint will be called with the API key appended.
+      return `${baseUrl}/models`;
     case 'deepseek':
       return `${baseUrl.replace(/\/v1$/, '')}/v1/models`;
     case 'ollama':
@@ -418,131 +420,6 @@ function getCurrentModelInfoInternal(state: ModelStoreState): CurrentModelInfo {
   }
 
   return { provider: null, model: null };
-}
-
-class StorageEncryption {
-  private static readonly ALGORITHM = 'AES-GCM';
-  private static readonly KEY_LENGTH = 256;
-  private static cryptoKey: CryptoKey | null = null;
-
-  private static async getDeviceKey(): Promise<CryptoKey> {
-    if (StorageEncryption.cryptoKey) {
-      return StorageEncryption.cryptoKey;
-    }
-
-    let rawKey = localStorage.getItem('_dk');
-    if (!rawKey) {
-      rawKey = crypto.getRandomValues(new Uint8Array(32)).join(',');
-      localStorage.setItem('_dk', rawKey);
-    }
-
-    const keyData = new Uint8Array(rawKey.split(',').map(Number));
-    
-    StorageEncryption.cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: StorageEncryption.ALGORITHM, length: StorageEncryption.KEY_LENGTH },
-      false,
-      ['encrypt', 'decrypt']
-    );
-
-    return StorageEncryption.cryptoKey;
-  }
-
-  static async encrypt(data: string): Promise<string> {
-    try {
-      const key = await StorageEncryption.getDeviceKey();
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const encoder = new TextEncoder();
-      
-      const encrypted = await crypto.subtle.encrypt(
-        { name: StorageEncryption.ALGORITHM, iv },
-        key,
-        encoder.encode(data)
-      );
-
-      const timestamp = Date.now().toString(36);
-      const result = {
-        t: timestamp,
-        iv: Array.from(iv),
-        data: Array.from(new Uint8Array(encrypted))
-      };
-
-      return btoa(JSON.stringify(result));
-    } catch {
-      return btoa(encodeURIComponent(data));
-    }
-  }
-
-  static async decrypt(encoded: string): Promise<string> {
-    try {
-      const jsonStr = atob(encoded);
-      const { iv, data } = JSON.parse(jsonStr);
-
-      if (!iv || !data) {
-        throw new Error('Invalid format');
-      }
-
-      const key = await StorageEncryption.getDeviceKey();
-      const decrypted = await crypto.subtle.decrypt(
-        { name: StorageEncryption.ALGORITHM, iv: new Uint8Array(iv), length: 128 },
-        key,
-        new Uint8Array(data)
-      );
-
-      return new TextDecoder().decode(decrypted);
-    } catch {
-      try {
-        return decodeURIComponent(atob(encoded));
-      } catch {
-        return encoded;
-      }
-    }
-  }
-
-  static encryptSync(data: string): string {
-    try {
-      const key = localStorage.getItem('_dk') || '';
-      const timestamp = Date.now().toString(36);
-      let encrypted = '';
-
-      for (let i = 0; i < data.length; i++) {
-        const charCode = data.charCodeAt(i) ^ key.charCodeAt(i % key.length);
-        encrypted += String.fromCharCode(charCode);
-      }
-
-      return `${timestamp}:${btoa(encodeURIComponent(encrypted))}`;
-    } catch {
-      return btoa(encodeURIComponent(data));
-    }
-  }
-
-  static decryptSync(encoded: string): string {
-    try {
-      const parts = encoded.split(':');
-      if (parts.length > 1 && parts[0].length < 10) {
-        const base64 = parts.slice(1).join(':');
-        const decoded = decodeURIComponent(atob(base64));
-        const key = localStorage.getItem('_dk') || '';
-        let decrypted = '';
-
-        for (let i = 0; i < decoded.length; i++) {
-          const charCode = decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length);
-          decrypted += String.fromCharCode(charCode);
-        }
-
-        return decrypted;
-      }
-
-      try {
-        return decodeURIComponent(atob(encoded));
-      } catch {
-        return encoded;
-      }
-    } catch {
-      return encoded;
-    }
-  }
 }
 
 export { type ModelSlice, type ModelStoreState, type ProviderConnectionStatus, createModelSlice };

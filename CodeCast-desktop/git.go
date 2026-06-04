@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 func findGitRoot(filePath string) string {
 	dir := filepath.Dir(filePath)
 	for {
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+		if fi, err := os.Stat(filepath.Join(dir, ".git")); err == nil && fi.IsDir() {
 			return dir
 		}
 		parent := filepath.Dir(dir)
@@ -36,7 +37,7 @@ func runGitCommand(dir string, args ...string) (string, error) {
 func (a *App) gitAutoCommit(modifiedFilePath string) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("[Git] 自动提交异常恢复: %v\n", r)
+			slog.Error("[Git] 自动提交异常恢复", "panic", r)
 		}
 	}()
 
@@ -101,7 +102,14 @@ func (a *App) ConfirmGitCommit(filePath string) error {
 	if gitRoot == "" {
 		return fmt.Errorf("未找到 git 仓库")
 	}
-	go a.executeGitCommit(gitRoot, filePath)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("[Git] ConfirmGitCommit goroutine panic", "panic", r)
+			}
+		}()
+		a.executeGitCommit(gitRoot, filePath)
+	}()
 	return nil
 }
 
@@ -115,11 +123,11 @@ func (a *App) GetGitStatus() map[string]interface{} {
 	}
 
 	var projectDir string
-	a.mu.Lock()
+	a.mu.RLock()
 	if len(a.projects) > 0 {
 		projectDir = a.projects[0].Path
 	}
-	a.mu.Unlock()
+	a.mu.RUnlock()
 
 	if projectDir == "" {
 		return result

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import * as api from '../api';
 import TerminalPanel, { TerminalHandle } from './TerminalPanel';
 
@@ -75,22 +75,26 @@ const AgentLoopEngine = forwardRef<{
   });
 
   const [currentTask, setCurrentTask] = useState(taskDescription);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<Array<{ id: number; text: string }>>([]);
+  const logIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const stateRef = useRef(loopState);
 
-  const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+  const mergedConfig = useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config]);
 
   useEffect(() => {
     stateRef.current = loopState;
   }, [loopState]);
 
+  const executeAgentLoopRef = useRef<typeof executeAgentLoop | null>(null);
+  const stopExecutionRef = useRef<typeof stopExecution | null>(null);
+
   useImperativeHandle(ref, () => ({
     startLoop: async (task: string) => {
-      await executeAgentLoop(task);
+      await executeAgentLoopRef.current?.(task);
     },
     stopLoop: () => {
-      stopExecution();
+      stopExecutionRef.current?.();
     },
     getState: () => stateRef.current
   }), []);
@@ -104,14 +108,14 @@ const AgentLoopEngine = forwardRef<{
       warning: '⚠️'
     }[type];
 
-    setLogs(prev => [...prev.slice(-99), `[${timestamp}] ${prefix} ${message}`]);
+    setLogs(prev => [...prev.slice(-99), { id: ++logIdRef.current, text: `[${timestamp}] ${prefix} ${message}` }]);
   }, []);
 
-  const executeInTerminal = useCallback(async (command: string): Promise<{ output: string; success: boolean }> => {
+  const executeInTerminal = useCallback(async (command: string): Promise<{ output: string; success: boolean; exitCode?: number }> => {
     if (terminalRef?.current) {
       return new Promise((resolve) => {
         terminalRef.current?.executeCommand(command);
-        
+
         const checkResult = setInterval(() => {
           const sessionInfo = terminalRef.current?.getSessionInfo();
           if (sessionInfo && !sessionInfo.running) {
@@ -119,10 +123,12 @@ const AgentLoopEngine = forwardRef<{
             const lastOutput = sessionInfo.history
               .filter(l => l.type === 'output' || l.type === 'error')
               .pop()?.content || '';
-            
+
+            const hasErrorLine = sessionInfo.history.some(l => l.type === 'error');
             resolve({
               output: lastOutput,
-              success: !lastOutput.toLowerCase().includes('error')
+              success: !hasErrorLine && (sessionInfo.exitCode === undefined || sessionInfo.exitCode === 0),
+              exitCode: sessionInfo.exitCode
             });
           }
         }, 500);
@@ -138,7 +144,7 @@ const AgentLoopEngine = forwardRef<{
       const result = await api.executeCommand(command, 30);
       return {
         output: result,
-        success: !result.toLowerCase().includes('error')
+        success: true
       };
     } catch (error: any) {
       return {
@@ -249,8 +255,6 @@ const AgentLoopEngine = forwardRef<{
     addLog(`最大轮次: ${mergedConfig.maxTurns}`, 'info');
     addLog(`配置: 自动修复=${mergedConfig.autoFixErrors}, 测试=${mergedConfig.runTests}, Lint=${mergedConfig.runLint}`, 'info');
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-
     for (let turn = 1; turn <= mergedConfig.maxTurns; turn++) {
       if (abortController.signal.aborted) {
         addLog('⏹️ 循环被用户终止', 'warning');
@@ -351,7 +355,8 @@ const AgentLoopEngine = forwardRef<{
         addLog(`输出: (过长，已省略)`, 'info');
       }
 
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Yield to allow UI updates between turns
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
 
     const endTime = Date.now();
@@ -381,8 +386,9 @@ const AgentLoopEngine = forwardRef<{
   const initializeProject = async (): Promise<string> => {
     addLog('检查项目结构...', 'info');
 
+    const isWindowsInit = navigator.userAgent.includes('Windows');
     const commands = [
-      'dir /b',
+      isWindowsInit ? 'dir /b' : 'ls',
       'node --version',
       'npm --version'
     ];
@@ -402,6 +408,10 @@ const AgentLoopEngine = forwardRef<{
       addLog('正在停止...', 'warning');
     }
   }, [addLog]);
+
+  // Keep refs in sync so useImperativeHandle can call the latest versions
+  executeAgentLoopRef.current = executeAgentLoop;
+  stopExecutionRef.current = stopExecution;
 
   const getSuccessRate = (): number => {
     if (loopState.results.length === 0) return 0;
@@ -506,13 +516,13 @@ const AgentLoopEngine = forwardRef<{
           <button onClick={() => setLogs([])}>清空</button>
         </div>
         <div className="logs-content">
-          {logs.map((log, idx) => (
-            <div key={idx} className={`log-entry ${
-              log.includes('✅') ? 'success' :
-              log.includes('❌') ? 'error' :
-              log.includes('⚠️') ? 'warning' : ''
+          {logs.map((log) => (
+            <div key={log.id} className={`log-entry ${
+              log.text.includes('✅') ? 'success' :
+              log.text.includes('❌') ? 'error' :
+              log.text.includes('⚠️') ? 'warning' : ''
             }`}>
-              {log}
+              {log.text}
             </div>
           ))}
           {logs.length === 0 && (
@@ -544,19 +554,19 @@ const AgentLoopEngine = forwardRef<{
           <summary>⚙️ 高级配置</summary>
           <div className="config-options">
             <label>
-              <input type="checkbox" defaultChecked={mergedConfig.autoFixErrors} />
+              <input type="checkbox" checked={mergedConfig.autoFixErrors} onChange={() => {}} readOnly />
               自动修复错误
             </label>
             <label>
-              <input type="checkbox" defaultChecked={mergedConfig.runTests} />
+              <input type="checkbox" checked={mergedConfig.runTests} onChange={() => {}} readOnly />
               运行测试
             </label>
             <label>
-              <input type="checkbox" defaultChecked={mergedConfig.runLint} />
+              <input type="checkbox" checked={mergedConfig.runLint} onChange={() => {}} readOnly />
               代码检查
             </label>
             <label>
-              <input type="number" defaultValue={mergedConfig.maxTurns} min={1} max={50} />
+              <input type="number" value={mergedConfig.maxTurns} min={1} max={50} readOnly />
               最大轮次
             </label>
           </div>

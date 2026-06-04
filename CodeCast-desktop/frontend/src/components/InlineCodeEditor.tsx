@@ -36,6 +36,7 @@ const InlineCodeEditor: React.FC<InlineCodeEditorProps> = ({
   const [showDiffView, setShowDiffView] = useState(showDiff);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+  const copyBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setEditedCode(code);
@@ -50,14 +51,14 @@ const InlineCodeEditor: React.FC<InlineCodeEditorProps> = ({
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(editedCode).then(() => {
-      const btn = document.querySelector(`[data-inline-copy="${filePath || 'default'}"]`);
+      const btn = copyBtnRef.current;
       if (btn) {
         const originalHTML = btn.innerHTML;
         btn.innerHTML = '✓ 已复制';
         setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
       }
     });
-  }, [editedCode, filePath]);
+  }, [editedCode]);
 
   const handleEdit = useCallback(() => {
     setIsEditing(true);
@@ -236,6 +237,7 @@ const InlineCodeEditor: React.FC<InlineCodeEditorProps> = ({
                 </button>
                 <button
                   className="ice-btn ice-copy"
+                  ref={copyBtnRef}
                   data-inline-copy={filePath || 'default'}
                   onClick={handleCopy}
                   title="复制代码"
@@ -273,6 +275,7 @@ const InlineCodeEditor: React.FC<InlineCodeEditorProps> = ({
           <div className="ice-actions">
             <button
               className="ice-btn ice-copy"
+              ref={copyBtnRef}
               data-inline-copy={filePath || 'default'}
               onClick={handleCopy}
               title="复制代码"

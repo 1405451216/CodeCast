@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import * as api from '../api';
 
 export interface MemoryItem {
   id: string;
@@ -176,13 +177,20 @@ export const useMemoryStore = create<MemoryState>()(
         set({ isLoading: true, error: null });
 
         try {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          let memories: MemoryItem[];
 
-          const mockMemories = generateMockMemories();
-          const statistics = calculateStatistics(mockMemories);
+          try {
+            const response = await api.getMemories();
+            memories = Array.isArray(response) ? (response as MemoryItem[]) : [];
+          } catch {
+            // Fallback to mock data if API is unavailable
+            memories = generateMockMemories();
+          }
+
+          const statistics = calculateStatistics(memories);
 
           set({
-            memories: mockMemories,
+            memories,
             statistics,
             isLoading: false
           });
@@ -198,7 +206,11 @@ export const useMemoryStore = create<MemoryState>()(
         const currentMemories = get().memories;
 
         try {
-          await new Promise(resolve => setTimeout(resolve, 200));
+          try {
+            await api.deleteMemory(id);
+          } catch {
+            // Fallback: remove locally if API unavailable
+          }
 
           const updatedMemories = currentMemories.filter(m => m.id !== id);
           const statistics = calculateStatistics(updatedMemories);
@@ -253,7 +265,11 @@ export const useMemoryStore = create<MemoryState>()(
         const threshold = Date.now() - daysThreshold * 24 * 60 * 60 * 1000;
 
         try {
-          await new Promise(resolve => setTimeout(resolve, 300));
+          try {
+            await api.clearExpiredMemories(daysThreshold);
+          } catch {
+            // Fallback: clear locally if API unavailable
+          }
 
           const validMemories = currentMemories.filter(m => m.timestamp >= threshold);
           const removedCount = currentMemories.length - validMemories.length;
@@ -290,12 +306,20 @@ export const useMemoryStore = create<MemoryState>()(
         const currentMemories = get().memories;
 
         try {
-          const newMemory: MemoryItem = {
-            ...memoryData,
-            id: `memory-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            timestamp: Date.now(),
-            relevance: 85 + Math.random() * 15
-          };
+          let newMemory: MemoryItem;
+
+          try {
+            const response = await api.addMemory(memoryData);
+            newMemory = response as MemoryItem;
+          } catch {
+            // Fallback: create locally if API unavailable
+            newMemory = {
+              ...memoryData,
+              id: `memory-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              timestamp: Date.now(),
+              relevance: 85 + Math.random() * 15
+            };
+          }
 
           const updatedMemories = [newMemory, ...currentMemories];
           const statistics = calculateStatistics(updatedMemories);

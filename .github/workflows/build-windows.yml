@@ -1,8 +1,6 @@
 name: Build & Publish (Windows)
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       gitee_sync:
@@ -16,37 +14,34 @@ on:
         type: string
 
 permissions:
-  contents: write
-
-env:
-  GITEE_REPO: ${{ vars.GITEE_REPO || 'CodeCast/code-cast' }}
-  GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+  contents: read
 
 jobs:
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 30
     name: Build Windows (amd64)
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
           cache-dependency-path: CodeCast-desktop/go.sum
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: CodeCast-desktop/frontend/package-lock.json
 
       - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 
       - name: Install frontend dependencies
         working-directory: CodeCast-desktop/frontend
@@ -63,7 +58,7 @@ jobs:
           Compress-Archive -Path "CodeCast.exe" -DestinationPath "CodeCast-Windows-portable.zip"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: CodeCast-Windows
           path: |
@@ -75,16 +70,17 @@ jobs:
   publish-github-release:
     needs: build-windows
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: CodeCast-Windows
           path: dist
@@ -103,6 +99,7 @@ jobs:
   publish-gitee-release:
     needs: build-windows
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: |
       startsWith(github.ref, 'refs/tags/v') || github.event.inputs.gitee_sync == 'true'
     permissions:
@@ -110,10 +107,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: CodeCast-Windows
           path: dist
@@ -134,13 +131,13 @@ jobs:
           fi
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
 
       - name: Install upload dependencies
         working-directory: .github/scripts
-        run: npm init -y && npm install axios form-data
+        run: npm ci
 
       - name: Sync code to Gitee
         env:
@@ -148,10 +145,16 @@ jobs:
           GITEE_OWNER: ${{ vars.GITEE_OWNER || 'CodeCast' }}
           GITEE_REPO_NAME: ${{ vars.GITEE_REPO_NAME || 'CodeCast' }}
         run: |
-          echo "🔄 同步代码到 Gitee..."
+          echo "Syncing code to Gitee..."
           git clone --bare https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git repo.git
           cd repo.git
-          git push --mirror https://${GITEE_OWNER}:${GITEE_TOKEN}@gitee.com/${GITEE_OWNER}/${GITEE_REPO_NAME}.git || echo "⚠️ Gitee push failed"
+          git credential-store <<EOF
+          protocol=https
+          host=gitee.com
+          username=${GITEE_OWNER}
+          password=${GITEE_TOKEN}
+          EOF
+          git push --mirror https://gitee.com/${GITEE_OWNER}/${GITEE_REPO_NAME}.git || echo "Gitee push failed"
           cd ..
           rm -rf repo.git
 

@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 
 interface ShortcutConfig {
   key: string;
@@ -52,6 +52,10 @@ export function useKeyboardShortcuts(
 ) {
   const { enabled = true, scope = 'global' } = options;
 
+  // Store shortcuts in a ref to avoid re-triggering effects on every render
+  const shortcutsRef = useRef(shortcuts);
+  shortcutsRef.current = shortcuts;
+
   useEffect(() => {
     if (import.meta.env.DEV) {
       const conflicts = detectShortcutConflicts(shortcuts);
@@ -90,7 +94,7 @@ export function useKeyboardShortcuts(
       }
     }
 
-    for (const shortcut of shortcuts) {
+    for (const shortcut of shortcutsRef.current) {
       const keyMatch = e.key.toLowerCase() === shortcut.key.toLowerCase();
       const ctrlMatch = !!shortcut.ctrl === (e.ctrlKey || e.metaKey);
       const shiftMatch = !!shortcut.shift === e.shiftKey;
@@ -103,7 +107,7 @@ export function useKeyboardShortcuts(
         return;
       }
     }
-  }, [shortcuts, enabled, scope]);
+  }, [enabled, scope]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);

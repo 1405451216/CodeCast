@@ -3,7 +3,7 @@ module github.com/example/codecast
 go 1.26
 
 require (
-	agentprimordia v0.0.0-00010101000000-000000000000
+	agentprimordia v0.0.0-00010101000000-000000000000 // Local dev only; replace directive below points to sibling directory
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3
 	github.com/google/uuid v1.6.0
 	github.com/wailsapp/wails/v2 v2.12.0
@@ -45,4 +45,7 @@ require (
 	modernc.org/sqlite v1.50.1 // indirect
 )
 
+// NOTE: agentprimordia is a local-only dependency not yet published as a Go module.
+// The zero-value pseudo-version and replace directive are required for local development.
+// Remove the replace directive and use a real version once the package is published.
 replace agentprimordia => ../../agentprimordia/agentprimordia

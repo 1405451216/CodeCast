@@ -59,9 +59,10 @@ const createPerformanceSlice = (set: SliceSet): PerformanceSlice => {
     },
 
     virtualScrollEnabled: true,
-    toggleVirtualScroll: () => set((state: any) => { 
-      const newValue = !state.virtualScrollEnabled;
-      logger.info('PerformanceStore', `🔄 Virtual scroll toggled: ${state.virtualScrollEnabled} → ${newValue}`);
+    toggleVirtualScroll: () => set((state: Record<string, unknown>) => {
+      const current = state.virtualScrollEnabled as boolean;
+      const newValue = !current;
+      logger.info('PerformanceStore', `🔄 Virtual scroll toggled: ${current} → ${newValue}`);
       return { virtualScrollEnabled: newValue };
     }),
     setVirtualScrollEnabled: (enabled) => {
@@ -75,8 +76,14 @@ const createPerformanceSlice = (set: SliceSet): PerformanceSlice => {
       memoryUsage: number;
       renderTime: number;
     }>,
-    addPerformanceSnapshot: (snapshot) => set((state: any) => {
-      const newHistory = [...(state.performanceHistory || []).slice(-59), snapshot];
+    addPerformanceSnapshot: (snapshot) => set((state: Record<string, unknown>) => {
+      const history = (state.performanceHistory || []) as Array<{
+        timestamp: number;
+        fps: number;
+        memoryUsage: number;
+        renderTime: number;
+      }>;
+      const newHistory = [...history.slice(-59), snapshot];
       
       if (snapshot.fps < 30 || snapshot.memoryUsage > 500) {
         logger.warn('PerformanceStore', '⚠️  Performance degradation detected', {
@@ -100,8 +107,9 @@ const createPerformanceSlice = (set: SliceSet): PerformanceSlice => {
     },
 
     performanceConfig: { ...defaultPerformanceConfig },
-    updatePerformanceConfig: (config) => set((state: any) => {
-      const newConfig = { ...(state.performanceConfig || {}), ...config };
+    updatePerformanceConfig: (config) => set((state: Record<string, unknown>) => {
+      const currentConfig = (state.performanceConfig || {}) as PerformanceConfig;
+      const newConfig = { ...currentConfig, ...config };
       logger.info('PerformanceStore', '⚙️  Performance config updated', {
         changes: config,
         fullConfig: newConfig

@@ -55,7 +55,7 @@ const TerminalPanel = forwardRef<TerminalHandle, TerminalPanelProps>(({
   }, [sessions]);
 
   useEffect(() => {
-    if (visible && activeSessionId) {
+    if (visible && sessions.length === 0) {
       createNewSession();
     }
   }, [visible]);
@@ -160,19 +160,6 @@ const TerminalPanel = forwardRef<TerminalHandle, TerminalPanelProps>(({
 
         const filteredHistory = s.history.filter(line => line.content !== '⏳ 执行中...');
 
-        if (result.includes('Error') || result.includes('error') || result.includes('Exception')) {
-          return {
-            ...s,
-            history: [...filteredHistory, {
-              id: `line-${Date.now()}-error`,
-              type: 'error' as const,
-              content: result,
-              timestamp: Date.now()
-            }],
-            running: false
-          };
-        }
-
         return {
           ...s,
           history: [...filteredHistory, {
@@ -181,14 +168,15 @@ const TerminalPanel = forwardRef<TerminalHandle, TerminalPanelProps>(({
             content: result || '(无输出)',
             timestamp: Date.now()
           }],
-          running: false
+          running: false,
+          exitCode: 0
         };
       }));
 
       onCommandComplete?.({
         command,
         output: result,
-        success: !result.toLowerCase().includes('error')
+        success: true
       });
 
       addSystemLine(activeSessionId, '✅ 执行完成');
@@ -298,6 +286,10 @@ const TerminalPanel = forwardRef<TerminalHandle, TerminalPanelProps>(({
                   className="tab-close"
                   onClick={(e) => {
                     e.stopPropagation();
+                    // Abort any running command before closing the tab
+                    if (session.running) {
+                      try { api.cancelRequest(); } catch {}
+                    }
                     setSessions(prev => prev.filter(s => s.id !== session.id));
                     if (session.id === activeSessionId && sessions.length > 1) {
                       const remaining = sessions.filter(s => s.id !== session.id);

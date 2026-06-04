@@ -71,7 +71,9 @@ func (a *App) castToolSoulSet(ctx context.Context, args json.RawMessage) (*ap.To
 	}
 	// 同步到 settings
 	if a.settings != nil {
+		a.mu.Lock()
 		a.settings.Personality = in.Persona
+		a.mu.Unlock()
 	}
 	out := castSoulSetResult{Active: in.Persona}
 	outJSON, _ := json.Marshal(out)

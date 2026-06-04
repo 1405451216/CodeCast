@@ -2,7 +2,7 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
@@ -126,8 +126,8 @@ func (a *App) RotateEncryptionKey() error {
 
 	// Save the new key to disk
 	keyPath := getKeyPath(a.settingsPath)
-	keyHex := hex.EncodeToString(newKey)
-	if err := os.WriteFile(keyPath, []byte(keyHex), 0600); err != nil {
+	keyB64 := base64.StdEncoding.EncodeToString(newKey)
+	if err := os.WriteFile(keyPath, []byte(keyB64), 0600); err != nil {
 		// Rollback
 		a.encryptionKey = oldKey
 		return fmt.Errorf("保存新密钥失败: %w", err)
@@ -137,8 +137,8 @@ func (a *App) RotateEncryptionKey() error {
 	if err := a.saveSettingsToFile(); err != nil {
 		// Rollback key file
 		if oldKey != nil {
-			oldKeyHex := hex.EncodeToString(oldKey)
-			os.WriteFile(keyPath, []byte(oldKeyHex), 0600)
+			oldKeyB64 := base64.StdEncoding.EncodeToString(oldKey)
+			os.WriteFile(keyPath, []byte(oldKeyB64), 0600)
 		}
 		a.encryptionKey = oldKey
 		return fmt.Errorf("重新加密设置失败: %w", err)

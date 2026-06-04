@@ -191,7 +191,10 @@ func (a *App) isPathAllowed(targetPath string) error {
 		return fmt.Errorf("invalid path: %w", err)
 	}
 	for _, pp := range projectPaths {
-		absPP, _ := filepath.Abs(pp)
+		absPP, err := filepath.Abs(pp)
+		if err != nil {
+			continue // skip invalid project paths
+		}
 		if abs == absPP || strings.HasPrefix(abs, absPP+string(filepath.Separator)) {
 			return nil
 		}
@@ -204,10 +207,13 @@ func (a *App) isPathAllowed(targetPath string) error {
 // 内部实现转发到 ap.builtin.FileSystem Execute。
 
 // fsExecutor 缓存 per-project 的 FileSystem 实例
+const maxFSCacheSize = 20
+
 var fsExecutor = struct {
 	sync.RWMutex
 	cache map[string]ap.Tool
-}{cache: make(map[string]ap.Tool)}
+	keys  []string // track insertion order for eviction
+}{cache: make(map[string]ap.Tool), keys: make([]string, 0)}
 
 func getFileSystemFor(path string) (ap.Tool, error) {
 	abs, err := filepath.Abs(path)
@@ -225,7 +231,16 @@ func getFileSystemFor(path string) (ap.Tool, error) {
 		return nil, fmt.Errorf("init filesystem: %w", err)
 	}
 	fsExecutor.Lock()
+	// Evict oldest entry if cache is full
+	if len(fsExecutor.cache) >= maxFSCacheSize && fsExecutor.cache[abs] == nil {
+		if len(fsExecutor.keys) > 0 {
+			oldest := fsExecutor.keys[0]
+			fsExecutor.keys = fsExecutor.keys[1:]
+			delete(fsExecutor.cache, oldest)
+		}
+	}
 	fsExecutor.cache[abs] = fs
+	fsExecutor.keys = append(fsExecutor.keys, abs)
 	fsExecutor.Unlock()
 	return fs, nil
 }

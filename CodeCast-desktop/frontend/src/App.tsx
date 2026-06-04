@@ -1,29 +1,14 @@
-import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore, AppState } from './store';
 import { useAppInit } from './hooks/useAppInit';
 import { useSessionActions } from './hooks/useSessionActions';
 import { useChatSender } from './hooks/useChatSender';
 import { useCommandPalette } from './hooks/useKeyboardShortcuts';
 import { useWebVitals } from './utils/WebVitalsMonitor';
+import { debounce } from './utils';
 import * as api from './api';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingFallback from './components/LoadingFallback';
-
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  return function(this: any, ...args: Parameters<T>) {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    timeoutId = setTimeout(() => {
-      func.apply(this, args);
-    }, wait);
-  };
-}
 
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
@@ -49,6 +34,8 @@ const App: React.FC = () => {
   const [previewWidth, setPreviewWidth] = useState(420);
   const [filesWidth, setFilesWidth] = useState(240);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuOpenRef = useRef(mobileMenuOpen);
+  mobileMenuOpenRef.current = mobileMenuOpen;
 
   const { isOpen: isCommandPaletteOpen, close: closeCommandPalette } = useCommandPalette();
 
@@ -56,10 +43,6 @@ const App: React.FC = () => {
     showDashboard: import.meta.env.DEV,
     reportInterval: 30000
   });
-
-  useEffect(() => {
-    return () => {};
-  }, []);
 
   const sidebarVisible = useAppStore((s: AppState) => s.sidebarVisible);
   const previewPanelVisible = useAppStore((s: AppState) => s.previewPanelVisible);
@@ -93,7 +76,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleResize = debounce(() => {
-      if (window.innerWidth >= 640 && mobileMenuOpen) {
+      if (window.innerWidth >= 640 && mobileMenuOpenRef.current) {
         setMobileMenuOpen(false);
       }
     }, 150);
@@ -103,7 +86,7 @@ const App: React.FC = () => {
       window.removeEventListener('resize', handleResize);
       (handleResize as any).cancel?.();
     };
-  }, [mobileMenuOpen]);
+  }, []);
 
   const handleSidebarResize = useCallback((delta: number) => {
     setSidebarWidth((w) => Math.max(180, Math.min(500, w + delta)));
@@ -194,7 +177,7 @@ const App: React.FC = () => {
           </Suspense>
         </div>
         
-        {(previewPanelVisible || true) && (
+        {previewPanelVisible && (
           <Suspense fallback={null}>
             <PanelResizer onResize={handlePreviewResize} />
           </Suspense>
@@ -203,7 +186,7 @@ const App: React.FC = () => {
           <PreviewPanel style={previewPanelVisible ? { width: previewWidth } : undefined} />
         </Suspense>
         
-        {(filesPanelVisible || true) && (
+        {filesPanelVisible && (
           <Suspense fallback={null}>
             <PanelResizer onResize={handleFilesResize} />
           </Suspense>
@@ -265,7 +248,7 @@ const App: React.FC = () => {
             shortcut: ['/'],
             category: 'navigation',
             action: () => {
-              const input = document.querySelector('textarea, [contenteditable="true"]') as HTMLElement;
+              const input = document.querySelector('#chatArea textarea, #chatArea [contenteditable="true"]') as HTMLElement;
               input?.focus();
             }
           },
@@ -304,7 +287,7 @@ const App: React.FC = () => {
             shortcut: ['Ctrl', 'Shift', 'T'],
             category: 'settings',
             action: () => {
-              const btn = document.querySelector('.theme-toggle-btn') as HTMLButtonElement;
+              const btn = document.querySelector('[data-testid="theme-toggle"], button[aria-label*="主题"], .theme-toggle-btn') as HTMLButtonElement;
               btn?.click();
             }
           }

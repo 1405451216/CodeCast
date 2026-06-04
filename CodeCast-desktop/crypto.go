@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 )
 
@@ -55,9 +56,29 @@ func loadOrCreateKey(keyPath string) ([]byte, error) {
 
 	encoded := base64.StdEncoding.EncodeToString(key)
 
-	if err := os.WriteFile(keyPath, []byte(encoded), 0600); err != nil {
+	// Use O_EXCL to atomically create the file, avoiding a TOCTOU race where
+	// another process creates the file between our read and write.
+	f, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		if os.IsExist(err) {
+			// Another process created it first; read their key instead.
+			data, err := os.ReadFile(keyPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read key after race: %w", err)
+			}
+			key, err := base64.StdEncoding.DecodeString(string(data))
+			if err != nil || len(key) != keyLength {
+				return nil, fmt.Errorf("key file exists but is invalid after race: %w", err)
+			}
+			return key, nil
+		}
 		return nil, fmt.Errorf("failed to save encryption key: %w", err)
 	}
+	if _, err := f.Write([]byte(encoded)); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("failed to write encryption key: %w", err)
+	}
+	f.Close()
 
 	if runtime.GOOS == "windows" {
 		_ = restrictKeyFileAccess(keyPath)
@@ -138,7 +159,13 @@ func isEncrypted(value string) bool {
 	return len(value) > len(encryptedPrefix) && value[:len(encryptedPrefix)] == encryptedPrefix
 }
 
+var safeUsernameRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
 func restrictKeyFileAccess(path string) error {
-	cmd := exec.Command("icacls", path, "/inheritance:r", "/grant:r", fmt.Sprintf("%s:(R)", os.Getenv("USERNAME")))
+	username := os.Getenv("USERNAME")
+	if !safeUsernameRe.MatchString(username) {
+		return fmt.Errorf("invalid USERNAME for icacls: contains disallowed characters")
+	}
+	cmd := exec.Command("icacls", path, "/inheritance:r", "/grant:r", fmt.Sprintf("%s:(R)", username))
 	return cmd.Run()
 }

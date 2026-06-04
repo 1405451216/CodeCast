@@ -159,7 +159,7 @@ const NotificationCenter: React.FC = () => {
               <span className="popout-title">💬 {popoutData.sessionName || '对话'}</span>
               <button className="popout-close" onClick={() => setPopoutVisible(false)}>×</button>
             </div>
-            <div className="popot-body">
+            <div className="popout-body">
               <p style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
                 浮窗模式 — 此会话已独立显示
               </p>

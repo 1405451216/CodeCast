@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import InlineCodeEditor from './InlineCodeEditor';
 import * as api from '../api';
+import { formatContent } from '../utils';
 
 interface CodeBlockData {
   id: string;
@@ -62,7 +63,7 @@ const InteractiveMessage: React.FC<InteractiveMessageProps> = React.memo(({
 
   const renderContentWithEditableCode = useCallback((text: string): React.ReactNode[] => {
     if (isUser || parsedBlocks.length === 0) {
-      return [<span key="content" dangerouslySetInnerHTML={{ __html: text }} />];
+      return [<span key="content" dangerouslySetInnerHTML={{ __html: formatContent(text) }} />];
     }
 
     const parts: React.ReactNode[] = [];
@@ -76,7 +77,7 @@ const InteractiveMessage: React.FC<InteractiveMessageProps> = React.memo(({
         parts.push(
           <span
             key={`text-${lastIndex}`}
-            dangerouslySetInnerHTML={{ __html: text.slice(lastIndex, match.index) }}
+            dangerouslySetInnerHTML={{ __html: formatContent(text.slice(lastIndex, match.index)) }}
           />
         );
       }
@@ -126,7 +127,7 @@ const InteractiveMessage: React.FC<InteractiveMessageProps> = React.memo(({
       parts.push(
         <span
           key={`text-end-${lastIndex}`}
-          dangerouslySetInnerHTML={{ __html: text.slice(lastIndex) }}
+          dangerouslySetInnerHTML={{ __html: formatContent(text.slice(lastIndex)) }}
         />
       );
     }
@@ -148,7 +149,7 @@ const InteractiveMessage: React.FC<InteractiveMessageProps> = React.memo(({
 
   if (isUser) {
     return (
-      <div className="msg-content user-content" dangerouslySetInnerHTML={{ __html: content }} />
+      <div className="msg-content user-content" dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
     );
   }
 

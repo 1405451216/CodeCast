@@ -71,9 +71,12 @@ export function useSessionActions(): UseSessionActionsReturn {
 
   const handleClearSession = useCallback(() => {
     if (currentSessionId) {
-      handleDeleteSession(currentSessionId);
+      // Clear messages but keep the session alive
+      clearMessages();
+      setTitle('CodeCast');
+      setView('welcome');
     }
-  }, [currentSessionId, handleDeleteSession]);
+  }, [currentSessionId, clearMessages, setTitle, setView]);
 
   return { handleNewSession, handleSelectSession, handleDeleteSession, handleClearSession };
 }

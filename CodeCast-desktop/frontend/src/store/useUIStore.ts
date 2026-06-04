@@ -51,10 +51,10 @@ const createUISlice = (set: SliceSet): UISlice => ({
   togglePopout: () => set((state) => ({ popoutMode: !state.popoutMode })),
   sidebarVisible: true,
   toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
-    showModeSelector: false,
-    setShowModeSelector: (show) => set({ showModeSelector: show }),
-    pendingMode: null,
-    setPendingMode: (mode) => set({ pendingMode: mode }),
+  showModeSelector: false,
+  setShowModeSelector: (show) => set({ showModeSelector: show }),
+  pendingMode: null,
+  setPendingMode: (mode) => set({ pendingMode: mode }),
 });
 
 export { type UISlice, createUISlice };

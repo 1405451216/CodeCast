@@ -33,6 +33,8 @@ const DiffView: React.FC<DiffViewProps> = ({
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
   const [hoveredLine, setHoveredLine] = useState<string | null>(null);
   const [showStats, setShowStats] = useState(true);
+  const [editingLineIndex, setEditingLineIndex] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const diffLines = useMemo(() => {
     return generateDiff(originalContent.split('\n'), modifiedContent.split('\n'));
@@ -45,7 +47,7 @@ const DiffView: React.FC<DiffViewProps> = ({
     return { added, removed, unchanged, total: diffLines.length };
   }, [diffLines]);
 
-  const handleLineClick = useCallback((lineId: string, event: React.MouseEvent) => {
+  const handleLineClick = useCallback((lineId: string, event: React.MouseEvent | React.KeyboardEvent) => {
     if (readOnly) return;
 
     if (event.ctrlKey || event.metaKey) {
@@ -62,6 +64,13 @@ const DiffView: React.FC<DiffViewProps> = ({
       setSelectedLines(new Set([lineId]));
     }
   }, [readOnly]);
+
+  const handleLineKeyDown = useCallback((lineId: string, event: React.KeyboardEvent) => {
+    if (event.key === ' ' || event.key === 'Enter') {
+      event.preventDefault();
+      handleLineClick(lineId, event);
+    }
+  }, [handleLineClick]);
 
   const handleAcceptSelected = useCallback(() => {
     if (!onAccept || selectedLines.size === 0) return;
@@ -202,6 +211,11 @@ const DiffView: React.FC<DiffViewProps> = ({
               onClick={(e) => handleLineClick(line.id, e)}
               onMouseEnter={() => setHoveredLine(line.id)}
               onMouseLeave={() => setHoveredLine(null)}
+              role="option"
+              aria-selected={selectedLines.has(line.id)}
+              aria-label={`Line ${line.lineNumber?.new ?? line.lineNumber?.old ?? ''}: ${line.type} ${line.content.slice(0, 50)}`}
+              tabIndex={readOnly ? undefined : 0}
+              onKeyDown={(e) => handleLineKeyDown(line.id, e)}
             >
               <span className="line-prefix">
                 {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
@@ -242,10 +256,8 @@ const DiffView: React.FC<DiffViewProps> = ({
                       className="line-action-btn edit"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const newContent = prompt('编辑此行:', line.content);
-                        if (newContent !== null) {
-                          onEdit(diffLines.indexOf(line), newContent);
-                        }
+                        setEditingLineIndex(diffLines.indexOf(line));
+                        setEditValue(line.content);
                       }}
                       title="编辑此行"
                     >
@@ -265,10 +277,64 @@ const DiffView: React.FC<DiffViewProps> = ({
           <button onClick={() => setSelectedLines(new Set())}>清除选择</button>
         </div>
       )}
+
+      {editingLineIndex !== null && (
+        <div className="diff-edit-bar" style={{
+          padding: '8px 16px',
+          display: 'flex',
+          gap: '8px',
+          alignItems: 'center',
+          borderTop: '1px solid var(--border-color, #e5e5e5)',
+          backgroundColor: 'var(--bg-secondary, #f8f9fa)'
+        }}>
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              border: '1px solid var(--border-color, #e5e5e5)',
+              borderRadius: '4px',
+              fontSize: '13px',
+              fontFamily: 'var(--font-mono, monospace)'
+            }}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && onEdit) {
+                onEdit(editingLineIndex, editValue);
+                setEditingLineIndex(null);
+              } else if (e.key === 'Escape') {
+                setEditingLineIndex(null);
+              }
+            }}
+          />
+          <button
+            onClick={() => {
+              if (onEdit) {
+                onEdit(editingLineIndex, editValue);
+              }
+              setEditingLineIndex(null);
+            }}
+            style={{ padding: '6px 12px', fontSize: '13px' }}
+          >
+            确定
+          </button>
+          <button
+            onClick={() => setEditingLineIndex(null)}
+            style={{ padding: '6px 12px', fontSize: '13px' }}
+          >
+            取消
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
+// TODO: This naive line-by-line diff does not detect moves or block-level changes.
+// Consider replacing with a proper diff algorithm (e.g., Myers diff via `diff` npm package)
+// for accurate moved-block detection and better performance on large files.
 function generateDiff(oldLines: string[], newLines: string[]): DiffLine[] {
   const lines: DiffLine[] = [];
   let oldIdx = 0;

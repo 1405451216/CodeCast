@@ -14,7 +14,7 @@ import (
 func registerSandboxTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
 		newCastTool(a, "cast_sandbox_run", "sandbox",
-			"在隔离环境执行 JS/Python/SQL 脚本",
+			"WARNING: Executes arbitrary code with limited isolation. Only use when ComputerControl is enabled. Prefer safer alternatives when possible. Executes JS/Python/SQL/Bash scripts with a 30s timeout.",
 			json.RawMessage(`{
 				"type": "object",
 				"properties": {
@@ -36,6 +36,14 @@ func (a *App) castToolSandboxRun(ctx context.Context, args json.RawMessage) (*ap
 	var in castSandboxRunArgs
 	if err := json.Unmarshal(args, &in); err != nil {
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
+	}
+
+	// Security: require ComputerControl to be enabled
+	a.mu.RLock()
+	computerControl := a.settings.ComputerControl
+	a.mu.RUnlock()
+	if !computerControl {
+		return &ap.ToolResult{Content: "sandbox execution requires ComputerControl to be enabled in settings", IsError: true}, nil
 	}
 
 	var cmd *exec.Cmd
@@ -63,10 +71,11 @@ func (a *App) castToolSandboxRun(ctx context.Context, args json.RawMessage) (*ap
 	cmd.Stderr = &stderr
 
 	start := nowMs()
-	// AP 安全控制：限制超时
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// AP 安全控制：限制超时 — set timeout on the original cmd's context
+	// Do NOT rebuild the command; use the original cmd so Stdin/Stdout/Stderr/Dir are preserved
+	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cmd = exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
+	cmd.Cancel = func() error { return timeoutCtx.Err() }
 	err := cmd.Run()
 	duration := nowMs() - start
 

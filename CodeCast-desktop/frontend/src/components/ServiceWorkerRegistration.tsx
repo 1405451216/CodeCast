@@ -74,26 +74,32 @@ const ServiceWorkerRegistration: React.FC = () => {
   };
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      registerServiceWorker();
-    }
-
-    window.addEventListener('online', () => setIsOnline(true));
-    window.addEventListener('offline', () => setIsOnline(false));
-
-    window.addEventListener('beforeinstallprompt', (e) => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e as unknown as PWAInstallPrompt);
-      
+
       const hasDismissed = localStorage.getItem('pwa-install-dismissed');
       if (!hasDismissed) {
         setTimeout(() => setShowInstallBanner(true), 3000);
       }
-    });
+    };
+
+    // Only register service worker in non-Wails (browser) environments.
+    // In the Wails desktop app, PWA features are unnecessary.
+    if ('serviceWorker' in navigator && !('go' in window)) {
+      registerServiceWorker();
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener('online', () => setIsOnline(true));
-      window.removeEventListener('offline', () => setIsOnline(false));
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"runtime"
@@ -222,7 +223,9 @@ func checkGo() EnvCheckResult {
 // ─── Helpers ─────────────────────────────────────────
 
 func getCommandVersion(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err

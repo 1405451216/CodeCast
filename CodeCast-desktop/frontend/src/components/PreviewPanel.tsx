@@ -31,14 +31,12 @@ const PreviewPanel: React.FC<{ style?: React.CSSProperties }> = ({ style }) => {
       finalUrl = 'https://' + finalUrl;
     }
 
-    // Update history
-    setHistoryIndex((prevIdx) => {
-      if (prevIdx < historyStack.current.length - 1) {
-        historyStack.current = historyStack.current.slice(0, prevIdx + 1);
-      }
-      historyStack.current.push(finalUrl);
-      return historyStack.current.length - 1;
-    });
+    // Update history - separate ref mutation from state setter
+    if (historyIndex < historyStack.current.length - 1) {
+      historyStack.current = historyStack.current.slice(0, historyIndex + 1);
+    }
+    historyStack.current.push(finalUrl);
+    setHistoryIndex(historyStack.current.length - 1);
 
     setCurrentUrl(finalUrl);
     setBrowserUrl(finalUrl);

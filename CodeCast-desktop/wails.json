@@ -6,8 +6,8 @@
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com"
+    "name": "CodeCast",
+    "email": "codecast@codecast.dev"
   },
   "info": {
     "companyName": "CodeCast",

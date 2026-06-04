@@ -143,7 +143,7 @@ class ErrorBoundary extends React.Component<
             style={{
               fontSize: '48px',
               marginBottom: '16px',
-              animation: 'shake 0.5s ease-in-out',
+              animation: 'error-boundary-shake 0.5s ease-in-out',
             }}
             aria-hidden="true"
           >
@@ -305,7 +305,10 @@ class ErrorBoundary extends React.Component<
           </div>
 
           <style>{`
-            @keyframes shake {
+            .error-boundary-shake {
+              animation: error-boundary-shake 0.5s ease-in-out;
+            }
+            @keyframes error-boundary-shake {
               0%, 100% { transform: translateX(0); }
               20% { transform: translateX(-10px); }
               40% { transform: translateX(10px); }

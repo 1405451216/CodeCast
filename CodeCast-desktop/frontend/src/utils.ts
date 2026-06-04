@@ -13,11 +13,13 @@ const customRenderer = new marked.Renderer();
 customRenderer.code = function ({ text, lang }: { text: string; lang?: string }) {
   const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
   const highlighted = hljs.highlight(text, { language }).value;
-  const copyId = `copy-${Math.random().toString(36).slice(2, 9)}`;
+  const copyId = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? `copy-${crypto.randomUUID().slice(0, 8)}`
+    : `copy-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
   return `<div class="code-block-wrapper">
     <div class="code-block-header">
       <span class="code-lang">${language}</span>
-      <button class="copy-code-btn" data-copy-id="${copyId}" onclick="copyCode(this)">
+      <button class="copy-code-btn" data-copy-id="${copyId}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -37,6 +39,8 @@ declare global {
   }
 }
 
+// Global side effect at module load: by design for Wails, which requires
+// window.copyCode to be accessible from dynamically rendered HTML buttons.
 window.copyCode = function (btn: HTMLElement) {
   const copyId = btn.getAttribute('data-copy-id');
   const codeEl = document.getElementById(copyId || '');
@@ -54,6 +58,15 @@ window.copyCode = function (btn: HTMLElement) {
     });
   }
 };
+
+// Event delegation for copy-code-btn clicks (no inline onclick needed)
+document.addEventListener('click', (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  const btn = target.closest('.copy-code-btn') as HTMLElement | null;
+  if (btn) {
+    window.copyCode(btn);
+  }
+});
 
 /**
  * Convert markdown content to safe HTML.

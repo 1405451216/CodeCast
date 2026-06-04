@@ -19,8 +19,10 @@ func (a *App) buildSystemPrompt(session *Session) string {
 		mode = "daily"
 	}
 	if a.settings != nil {
+		a.mu.RLock()
 		personality = a.settings.Personality
 		customInstructions = a.settings.CustomInstructions
+		a.mu.RUnlock()
 	}
 	a.mu.RLock()
 	if cp := a.getCurrentProjectLocked(); cp != nil {

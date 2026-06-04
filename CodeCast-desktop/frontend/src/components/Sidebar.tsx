@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore, AppState, Session } from '../store';
 import { shallow } from 'zustand/shallow';
 
@@ -30,6 +30,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   const filesPanelVisible = useAppStore((s: AppState) => s.filesPanelVisible);
   const toggleFilesPanel = useAppStore((s: AppState) => s.toggleFilesPanel);
   const [filter, setFilter] = useState('');
+  const [isNarrowScreen, setIsNarrowScreen] = useState(window.innerWidth < 640);
+
+  useEffect(() => {
+    const handleResize = () => setIsNarrowScreen(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (!sidebarVisible) return null;
 
@@ -59,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       style={style}
       role="navigation"
       aria-label="主导航菜单"
-      aria-hidden={!isMobileMenuOpen && window.innerWidth < 640}
+      aria-hidden={!isMobileMenuOpen && isNarrowScreen}
     >
       <div className="sidebar-top">
         <button 

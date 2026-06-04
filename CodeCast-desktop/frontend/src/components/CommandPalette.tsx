@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 
 interface Command {
   id: string;
@@ -100,6 +100,15 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
   }, []);
 
+  // Sync commandHistory changes back to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(commandHistory));
+    } catch (error) {
+      console.warn('Failed to sync command history:', error);
+    }
+  }, [commandHistory]);
+
   const addToHistory = useCallback((commandId: string) => {
     setCommandHistory(prev => {
       const newHistory = [commandId, ...prev.filter(id => id !== commandId)];
@@ -120,13 +129,22 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     cmd.description?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Pre-build a Map for O(1) command lookup by id
+  const commandsById = useMemo(() => {
+    const map = new Map<string, Command>();
+    for (const cmd of commands) {
+      map.set(cmd.id, cmd);
+    }
+    return map;
+  }, [commands]);
+
   const commandsRef = useRef(filteredCommands);
   const selectedIndexRef = useRef(selectedIndex);
 
   useEffect(() => {
     commandsRef.current = filteredCommands;
     selectedIndexRef.current = selectedIndex;
-  });
+  }, [filteredCommands, selectedIndex]);
 
   const groupedCommands = filteredCommands.reduce((acc, cmd) => {
     if (!acc[cmd.category]) acc[cmd.category] = [];
@@ -337,7 +355,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
               </div>
 
               {commandHistory.slice(0, 10).map((historyCommandId, idx) => {
-                const historyCmd = commands.find(cmd => cmd.id === historyCommandId);
+                const historyCmd = commandsById.get(historyCommandId);
                 if (!historyCmd) return null;
 
                 const globalIndex = filteredCommands.indexOf(historyCmd);

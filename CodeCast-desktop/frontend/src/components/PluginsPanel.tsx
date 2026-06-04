@@ -82,7 +82,10 @@ const PluginsPanel: React.FC = () => {
           enabled: parsed[p.id] !== undefined ? parsed[p.id] : p.enabled,
         }));
       }
-    } catch {}
+    } catch {
+      // Corrupted data in localStorage - clean it up
+      localStorage.removeItem('codecast_builtin_plugins');
+    }
     return BUILTIN_PLUGINS;
   });
 
@@ -182,17 +185,28 @@ const PluginsPanel: React.FC = () => {
     try {
       const text = await file.text();
       const plugin = JSON.parse(text);
-      if (plugin.name) {
-        await api.createSkill(
-          plugin.name,
-          plugin.description || '',
-          plugin.prompt || ''
-        );
-        loadSkills();
+      // Validate basic structure
+      if (typeof plugin !== 'object' || plugin === null || Array.isArray(plugin)) {
+        throw new Error('插件文件必须是一个 JSON 对象');
       }
-    } catch (err) {
+      if (typeof plugin.name !== 'string' || !plugin.name.trim()) {
+        throw new Error('插件必须包含非空的 "name" 字段（字符串类型）');
+      }
+      if (plugin.description !== undefined && typeof plugin.description !== 'string') {
+        throw new Error('"description" 字段必须是字符串类型');
+      }
+      if (plugin.prompt !== undefined && typeof plugin.prompt !== 'string') {
+        throw new Error('"prompt" 字段必须是字符串类型');
+      }
+      await api.createSkill(
+        plugin.name.trim(),
+        plugin.description || '',
+        plugin.prompt || ''
+      );
+      loadSkills();
+    } catch (err: any) {
       console.error('Upload plugin failed:', err);
-      alert('插件文件解析失败，请确保为有效的 JSON 格式');
+      alert(`插件文件解析失败: ${err.message || '请确保为有效的 JSON 格式'}`);
     }
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';

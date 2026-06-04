@@ -13,38 +13,80 @@ const PanelResizer: React.FC<PanelResizerProps> = ({ direction = 'horizontal', o
   const startX = useRef(0);
   const dragging = useRef(false);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    startX.current = e.clientX;
+  // Clean up cursor style if component unmounts during an active drag
+  useEffect(() => {
+    return () => {
+      if (dragging.current) {
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+  }, []);
+
+  const startDrag = useCallback((clientX: number) => {
+    startX.current = clientX;
     dragging.current = true;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
+  }, []);
+
+  const moveDrag = useCallback((clientX: number) => {
+    if (!dragging.current) return;
+    const delta = clientX - startX.current;
+    startX.current = clientX;
+    onResize(delta);
+  }, [onResize]);
+
+  const endDrag = useCallback(() => {
+    dragging.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    onResizeEnd?.();
+  }, [onResizeEnd]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startDrag(e.clientX);
 
     const handleMouseMove = (ev: MouseEvent) => {
-      if (!dragging.current) return;
-      const delta = ev.clientX - startX.current;
-      startX.current = ev.clientX;
-      onResize(delta);
+      moveDrag(ev.clientX);
     };
 
     const handleMouseUp = () => {
-      dragging.current = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      endDrag();
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      onResizeEnd?.();
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [onResize, onResizeEnd]);
+  }, [startDrag, moveDrag, endDrag]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (e.touches.length === 1) {
+      startDrag(e.touches[0].clientX);
+    }
+  }, [startDrag]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!dragging.current || e.touches.length !== 1) return;
+    e.preventDefault();
+    moveDrag(e.touches[0].clientX);
+  }, [moveDrag]);
+
+  const handleTouchEnd = useCallback(() => {
+    endDrag();
+  }, [endDrag]);
 
   return (
     <div
       className="panel-resizer"
       onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <div className="panel-resizer-handle" />
     </div>

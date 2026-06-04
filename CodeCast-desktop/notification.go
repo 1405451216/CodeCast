@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"runtime"
 	"time"
 
@@ -46,11 +47,13 @@ func SendSystemNotification(title, body string) {
 			Title: title,
 			Body:  body,
 		}
-		_ = n.Push()
+		if err := n.Push(); err != nil {
+			slog.Warn("system notification push failed", "error", err, "title", title)
+		}
 	} else {
 		// go-toast is Windows-only; on other platforms we skip silently.
 		// macOS/Linux native notifications can be added later.
-		println("[SystemNotification]", title, "-", body)
+		slog.Info("[SystemNotification]", "title", title, "body", body)
 	}
 }
 

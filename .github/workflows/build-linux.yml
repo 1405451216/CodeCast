@@ -1,8 +1,6 @@
 name: Build & Publish (Linux)
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       gitee_sync:
@@ -16,19 +14,17 @@ on:
         type: string
 
 permissions:
-  contents: write
-
-env:
-  GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+  contents: read
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     name: Build Linux (amd64)
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Install Linux dependencies
         run: |
@@ -36,21 +32,21 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version: '1.25'
+          go-version: '1.26'
           cache: true
           cache-dependency-path: CodeCast-desktop/go.sum
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: CodeCast-desktop/frontend/package-lock.json
 
       - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 
       - name: Install frontend dependencies
         working-directory: CodeCast-desktop/frontend
@@ -66,7 +62,7 @@ jobs:
           tar -czf CodeCast-Linux-amd64.tar.gz codecast
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: CodeCast-Linux
           path: |
@@ -78,16 +74,17 @@ jobs:
   publish-github-release:
     needs: build-linux
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: CodeCast-Linux
           path: dist
@@ -106,6 +103,7 @@ jobs:
   publish-gitee-release:
     needs: build-linux
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: |
       startsWith(github.ref, 'refs/tags/v') || github.event.inputs.gitee_sync == 'true'
     permissions:
@@ -113,10 +111,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: CodeCast-Linux
           path: dist
@@ -137,13 +135,13 @@ jobs:
           fi
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
 
       - name: Install upload dependencies
         working-directory: .github/scripts
-        run: npm init -y && npm install axios form-data
+        run: npm ci
 
       - name: Upload to Gitee Release (Node.js)
         env:

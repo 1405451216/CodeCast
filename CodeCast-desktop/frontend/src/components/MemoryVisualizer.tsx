@@ -20,6 +20,8 @@ const MemoryVisualizer: React.FC<MemoryVisualizerProps> = ({ isOpen = true, onCl
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMemory, setSelectedMemory] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; message: string; onConfirm: () => void }>({ open: false, message: '', onConfirm: () => {} });
+  const [notification, setNotification] = useState<string | null>(null);
 
   const filteredMemories = useMemo(() => {
     let filtered = memories;
@@ -109,27 +111,38 @@ const MemoryVisualizer: React.FC<MemoryVisualizerProps> = ({ isOpen = true, onCl
   const handleExportClick = useCallback(async () => {
     try {
       await exportMemories();
-      alert('记忆已导出');
+      setNotification('记忆已导出');
+      setTimeout(() => setNotification(null), 3000);
     } catch (error) {
       console.error('导出失败:', error);
-      alert('导出失败');
+      setNotification('导出失败');
+      setTimeout(() => setNotification(null), 3000);
     }
   }, [exportMemories]);
 
   const handleClearExpiredClick = useCallback(async () => {
-    if (confirm('确定要清理过期记忆吗？')) {
-      try {
-        await clearExpired();
-        alert('已清理过期记忆');
-      } catch (error) {
-        console.error('清理失败:', error);
-        alert('清理失败');
+    setConfirmDialog({
+      open: true,
+      message: '确定要清理过期记忆吗？',
+      onConfirm: async () => {
+        try {
+          await clearExpired();
+          setNotification('已清理过期记忆');
+          setTimeout(() => setNotification(null), 3000);
+        } catch (error) {
+          console.error('清理失败:', error);
+          setNotification('清理失败');
+          setTimeout(() => setNotification(null), 3000);
+        }
       }
-    }
+    });
   }, [clearExpired]);
 
   if (!isOpen) return null;
 
+  // TODO: Replace inline styles with CSS classes to match app styling conventions.
+  // The extensive inline styles below are inconsistent with the rest of the app
+  // which uses CSS custom properties and class-based styling.
   return (
     <div className="memory-visualizer" style={{
       position: 'fixed',
@@ -473,9 +486,10 @@ const MemoryVisualizer: React.FC<MemoryVisualizerProps> = ({ isOpen = true, onCl
             flexWrap: 'wrap',
             gap: '8px'
           }}>
-            {tagCloudData.map(({ tag, count }) => {
+            {(() => {
               const maxCount = Math.max(...tagCloudData.map(t => t.count));
               const minCount = Math.min(...tagCloudData.map(t => t.count));
+              return tagCloudData.map(({ tag, count }) => {
               const fontSize = 12 + ((count - minCount) / (maxCount - minCount || 1)) * 8;
 
               return (
@@ -509,7 +523,7 @@ const MemoryVisualizer: React.FC<MemoryVisualizerProps> = ({ isOpen = true, onCl
                   #{tag}
                 </button>
               );
-            })}
+            })})()}
           </div>
         </section>
 
@@ -654,7 +668,12 @@ const MemoryVisualizer: React.FC<MemoryVisualizerProps> = ({ isOpen = true, onCl
           📤 导出全部
         </button>
         <button
-          onClick={() => {}}
+          onClick={() => {
+            fetchMemories();
+            setNotification('记忆已刷新');
+            setTimeout(() => setNotification(null), 2000);
+          }}
+          title="刷新记忆"
           style={{
             padding: '10px 12px',
             border: '1px solid var(--border-color, #e5e5e5)',
@@ -675,6 +694,44 @@ const MemoryVisualizer: React.FC<MemoryVisualizerProps> = ({ isOpen = true, onCl
           ⚙
         </button>
       </footer>
+
+      {/* Inline Confirm Dialog */}
+      {confirmDialog.open && (
+        <div className="confirm-dialog-overlay" style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001
+        }}>
+          <div style={{
+            background: 'var(--bg-primary, #fff)', borderRadius: '12px',
+            padding: '24px', maxWidth: '360px', width: '90%',
+            boxShadow: '0 16px 32px rgba(0,0,0,0.2)'
+          }}>
+            <p style={{ margin: '0 0 16px', fontSize: '15px', color: 'var(--text-primary, #1a1a1a)' }}>
+              {confirmDialog.message}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmDialog({ open: false, message: '', onConfirm: () => {} })} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--border-color, #e5e5e5)', cursor: 'pointer' }}>
+                取消
+              </button>
+              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ open: false, message: '', onConfirm: () => {} }); }} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--accent, #7c7cff)', color: '#fff', cursor: 'pointer' }}>
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Notification */}
+      {notification && (
+        <div style={{
+          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--bg-primary, #fff)', color: 'var(--text-primary, #1a1a1a)',
+          padding: '10px 20px', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          zIndex: 10001, fontSize: '14px'
+        }}>
+          {notification}
+        </div>
+      )}
     </div>
   );
 };

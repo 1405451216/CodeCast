@@ -31,6 +31,7 @@ var (
 
 	pomodoroMu       sync.RWMutex
 	currentPomodoro  *castPomodoroSession
+	pomodoroCancelCh chan struct{} // closed when a new pomodoro starts, cancelling the previous timer
 )
 
 func registerTodoTools(a *App, toolkit *ap.ToolRegistry) error {
@@ -154,7 +155,15 @@ func (a *App) castToolPomodoroStart(ctx context.Context, args json.RawMessage) (
 	if minutes <= 0 {
 		minutes = 25
 	}
+
+	// Cancel any previous pomodoro timer goroutine
 	pomodoroMu.Lock()
+	if pomodoroCancelCh != nil {
+		close(pomodoroCancelCh)
+	}
+	pomodoroCancelCh = make(chan struct{})
+	cancelCh := pomodoroCancelCh
+
 	currentPomodoro = &castPomodoroSession{
 		StartedAt: time.Now().Unix(),
 		Minutes:   minutes,
@@ -162,14 +171,21 @@ func (a *App) castToolPomodoroStart(ctx context.Context, args json.RawMessage) (
 	}
 	pomodoroMu.Unlock()
 
-	// 到点后自动停
+	// Auto-stop after timer expires; exits early if cancelled by a new start.
 	go func() {
-		time.Sleep(time.Duration(minutes) * time.Minute)
-		pomodoroMu.Lock()
-		if currentPomodoro != nil && currentPomodoro.StartedAt == time.Now().Unix()-int64(minutes*60) {
-			currentPomodoro.Active = false
+		timer := time.NewTimer(time.Duration(minutes) * time.Minute)
+		defer timer.Stop()
+		select {
+		case <-cancelCh:
+			// Cancelled by a new pomodoro start
+			return
+		case <-timer.C:
+			pomodoroMu.Lock()
+			if currentPomodoro != nil {
+				currentPomodoro.Active = false
+			}
+			pomodoroMu.Unlock()
 		}
-		pomodoroMu.Unlock()
 	}()
 
 	out := castPomodoroStartResult{StartedAt: time.Now().Unix(), Minutes: minutes}

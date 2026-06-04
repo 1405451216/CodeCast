@@ -62,6 +62,10 @@ interface GitWorkflowProps {
   compact?: boolean;
 }
 
+function shellEscape(s: string): string {
+  return `"${s.replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`')}"`;
+}
+
 const CONVENTIONAL_TYPES: Record<ConventionalCommitType, { label: string; description: string; color: string }> = {
   feat: { label: 'feat', description: '新功能', color: '#2ea44f' },
   fix: { label: 'fix', description: 'Bug 修复', color: '#cf222e' },
@@ -188,12 +192,12 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
       }
 
       try {
-        const logOutput = await api.executeCommand('git log --pretty=format:"%H|%s|%an|%ai" -20', 15);
+        const logOutput = await api.executeCommand('git log --pretty=format:"%H%x00%s%x00%an%x00%ai" -20', 15);
 
         if (logOutput && logOutput.trim()) {
           const commitLines = logOutput.trim().split('\n').filter(line => line.trim());
           const parsedCommits: GitCommit[] = commitLines.map(line => {
-            const [hash, message, author, date] = line.split('|');
+            const [hash, message, author, date] = line.split('\x00');
             return {
               hash: hash ? hash.substring(0, 7) : '',
               message: message || '(空消息)',
@@ -279,7 +283,7 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
 
   const handleStageFile = useCallback(async (filePath: string) => {
     try {
-      await api.executeCommand(`git add "${filePath}"`);
+      await api.executeCommand(`git add ${shellEscape(filePath)}`);
       setFiles(prev => prev.map(f =>
         f.path === filePath ? { ...f, staged: true } : f
       ));
@@ -295,7 +299,7 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
 
   const handleUnstageFile = useCallback(async (filePath: string) => {
     try {
-      await api.executeCommand(`git reset HEAD "${filePath}"`);
+      await api.executeCommand(`git reset HEAD ${shellEscape(filePath)}`);
       setFiles(prev => prev.map(f =>
         f.path === filePath ? { ...f, staged: false } : f
       ));
@@ -307,7 +311,7 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
 
   const handleDiscardChanges = useCallback(async (filePath: string) => {
     try {
-      await api.executeCommand(`git checkout -- "${filePath}"`);
+      await api.executeCommand(`git checkout -- ${shellEscape(filePath)}`);
       setFiles(prev => prev.filter(f => f.path !== filePath));
       addLog(`丢弃更改: ${filePath}`, 'success');
     } catch (error: any) {
@@ -334,7 +338,7 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
     try {
       setIsLoading(true);
 
-      await api.executeCommand(`git commit -m "${commitMessage}"`);
+      await api.executeCommand(`git commit -m ${shellEscape(commitMessage)}`);
 
       addLog(`提交成功: ${commitMessage.slice(0, 50)}${commitMessage.length > 50 ? '...' : ''}`, 'success');
       setCommitMessage('');
@@ -356,7 +360,7 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
 
     try {
       setIsCreatingBranch(false);
-      await api.executeCommand(`git checkout -b ${newBranchName}`);
+      await api.executeCommand(`git checkout -b ${shellEscape(newBranchName)}`);
       addLog(`创建并切换到新分支: ${newBranchName}`, 'success');
       setNewBranchName('');
       await loadBranches();
@@ -368,7 +372,7 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
   const handleSwitchBranch = useCallback(async (branchName: string) => {
     try {
       setIsLoading(true);
-      await api.executeCommand(`git checkout ${branchName}`);
+      await api.executeCommand(`git checkout ${shellEscape(branchName)}`);
       addLog(`切换到分支: ${branchName}`, 'success');
       await loadBranches();
       await loadGitStatus();
@@ -384,7 +388,7 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
       setSelectedDiffFile(filePath);
       setActiveTab('diff');
 
-      const diffOutput = await api.executeCommand(`git diff "${filePath}"`);
+      const diffOutput = await api.executeCommand(`git diff ${shellEscape(filePath)}`);
 
       if (diffOutput) {
         const lines = diffOutput.split('\n');
@@ -490,7 +494,7 @@ ${recentCommits || '(无历史记录)'}
       const messages = await api.sendMessageEx(
         sessionId,
         prompt,
-        'deepseek-v4-pro',
+        useAppStore.getState().selectedModel || 'deepseek-chat',
         false
       );
 
@@ -573,7 +577,7 @@ ${issueNumber ? `\n关联 Issue: #${issueNumber}` : ''}
   "reviewers": ["reviewer1"]
 }`;
 
-      const messages = await api.sendMessageEx(sessionId, prPrompt, 'deepseek-v4-pro', false);
+      const messages = await api.sendMessageEx(sessionId, prPrompt, useAppStore.getState().selectedModel || 'deepseek-chat', false);
       const response = messages.find((m: { role: string; content: string }) => m.role === 'assistant')?.content || '';
 
       try {
@@ -756,8 +760,8 @@ ${issueNumber ? `\n关联 Issue: #${issueNumber}` : ''}
       const content = await api.readFileContent(filePath);
 
       if (strategy === 'ours' || strategy === 'theirs') {
-        await api.executeCommand(`git checkout --${strategy === 'ours' ? '' : 'theirs'} -- "${filePath}"`);
-        await api.executeCommand(`git add "${filePath}"`);
+        await api.executeCommand(`git checkout --${strategy} -- ${shellEscape(filePath)}`);
+        await api.executeCommand(`git add ${shellEscape(filePath)}`);
         addLog(`✅ 冲突已解决（采用 ${strategy === 'ours' ? '当前分支' : '传入分支'} 版本）: ${filePath}`, 'success');
 
         setConflictFiles(prev =>
@@ -778,12 +782,12 @@ ${content}
 
 请直接输出合并后的完整文件内容，不要任何解释。`;
 
-        const messages = await api.sendMessageEx(sessionId, aiResolvePrompt, 'deepseek-v4-pro', false);
+        const messages = await api.sendMessageEx(sessionId, aiResolvePrompt, useAppStore.getState().selectedModel || 'deepseek-chat', false);
         const resolvedContent = messages.find((m: { role: string; content: string }) => m.role === 'assistant')?.content || '';
 
         if (resolvedContent) {
           await api.writeFile(filePath, resolvedContent);
-          await api.executeCommand(`git add "${filePath}"`);
+          await api.executeCommand(`git add ${shellEscape(filePath)}`);
           addLog(`✅ AI 辅助合并完成: ${filePath}`, 'success');
 
           setConflictFiles(prev =>
