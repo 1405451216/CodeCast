@@ -125,9 +125,16 @@ func setupSecuritySandbox(acl *ap.ACL) *ap.Sandbox {
 //   - Allowlist enforcement — replaces subAgentAllowedCommands
 func (a *App) validateCommandBridge(agentID, agentMode, rawCmd string) error {
 	if a.sandbox == nil {
-		slog.Warn("[Security] Sandbox not initialized, skipping command validation",
+		// Fail-closed: if sandbox is unavailable, refuse to execute any command.
+		// This prevents a startup failure or race condition from silently
+		// disabling all command security.
+		slog.Error("[Security] Sandbox not initialized, refusing command execution",
 			"agentID", agentID, "cmd", rawCmd)
-		return nil
+		return &CommandDeniedError{
+			Reason:    "安全沙箱未初始化，拒绝执行命令。请重启应用。",
+			Command:   extractCommandName(rawCmd),
+			Dangerous: true,
+		}
 	}
 
 	err := a.sandbox.CanExecute(agentID, rawCmd)

@@ -193,9 +193,13 @@ func validateCommand(agentID, agentMode, rawCmd string) error {
 var globalValidateCommand = defaultValidateCommand
 
 func defaultValidateCommand(agentID, agentMode, rawCmd string) error {
-	// No sandbox available — allow by default.
-	// Once App.startup runs, this is replaced with the sandbox-backed implementation.
-	return nil
+	// Fail-closed: before App.startup wires the sandbox-backed validator,
+	// refuse all commands to prevent an early-race security bypass.
+	return &CommandDeniedError{
+		Reason:    "安全沙箱尚未初始化，拒绝执行命令。请等待应用启动完成。",
+		Command:   extractCommandName(rawCmd),
+		Dangerous: true,
+	}
 }
 
 // setGlobalValidateCommand wires the package-level validateCommand to use the sandbox.

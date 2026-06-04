@@ -31,6 +31,7 @@ type OrchestrationRun struct {
 	Error     string `json:"error,omitempty"`
 	StartedAt string `json:"startedAt"`
 	EndedAt   string `json:"endedAt,omitempty"`
+	Cancel    context.CancelFunc `json:"-"` // cancels the per-run context
 }
 
 // CodeReviewResult is the structured output of the code review DAG.
@@ -293,6 +294,7 @@ func (a *App) RunCodeReviewWorkflow(sessionID, code string) (*CodeReviewResult, 
 	}
 
 	runID := fmt.Sprintf("cr-%d", time.Now().UnixNano())
+	runCtx, runCancel := context.WithCancel(a.ctx)
 	a.orchestrationMu.Lock()
 	a.orchestrationRuns[runID] = &OrchestrationRun{
 		ID:        runID,
@@ -301,6 +303,7 @@ func (a *App) RunCodeReviewWorkflow(sessionID, code string) (*CodeReviewResult, 
 		SessionID: sessionID,
 		Input:     truncate(code, 200),
 		StartedAt: time.Now().Format(time.RFC3339),
+		Cancel:    runCancel,
 	}
 	a.orchestrationMu.Unlock()
 
@@ -309,7 +312,8 @@ func (a *App) RunCodeReviewWorkflow(sessionID, code string) (*CodeReviewResult, 
 	})
 
 	go func() {
-		result, execErr := dag.Run(a.ctx, code)
+		defer runCancel()
+		result, execErr := dag.Run(runCtx, code)
 
 		a.orchestrationMu.Lock()
 		run := a.orchestrationRuns[runID]
@@ -358,6 +362,7 @@ func (a *App) RunRefactoringWorkflow(sessionID, code string) (*RefactoringResult
 	}
 
 	runID := fmt.Sprintf("rf-%d", time.Now().UnixNano())
+	runCtx, runCancel := context.WithCancel(a.ctx)
 	a.orchestrationMu.Lock()
 	a.orchestrationRuns[runID] = &OrchestrationRun{
 		ID:        runID,
@@ -366,6 +371,7 @@ func (a *App) RunRefactoringWorkflow(sessionID, code string) (*RefactoringResult
 		SessionID: sessionID,
 		Input:     truncate(code, 200),
 		StartedAt: time.Now().Format(time.RFC3339),
+		Cancel:    runCancel,
 	}
 	a.orchestrationMu.Unlock()
 
@@ -374,7 +380,8 @@ func (a *App) RunRefactoringWorkflow(sessionID, code string) (*RefactoringResult
 	})
 
 	go func() {
-		result, execErr := dag.Run(a.ctx, code)
+		defer runCancel()
+		result, execErr := dag.Run(runCtx, code)
 
 		a.orchestrationMu.Lock()
 		run := a.orchestrationRuns[runID]
@@ -423,6 +430,7 @@ func (a *App) RunTestPipelineWorkflow(sessionID, code string) (*TestPipelineResu
 	}
 
 	runID := fmt.Sprintf("tp-%d", time.Now().UnixNano())
+	runCtx, runCancel := context.WithCancel(a.ctx)
 	a.orchestrationMu.Lock()
 	a.orchestrationRuns[runID] = &OrchestrationRun{
 		ID:        runID,
@@ -431,6 +439,7 @@ func (a *App) RunTestPipelineWorkflow(sessionID, code string) (*TestPipelineResu
 		SessionID: sessionID,
 		Input:     truncate(code, 200),
 		StartedAt: time.Now().Format(time.RFC3339),
+		Cancel:    runCancel,
 	}
 	a.orchestrationMu.Unlock()
 
@@ -439,7 +448,8 @@ func (a *App) RunTestPipelineWorkflow(sessionID, code string) (*TestPipelineResu
 	})
 
 	go func() {
-		result, execErr := pipeline.Run(a.ctx, code)
+		defer runCancel()
+		result, execErr := pipeline.Run(runCtx, code)
 
 		a.orchestrationMu.Lock()
 		run := a.orchestrationRuns[runID]
@@ -501,6 +511,7 @@ func (a *App) RunHandoffWorkflow(sessionID, message string) (string, error) {
 	})
 
 	runID := fmt.Sprintf("ho-%d", time.Now().UnixNano())
+	runCtx, runCancel := context.WithCancel(a.ctx)
 	a.orchestrationMu.Lock()
 	a.orchestrationRuns[runID] = &OrchestrationRun{
 		ID:        runID,
@@ -509,6 +520,7 @@ func (a *App) RunHandoffWorkflow(sessionID, message string) (string, error) {
 		SessionID: sessionID,
 		Input:     truncate(message, 200),
 		StartedAt: time.Now().Format(time.RFC3339),
+		Cancel:    runCancel,
 	}
 	a.orchestrationMu.Unlock()
 
@@ -517,7 +529,8 @@ func (a *App) RunHandoffWorkflow(sessionID, message string) (string, error) {
 	})
 
 	go func() {
-		result, execErr := handoff.Run(a.ctx, message)
+		defer runCancel()
+		result, execErr := handoff.Run(runCtx, message)
 
 		a.orchestrationMu.Lock()
 		run := a.orchestrationRuns[runID]
@@ -565,6 +578,7 @@ func (a *App) RunParallelAnalysis(sessionID, input string) (*ParallelAnalysisRes
 	}
 
 	runID := fmt.Sprintf("pa-%d", time.Now().UnixNano())
+	runCtx, runCancel := context.WithCancel(a.ctx)
 	a.orchestrationMu.Lock()
 	a.orchestrationRuns[runID] = &OrchestrationRun{
 		ID:        runID,
@@ -573,6 +587,7 @@ func (a *App) RunParallelAnalysis(sessionID, input string) (*ParallelAnalysisRes
 		SessionID: sessionID,
 		Input:     truncate(input, 200),
 		StartedAt: time.Now().Format(time.RFC3339),
+		Cancel:    runCancel,
 	}
 	a.orchestrationMu.Unlock()
 
@@ -581,7 +596,8 @@ func (a *App) RunParallelAnalysis(sessionID, input string) (*ParallelAnalysisRes
 	})
 
 	go func() {
-		result, execErr := ap.ParallelRun(a.ctx, []ap.Agent{analyzer, critic, improver}, input, a.hooks)
+		defer runCancel()
+		result, execErr := ap.ParallelRun(runCtx, []ap.Agent{analyzer, critic, improver}, input, a.hooks)
 
 		a.orchestrationMu.Lock()
 		run := a.orchestrationRuns[runID]
@@ -669,6 +685,10 @@ func (a *App) CancelWorkflowRun(runID string) error {
 	}
 	if run.Status != "running" {
 		return fmt.Errorf("workflow run %s is not running (status: %s)", runID, run.Status)
+	}
+	// Cancel the per-run context so the goroutine receives ctx.Done()
+	if run.Cancel != nil {
+		run.Cancel()
 	}
 	run.Status = "cancelled"
 	run.EndedAt = time.Now().Format(time.RFC3339)

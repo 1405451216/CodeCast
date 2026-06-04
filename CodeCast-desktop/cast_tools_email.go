@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/smtp"
+	"strings"
 
 	ap "agentprimordia/pkg"
 )
@@ -94,15 +95,51 @@ func (a *App) castToolEmailSend(ctx context.Context, args json.RawMessage) (*ap.
 	}
 
 	auth := smtp.PlainAuth("", user, pass, host)
-	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n",
-		user, in.To, in.Subject, in.Body))
+	// Sanitize body to prevent SMTP command injection:
+	// Double any dots at the start of a line (RFC 5321 transparency)
+	sanitizedBody := smtpDotStuff(in.Body)
+	// Sanitize header fields to prevent header injection (CR/LF stripping)
+	safeTo := sanitizeSMTPHeader(in.To)
+	safeSubject := sanitizeSMTPHeader(in.Subject)
+	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n.\r\n",
+		user, safeTo, safeSubject, sanitizedBody))
 
 	start := nowMs()
 	addr := fmt.Sprintf("%s:%d", host, port)
-	if err := smtp.SendMail(addr, auth, user, []string{in.To}, msg); err != nil {
+	if err := smtp.SendMail(addr, auth, user, []string{safeTo}, msg); err != nil {
 		return a.recordCastInvocation("cast_email_send", "email", "", args, err.Error(), true, nowMs()-start), nil
 	}
-	out := map[string]any{"to": in.To, "subject": in.Subject, "sent": true}
+	out := map[string]any{"to": safeTo, "subject": safeSubject, "sent": true}
 	outJSON, _ := json.Marshal(out)
 	return a.recordCastInvocation("cast_email_send", "email", "", args, string(outJSON), false, nowMs()-start), nil
+}
+
+// smtpDotStuff implements RFC 5321 transparency: any line beginning with a dot
+// must have an extra dot prepended to prevent premature end-of-data signaling.
+func smtpDotStuff(body string) string {
+	var b strings.Builder
+	b.Grow(len(body))
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, ".") {
+			b.WriteByte('.')
+		}
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	result := b.String()
+	// Remove trailing newline added by the loop if original didn't have one
+	if len(body) > 0 && body[len(body)-1] != '\n' {
+		result = result[:len(result)-1]
+	}
+	return result
+}
+
+// sanitizeSMTPHeader strips CR/LF characters from SMTP header values
+// (Subject, To, From) to prevent header injection attacks.
+// An attacker could inject "\r\nBcc: attacker@evil.com" into the Subject
+// field to cause unauthorized email delivery.
+func sanitizeSMTPHeader(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return s
 }

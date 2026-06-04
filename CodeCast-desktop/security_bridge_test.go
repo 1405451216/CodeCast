@@ -233,10 +233,16 @@ func TestValidateCommandBridge_NilSandbox(t *testing.T) {
 	app := createTestApp()
 	app.sandbox = nil
 
-	// Should not panic and should return nil (fail-open when sandbox not initialized)
+	// Fail-closed: when sandbox is not initialized, all commands must be refused.
 	err := app.validateCommandBridge("agent:test", AgentModeImplicit, "rm -rf /")
-	if err != nil {
-		t.Errorf("validateCommandBridge with nil sandbox should return nil, got: %v", err)
+	if err == nil {
+		t.Error("validateCommandBridge with nil sandbox should return error (fail-closed), got nil")
+	}
+	cde, ok := err.(*CommandDeniedError)
+	if !ok {
+		t.Errorf("expected *CommandDeniedError, got %T", err)
+	} else if !cde.Dangerous {
+		t.Error("nil-sandbox denial should be marked Dangerous")
 	}
 }
 

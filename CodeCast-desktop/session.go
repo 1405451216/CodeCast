@@ -49,12 +49,12 @@ type Task struct {
 }
 
 type Session struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
-	SkillID   string
-	Mode      string // "" | "coding" | "daily"
-	Messages  []Message
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	SkillID   string    `json:"skill_id"`
+	Mode      string    `json:"mode"` // "" | "coding" | "daily"
+	Messages  []Message `json:"messages"`
 }
 
 func NewSession(name string, skillID string) *Session {
@@ -123,7 +123,9 @@ func (a *App) DeleteSession(id string) error {
 	for i, s := range a.sessions {
 		if s.ID == id {
 			a.sessions = append(a.sessions[:i], a.sessions[i+1:]...)
-			a.CancelSessionRequest(id)
+			// Inline cancel to avoid deadlock: CancelSessionRequest() also
+			// acquires a.mu, but we already hold it here.
+			a.cancelSessionRequestsLocked(id)
 			go a.deletePersistedSession(id)
 			return nil
 		}
@@ -132,6 +134,8 @@ func (a *App) DeleteSession(id string) error {
 }
 
 func (a *App) getSessionByID(id string) *Session {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	for _, s := range a.sessions {
 		if s.ID == id {
 			return deepCopySession(s)
@@ -286,17 +290,31 @@ func (a *App) BatchDeleteSessions(ids []string) []string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	var deleted []string
+	// Collect indices to delete first, then delete from highest to lowest
+	// to avoid index shifting issues
+	idSet := make(map[string]bool, len(ids))
 	for _, id := range ids {
-		for i, s := range a.sessions {
-			if s.ID == id {
-				a.sessions = append(a.sessions[:i], a.sessions[i+1:]...)
-				a.CancelSessionRequest(id)
-				go a.deletePersistedSession(id)
-				deleted = append(deleted, id)
-				break
-			}
+		idSet[id] = true
+	}
+
+	var indicesToDelete []int
+	for i, s := range a.sessions {
+		if idSet[s.ID] {
+			indicesToDelete = append(indicesToDelete, i)
 		}
+	}
+
+	var deleted []string
+	// Iterate backwards so removing elements doesn't affect subsequent indices
+	for i := len(indicesToDelete) - 1; i >= 0; i-- {
+		idx := indicesToDelete[i]
+		id := a.sessions[idx].ID
+		a.sessions = append(a.sessions[:idx], a.sessions[idx+1:]...)
+		// Inline cancel to avoid deadlock: CancelSessionRequest() also
+		// acquires a.mu, but we already hold it here.
+		a.cancelSessionRequestsLocked(id)
+		go a.deletePersistedSession(id)
+		deleted = append(deleted, id)
 	}
 	return deleted
 }
@@ -315,11 +333,22 @@ func (a *App) CancelRequest() {
 
 func (a *App) CancelSessionRequest(sessionID string) {
 	a.mu.Lock()
-	if cancel, ok := a.sessionCancels[sessionID]; ok {
-		cancel()
-		delete(a.sessionCancels, sessionID)
+	defer a.mu.Unlock()
+	a.cancelSessionRequestsLocked(sessionID)
+}
+
+// cancelSessionRequestsLocked cancels all in-flight requests for a session.
+// Keys in sessionCancels use the format "sessionID_randomHex" (set in
+// SendMessageEx), so we match by prefix rather than exact key.
+// Caller MUST hold a.mu.
+func (a *App) cancelSessionRequestsLocked(sessionID string) {
+	prefix := sessionID + "_"
+	for key, cancel := range a.sessionCancels {
+		if key == sessionID || strings.HasPrefix(key, prefix) {
+			cancel()
+			delete(a.sessionCancels, key)
+		}
 	}
-	a.mu.Unlock()
 }
 // ==================== Tool Event Bridge ====================
 // emitToolEvent replaces the old recordToolIfEnabled. It publishes a tool-use

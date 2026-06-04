@@ -245,7 +245,9 @@ func (a *App) RunWorkflow(workflowJSON string, _ context.Context) (string, error
 
 	// Run the workflow in a goroutine
 	go func() {
+		a.workflowMu.Lock()
 		run.Status = string(ap.WfStatusRunning)
+		a.workflowMu.Unlock()
 		safeEmit(a.ctx, "workflow:started", map[string]any{
 			"runId": runID, "name": def.Name, "type": def.Type,
 		})
@@ -307,7 +309,9 @@ func (a *App) PauseWorkflow(runID string) error {
 		return fmt.Errorf("workflow run %s has no execution handle", runID)
 	}
 	run.Execution.Pause()
+	a.workflowMu.Lock()
 	run.Status = string(ap.WfStatusPaused)
+	a.workflowMu.Unlock()
 	slog.Info("Workflow paused", "runId", runID)
 	safeEmit(a.ctx, "workflow:paused", map[string]any{"runId": runID})
 	return nil
@@ -330,7 +334,9 @@ func (a *App) ResumeWorkflow(runID string) error {
 	if err := run.Execution.Resume(); err != nil {
 		return err
 	}
+	a.workflowMu.Lock()
 	run.Status = string(ap.WfStatusRunning)
+	a.workflowMu.Unlock()
 	slog.Info("Workflow resumed", "runId", runID)
 	safeEmit(a.ctx, "workflow:resumed", map[string]any{"runId": runID})
 	return nil
@@ -348,7 +354,9 @@ func (a *App) CancelWorkflow(runID string) error {
 		return fmt.Errorf("workflow run %s has no execution handle", runID)
 	}
 	run.Execution.Cancel()
+	a.workflowMu.Lock()
 	run.Status = string(ap.WfStatusCancelled)
+	a.workflowMu.Unlock()
 	slog.Info("Workflow cancelled", "runId", runID)
 	safeEmit(a.ctx, "workflow:cancelled", map[string]any{"runId": runID})
 	return nil

@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/smtp"
+	"strings"
 	"time"
 
 	ap "agentprimordia/pkg"
@@ -82,12 +84,52 @@ func (a *App) castToolChannelSend(ctx context.Context, args json.RawMessage) (*a
 func (a *App) castToolChannelTest(ctx context.Context, args json.RawMessage) (*ap.ToolResult, error) {
 	var in castChannelTestArgs
 	_ = json.Unmarshal(args, &in)
+	// TODO: implement actual channel connectivity test; currently a stub that always returns OK:true
 	out := castChannelTestResult{OK: true}
 	outJSON, _ := json.Marshal(out)
 	return a.recordCastInvocation("cast_channel_test", "channel", "", args, string(outJSON), false, 0), nil
 }
 
+// validateWebhookURL checks that the URL scheme is http/https and blocks private/internal IPs
+func validateWebhookURL(rawURL string) error {
+	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+		return fmt.Errorf("webhook URL must use http or https scheme")
+	}
+
+	// Parse hostname and check for private IPs
+	host := rawURL
+	if idx := strings.Index(rawURL, "://"); idx >= 0 {
+		host = rawURL[idx+3:]
+	}
+	if idx := strings.Index(host, "/"); idx >= 0 {
+		host = host[:idx]
+	}
+	if idx := strings.Index(host, "?"); idx >= 0 {
+		host = host[:idx]
+	}
+	// Remove port
+	if idx := strings.LastIndex(host, ":"); idx >= 0 {
+		host = host[:idx]
+	}
+	// Remove brackets for IPv6
+	host = strings.TrimPrefix(strings.TrimSuffix(host, "]"), "[")
+
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return fmt.Errorf("failed to resolve webhook host: %w", err)
+	}
+	for _, ip := range ips {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("webhook URL resolves to private/internal IP %s, which is not allowed", ip)
+		}
+	}
+	return nil
+}
+
 func sendWebhook(ctx context.Context, url, title, content string) error {
+	if err := validateWebhookURL(url); err != nil {
+		return fmt.Errorf("webhook URL validation failed: %w", err)
+	}
 	payload, _ := json.Marshal(map[string]any{"title": title, "content": content, "text": fmt.Sprintf("%s\n%s", title, content)})
 	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -109,8 +151,14 @@ func sendEmail(ctx context.Context, a *App, to, subject, body string) error {
 	}
 	auth := smtp.PlainAuth("", a.settings.SMTPUser, a.settings.SMTPPass, a.settings.SMTPHost)
 	addr := fmt.Sprintf("%s:%d", a.settings.SMTPHost, a.settings.SMTPPort)
-	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", a.settings.SMTPUser, to, subject, body))
-	return smtp.SendMail(addr, auth, a.settings.SMTPUser, []string{to}, msg)
+	// Sanitize header fields to prevent header injection (CR/LF stripping)
+	safeTo := sanitizeSMTPHeader(to)
+	safeSubject := sanitizeSMTPHeader(subject)
+	// Apply RFC 5321 dot-stuffing to the body
+	sanitizedBody := smtpDotStuff(body)
+	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n.\r\n",
+		a.settings.SMTPUser, safeTo, safeSubject, sanitizedBody))
+	return smtp.SendMail(addr, auth, a.settings.SMTPUser, []string{safeTo}, msg)
 }
 
 func sendFeishu(ctx context.Context, url, title, content string) error {
