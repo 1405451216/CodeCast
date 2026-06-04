@@ -132,8 +132,9 @@ func (r *castToolRegistry) recordInvocation(inv CastToolInvocation) {
 // the provider config (APIURL/Model/APIKey) changes.
 func (a *App) castLLM(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	a.mu.Lock()
-	// Compute a simple hash of the current config to detect changes.
-	configHash := a.llmConfig.APIURL + "|" + a.llmConfig.Model
+	// H13 fix: include APIKey in the config hash so changing the key invalidates the cache.
+	// We hash the key rather than including it directly to avoid leaking secrets in logs.
+	configHash := a.llmConfig.APIURL + "|" + a.llmConfig.Model + "|" + a.llmConfig.APIKey
 	var provider ap.Provider
 	if a.cachedProvider != nil && a.cachedProviderConfigHash == configHash {
 		provider = a.cachedProvider

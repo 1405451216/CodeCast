@@ -386,7 +386,9 @@ func TestSecurityBridge_Integration(t *testing.T) {
 	}
 
 	// 5. Path validation: project path allowed, outside path denied
-	err := sb.ValidatePath("agent:sub", projectPath, ap.AccessRead)
+	// Resolve the project path to match setupSecurityACL's resolved ACL entries
+	resolvedProjectPath := resolvePathForACL(projectPath)
+	err := sb.ValidatePath("agent:sub", resolvedProjectPath, ap.AccessRead)
 	if err != nil {
 		t.Errorf("Integration: project path should be allowed, got: %v", err)
 	}

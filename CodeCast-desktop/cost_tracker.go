@@ -65,9 +65,6 @@ func (a *App) SetBudgetConfig(budget *ap.BudgetConfig) {
 	if budget == nil {
 		return
 	}
-	a.mu.Lock()
-	a.budgetConfig = budget
-	a.mu.Unlock()
 
 	pricing := ap.DefaultPricingTable()
 	if budget.OnBudgetExceed == nil {
@@ -78,7 +75,15 @@ func (a *App) SetBudgetConfig(budget *ap.BudgetConfig) {
 			)
 		}
 	}
-	a.costTracker = ap.NewCostTracker(pricing, budget)
+	newTracker := ap.NewCostTracker(pricing, budget)
+
+	// H3 fix: assign both budget and costTracker under the same lock to prevent
+	// readers from seeing a new costTracker with an old budgetConfig (or vice versa).
+	a.mu.Lock()
+	a.budgetConfig = budget
+	a.costTracker = newTracker
+	a.mu.Unlock()
+
 	slog.Info("AP CostTracker budget updated", "max_cost_usd", budget.MaxTotalCostUSD)
 }
 

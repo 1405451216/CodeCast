@@ -436,6 +436,25 @@ func (a *App) loadSettings() {
 		}
 	}
 
+	// H5 fix: decrypt SMTP password if encrypted (same pattern as ModelConfigs API keys)
+	if a.encryptionKey != nil && s.SMTPPass != "" {
+		decryptedPass, decryptErr := decryptAPIKey(s.SMTPPass, a.encryptionKey)
+		if decryptErr == nil {
+			s.SMTPPass = decryptedPass
+			// If the decrypted value still looks encrypted, it's corrupted — clear it
+			if isEncrypted(s.SMTPPass) {
+				s.SMTPPass = ""
+				fmt.Printf("warning: SMTP password appears invalid after decryption, clearing\n")
+			}
+		} else if !isEncrypted(s.SMTPPass) {
+			// Unencrypted legacy value — will be encrypted on next save via migrationPending
+			a.migrationPending = true
+		} else {
+			fmt.Printf("warning: failed to decrypt SMTP password: %v\n", decryptErr)
+			s.SMTPPass = ""
+		}
+	}
+
 	a.settings = &s
 }
 
@@ -480,6 +499,16 @@ func (a *App) saveSettingsToFile() error {
 			}
 		}
 		settingsCopy.ModelConfigs = mcCopy
+	}
+
+	// H5 fix: encrypt SMTP password before writing to disk
+	if a.encryptionKey != nil && settingsCopy.SMTPPass != "" {
+		encryptedPass, err := encryptAPIKey(settingsCopy.SMTPPass, a.encryptionKey)
+		if err != nil {
+			fmt.Printf("warning: failed to encrypt SMTP password: %v\n", err)
+		} else {
+			settingsCopy.SMTPPass = encryptedPass
+		}
 	}
 
 	data, err := json.MarshalIndent(settingsCopy, "", "  ")

@@ -89,6 +89,20 @@ func (a *App) SendMessageEx(sessionID, input, model, thinking string) ([]Message
 		Content:   fullContent,
 	})
 
+	// H12 fix: store streaming messages back into the session so that
+	// GetMessages / persistSession see the full conversation history.
+	a.mu.Lock()
+	for _, s := range a.sessions {
+		if s.ID == sessionID {
+			s.Messages = append(s.Messages,
+				Message{Role: "user", Content: input},
+				Message{Role: "assistant", Content: fullContent},
+			)
+			break
+		}
+	}
+	a.mu.Unlock()
+
 	// Auto-summarization: trigger SummaryEngine if threshold is met
 	if a.summaryEngine != nil {
 		go func() {
@@ -124,6 +138,11 @@ func (a *App) getOrCreateAgent(sessionID string, model string) (ap.Agent, contex
 
 	// createProvider() requires caller to hold a.mu — we acquire it here
 	a.mu.Lock()
+	// H1 fix: re-check after acquiring write lock to prevent TOCTOU race
+	if agent, ok := a.sessionAgents[sessionID]; ok {
+		a.mu.Unlock()
+		return agent, nil, nil
+	}
 	provider, err := a.createProvider()
 	a.mu.Unlock()
 	if err != nil {
@@ -153,6 +172,11 @@ func (a *App) getOrCreateAgent(sessionID string, model string) (ap.Agent, contex
 		WithCostTracker(a.costTracker)
 
 	a.mu.Lock()
+	// H1 fix: another goroutine may have created the agent while we released the lock
+	if existing, ok := a.sessionAgents[sessionID]; ok {
+		a.mu.Unlock()
+		return existing, nil, nil
+	}
 	a.sessionAgents[sessionID] = agent
 	a.mu.Unlock()
 

@@ -181,6 +181,9 @@ func (a *App) IngestDirectory(dirPath string, cfg DocumentPipelineConfig) (*Inge
 
 	result.DurationMs = time.Since(start).Milliseconds()
 
+	// H4 fix: guard ingestionStatus write with mutex to prevent data races
+	// when GetIngestionStatus() is called concurrently from the frontend.
+	a.mu.Lock()
 	a.ingestionStatus = &IngestionStatus{
 		LastIngestionDir: dirPath,
 		LastIngestionAt:  time.Now().Format(time.RFC3339),
@@ -188,6 +191,7 @@ func (a *App) IngestDirectory(dirPath string, cfg DocumentPipelineConfig) (*Inge
 		TotalChunks:      result.ChunksCreated,
 		IsRunning:        false,
 	}
+	a.mu.Unlock()
 
 	slog.Info("Document ingestion completed",
 		"dir", dirPath,
@@ -202,6 +206,9 @@ func (a *App) IngestDirectory(dirPath string, cfg DocumentPipelineConfig) (*Inge
 
 // GetIngestionStatus returns the current document ingestion status.
 func (a *App) GetIngestionStatus() *IngestionStatus {
+	// H4 fix: guard read with RLock to prevent data races with concurrent IngestDirectory.
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	if a.ingestionStatus == nil {
 		return &IngestionStatus{IsRunning: false}
 	}

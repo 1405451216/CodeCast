@@ -30,7 +30,16 @@ func (a *App) sessionsDir() string {
 
 // persistSession saves a single session to disk as a JSON file.
 // It is safe to call from a goroutine.
+// IMPORTANT: The caller must either hold a.mu or pass a snapshot/copy of the Session;
+// reading s.* fields without synchronization is a data race if the session is mutable.
 func (a *App) persistSession(s *Session) {
+	// H8 fix: validate session ID to prevent path traversal via crafted IDs
+	safeID := filepath.Base(s.ID)
+	if safeID != s.ID || strings.ContainsAny(s.ID, `/\`) {
+		slog.Warn("session ID contains path separators, sanitizing",
+			"original", s.ID, "sanitized", safeID)
+	}
+
 	dir := a.sessionsDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		slog.Warn("创建 sessions 目录失败", "error", err, "dir", dir)
@@ -53,7 +62,7 @@ func (a *App) persistSession(s *Session) {
 		return
 	}
 
-	filePath := filepath.Join(dir, s.ID+".json")
+	filePath := filepath.Join(dir, safeID+".json")
 	// Write to temp file first, then rename for atomicity
 	tmpPath := filePath + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
@@ -174,7 +183,9 @@ func (a *App) loadPersistedSessions() {
 // deletePersistedSession removes a session's JSON file from disk.
 // It is safe to call from a goroutine.
 func (a *App) deletePersistedSession(id string) {
-	filePath := filepath.Join(a.sessionsDir(), id+".json")
+	// H8 fix: sanitize session ID to prevent path traversal
+	safeID := filepath.Base(id)
+	filePath := filepath.Join(a.sessionsDir(), safeID+".json")
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 		slog.Warn("删除 session 文件失败", "error", err, "session_id", id)
 	}

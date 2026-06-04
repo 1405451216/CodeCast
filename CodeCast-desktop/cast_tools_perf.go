@@ -54,7 +54,9 @@ func (a *App) castToolPerfGetMetrics(ctx context.Context, args json.RawMessage) 
 func (a *App) castToolPerfClearCache(ctx context.Context, args json.RawMessage) (*ap.ToolResult, error) {
 	var in castPerfClearCacheArgs
 	_ = json.Unmarshal(args, &in)
+	// H10 fix: mark stub clearly so callers know this isn't performing real cache clearing
 	out := castPerfClearCacheResult{Cleared: 1}
 	outJSON, _ := json.Marshal(out)
-	return a.recordCastInvocation("cast_perf_clear_cache", "perf", "", args, string(outJSON), false, 0), nil
+	result := "[STUB] cast_perf_clear_cache is not yet implemented — always reports Cleared:1. " + string(outJSON)
+	return a.recordCastInvocation("cast_perf_clear_cache", "perf", "", args, result, false, 0), nil
 }

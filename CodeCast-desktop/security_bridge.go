@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strings"
 
 	ap "agentprimordia/pkg"
 )
@@ -23,9 +24,15 @@ func setupSecurityACL(projectPaths []string) *ap.ACL {
 	acl.Deny("*", `C:\Windows\System32\drivers\etc`)
 
 	// Allow read+write+execute within all project directories for all agents.
+	// H7 fix: resolve symlinks so that ACL paths match EvalSymlinks-resolved paths
+	// used in isPathAllowedBridge.
 	for _, pp := range projectPaths {
 		if pp != "" {
-			acl.Allow("*", pp, ap.AccessAll)
+			resolved, err := filepath.EvalSymlinks(pp)
+			if err != nil {
+				resolved = pp // fallback to original if resolution fails
+			}
+			acl.Allow("*", resolved, ap.AccessAll)
 		}
 	}
 
@@ -163,26 +170,70 @@ func (a *App) isPathAllowedBridge(targetPath string) error {
 		return fmt.Errorf("path is empty")
 	}
 
-	// noProjectMode allows access to any path (same as the old isPathAllowed behavior)
+	// H7 fix: resolve symlinks before validation to prevent symlink-based escapes.
+	// For paths that don't yet exist (e.g. write targets), resolve the deepest
+	// existing ancestor and append the remaining components.
+	resolvedPath := resolvePathForACL(targetPath)
+
+	// noProjectMode allows broader access but still blocks dangerous system paths
 	a.mu.RLock()
 	noProjectMode := a.noProjectMode
 	a.mu.RUnlock()
 	if noProjectMode {
+		// H6 fix: even in noProjectMode, block known-dangerous system paths
+		absPath, absErr := filepath.Abs(resolvedPath)
+		if absErr != nil {
+			return fmt.Errorf("invalid path: %w", absErr)
+		}
+		lower := filepath.ToSlash(strings.ToLower(absPath))
+		dangerous := []string{
+			"/etc/shadow", "/etc/sudoers", "/etc/ssh",
+			"c:/windows/system32/config",
+			"c:/windows/system32/drivers/etc",
+		}
+		for _, d := range dangerous {
+			if strings.HasPrefix(lower, d) {
+				return fmt.Errorf("access denied: %s is a sensitive system path", targetPath)
+			}
+		}
 		return nil
 	}
 
 	// Use sandbox for path validation if available.
 	// Sandbox.ValidatePath handles ".." traversal and ACL-based access control.
 	if a.sandbox != nil {
-		absPath, err := filepath.Abs(targetPath)
-		if err != nil {
-			return fmt.Errorf("invalid path: %w", err)
+		absPath, absErr := filepath.Abs(resolvedPath)
+		if absErr != nil {
+			return fmt.Errorf("invalid path: %w", absErr)
 		}
 		return a.sandbox.ValidatePath("codecast", absPath, ap.AccessRead)
 	}
 
 	// Fallback: delegate to the original isPathAllowed when sandbox is not ready.
 	return a.isPathAllowed(targetPath)
+}
+
+// resolvePathForACL resolves symlinks in targetPath. If the path doesn't exist,
+// it walks up the directory tree to find an existing ancestor, resolves that,
+// and appends the remaining path components.
+func resolvePathForACL(targetPath string) string {
+	resolved, err := filepath.EvalSymlinks(targetPath)
+	if err == nil {
+		return resolved
+	}
+
+	// Path doesn't fully exist — resolve the deepest existing ancestor
+	parent := filepath.Dir(targetPath)
+	base := filepath.Base(targetPath)
+	if parent == targetPath {
+		// Already at root
+		if abs, absErr := filepath.Abs(targetPath); absErr == nil {
+			return abs
+		}
+		return targetPath
+	}
+	resolvedParent := resolvePathForACL(parent)
+	return filepath.Join(resolvedParent, base)
 }
 
 // isDangerousCommandError returns true if the error indicates a blocked or

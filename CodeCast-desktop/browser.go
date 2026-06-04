@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -8,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
+	"time"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -17,13 +18,11 @@ import (
 func (a *App) IsDomainBlocked(rawURL string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return false
 	}
 	domain := strings.ToLower(parsedURL.Hostname())
-
 	for _, blocked := range a.settings.BlockedDomains {
 		blockedLower := strings.ToLower(blocked)
 		if domain == blockedLower || strings.HasSuffix(domain, "."+blockedLower) {
@@ -36,7 +35,6 @@ func (a *App) IsDomainBlocked(rawURL string) bool {
 			return true
 		}
 	}
-
 	if len(a.settings.AllowedDomains) > 0 {
 		allowed := false
 		for _, allowedDomain := range a.settings.AllowedDomains {
@@ -56,21 +54,19 @@ func (a *App) IsDomainBlocked(rawURL string) bool {
 			return true
 		}
 	}
-
 	return false
+
 }
 
 func (a *App) GetDomainRules() map[string]interface{} {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	mode := "open"
 	if len(a.settings.BlockedDomains) > 0 && len(a.settings.AllowedDomains) == 0 {
 		mode = "blocklist"
 	} else if len(a.settings.AllowedDomains) > 0 {
 		mode = "allowlist"
 	}
-
 	return map[string]interface{}{
 		"mode":           mode,
 		"blockedCount":   len(a.settings.BlockedDomains),
@@ -78,6 +74,7 @@ func (a *App) GetDomainRules() map[string]interface{} {
 		"blockedDomains": a.settings.BlockedDomains,
 		"allowedDomains": a.settings.AllowedDomains,
 	}
+
 }
 
 // ==================== 浏览器域名管理 ====================
@@ -88,7 +85,6 @@ func (a *App) AddBlockedDomain(domain string) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	for _, d := range a.settings.BlockedDomains {
 		if d == domain {
 			return fmt.Errorf("域名已存在")
@@ -96,12 +92,12 @@ func (a *App) AddBlockedDomain(domain string) error {
 	}
 	a.settings.BlockedDomains = append(a.settings.BlockedDomains, domain)
 	return a.saveSettingsToFile()
+
 }
 
 func (a *App) RemoveBlockedDomain(domain string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	for i, d := range a.settings.BlockedDomains {
 		if d == domain {
 			a.settings.BlockedDomains = append(a.settings.BlockedDomains[:i], a.settings.BlockedDomains[i+1:]...)
@@ -109,6 +105,7 @@ func (a *App) RemoveBlockedDomain(domain string) error {
 		}
 	}
 	return fmt.Errorf("域名不存在")
+
 }
 
 func (a *App) AddAllowedDomain(domain string) error {
@@ -117,7 +114,6 @@ func (a *App) AddAllowedDomain(domain string) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	for _, d := range a.settings.AllowedDomains {
 		if d == domain {
 			return fmt.Errorf("域名已存在")
@@ -125,12 +121,12 @@ func (a *App) AddAllowedDomain(domain string) error {
 	}
 	a.settings.AllowedDomains = append(a.settings.AllowedDomains, domain)
 	return a.saveSettingsToFile()
+
 }
 
 func (a *App) RemoveAllowedDomain(domain string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	for i, d := range a.settings.AllowedDomains {
 		if d == domain {
 			a.settings.AllowedDomains = append(a.settings.AllowedDomains[:i], a.settings.AllowedDomains[i+1:]...)
@@ -138,14 +134,26 @@ func (a *App) RemoveAllowedDomain(domain string) error {
 		}
 	}
 	return fmt.Errorf("域名不存在")
+
 }
 
-// ClearBrowserData 清除浏览数据（缓存、Cookie 等）
+// ClearBrowserData clears browser cache and cookies for Edge/Chrome.
+// H9 fix: requires explicit user confirmation before deleting system browser data.
 func (a *App) ClearBrowserData() error {
+	// Show a confirmation dialog to the user before proceeding
+	confirmed, dialogErr := wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
+		Type:          wailsRuntime.QuestionDialog,
+		Title:         "清除浏览器数据",
+		Message:       "这将清除 Edge/Chrome 的缓存和 Cookie，包括您日常使用的浏览器数据。确定继续吗？",
+		DefaultButton: "Cancel",
+		Buttons:       []string{"确定清除", "Cancel"},
+	})
+	if dialogErr != nil || confirmed != "确定清除" {
+		return nil // User cancelled or dialog error
+	}
+
 	var errors []string
-
 	var browserPaths []string
-
 	if runtime.GOOS == "windows" {
 		localAppData := os.Getenv("LOCALAPPDATA")
 		browserPaths = []string{
@@ -177,7 +185,6 @@ func (a *App) ClearBrowserData() error {
 			filepath.Join(configDir, "microsoft-edge", "Default", "Cookies"),
 		}
 	}
-
 	clearDir := func(path string) {
 		if _, err := os.Stat(path); err != nil {
 			return
@@ -193,24 +200,22 @@ func (a *App) ClearBrowserData() error {
 			}
 		}
 	}
-
 	for _, p := range browserPaths {
 		clearDir(p)
 	}
-
 	if len(errors) > 0 {
 		fmt.Printf("[Browser] 部分文件清理失败: %d 个\n", len(errors))
 	} else {
 		fmt.Println("[浏览器] 浏览数据已清理")
 	}
 	return nil
+
 }
 
 // CheckSeleniumInstalled 检测本机是否安装了 Selenium 相关组件
 func (a *App) CheckSeleniumInstalled() map[string]interface{} {
 	details := ""
 	var hasSelenium, hasChromeDriver, hasEdgeDriver, hasPython bool
-
 	if path, err := exec.LookPath("chromedriver"); err == nil {
 		hasChromeDriver = true
 		details += fmt.Sprintf("chromedriver: %s\n", path)
@@ -219,30 +224,31 @@ func (a *App) CheckSeleniumInstalled() map[string]interface{} {
 		hasEdgeDriver = true
 		details += fmt.Sprintf("msedgedriver: %s\n", path)
 	}
-	if _, err := exec.LookPath("python"); err == nil {
+	if pythonPath, err := exec.LookPath("python"); err == nil {
 		hasPython = true
-		if output, err := exec.Command("python", "-c", "import selenium; print(selenium.__version__)").CombinedOutput(); err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if output, err := exec.CommandContext(ctx, pythonPath, "-c", "import selenium; print(selenium.__version__)").CombinedOutput(); err == nil {
 			hasSelenium = true
 			details += fmt.Sprintf("selenium: %s", strings.TrimSpace(string(output)))
 		} else {
 			details += "python 已安装但 selenium 模块未找到\n"
 		}
 	}
-	if _, err := exec.LookPath("python3"); err == nil && !hasPython {
+	if python3Path, err := exec.LookPath("python3"); err == nil && !hasPython {
 		hasPython = true
-		if output, err := exec.Command("python3", "-c", "import selenium; print(selenium.__version__)").CombinedOutput(); err == nil {
+		ctx3, cancel3 := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel3()
+		if output, err := exec.CommandContext(ctx3, python3Path, "-c", "import selenium; print(selenium.__version__)").CombinedOutput(); err == nil {
 			hasSelenium = true
 			details += fmt.Sprintf("selenium: %s", strings.TrimSpace(string(output)))
 		}
 	}
-
 	installed := hasSelenium || hasChromeDriver || hasEdgeDriver
-
 	a.mu.Lock()
 	a.settings.SeleniumInstalled = installed
 	a.saveSettingsToFile()
 	a.mu.Unlock()
-
 	return map[string]interface{}{
 		"selenium":     hasSelenium,
 		"chromedriver": hasChromeDriver,
@@ -251,4 +257,6 @@ func (a *App) CheckSeleniumInstalled() map[string]interface{} {
 		"details":      details,
 		"installed":    installed,
 	}
+
 }
+

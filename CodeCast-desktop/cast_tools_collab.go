@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	ap "agentprimordia/pkg"
 )
@@ -49,10 +50,13 @@ func (a *App) castToolCollabShare(ctx context.Context, args json.RawMessage) (*a
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
 	}
 	mode := orDefault(in.Mode, "read")
-	link := fmt.Sprintf("codecast://collab/%s?peer=%s&mode=%s", in.SessionID, in.Peer, mode)
+	link := fmt.Sprintf("codecast://collab/%s?peer=%s&mode=%s",
+		url.PathEscape(in.SessionID), url.QueryEscape(in.Peer), url.QueryEscape(mode))
 	out := castCollabShareResult{Link: link}
 	outJSON, _ := json.Marshal(out)
-	return a.recordCastInvocation("cast_collab_share", "collab", "", args, string(outJSON), false, 0), nil
+	// H10 fix: mark stub — sharing is simulated only, no real collaboration backend
+	result := "[STUB] cast_collab_share is not yet implemented — returns a simulated link only. " + string(outJSON)
+	return a.recordCastInvocation("cast_collab_share", "collab", "", args, result, false, 0), nil
 }
 
 func (a *App) castToolCollabInvite(ctx context.Context, args json.RawMessage) (*ap.ToolResult, error) {
@@ -60,7 +64,9 @@ func (a *App) castToolCollabInvite(ctx context.Context, args json.RawMessage) (*
 	if err := json.Unmarshal(args, &in); err != nil {
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
 	}
+	// H10 fix: mark stub — no real invitation is sent
 	out := map[string]any{"email": in.Email, "invited": true, "message": in.Message}
 	outJSON, _ := json.Marshal(out)
-	return a.recordCastInvocation("cast_collab_invite", "collab", "", args, string(outJSON), false, 0), nil
+	result := "[STUB] cast_collab_invite is not yet implemented — no invitation is actually sent. " + string(outJSON)
+	return a.recordCastInvocation("cast_collab_invite", "collab", "", args, result, false, 0), nil
 }

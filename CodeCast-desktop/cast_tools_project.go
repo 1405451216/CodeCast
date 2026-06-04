@@ -123,6 +123,12 @@ func (a *App) castToolProjectWriteFile(ctx context.Context, args json.RawMessage
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
 	}
 
+	// H14 fix: validate the target file path before writing to prevent unauthorized writes
+	if err := a.isPathAllowedBridge(in.FilePath); err != nil {
+		return a.recordCastInvocation("cast_project_write_file", "project", "", args,
+			"path not allowed: "+err.Error(), true, 0), nil
+	}
+
 	// Acquire file lock before writing to prevent concurrent agent conflicts
 	if a.fileLockMgr != nil {
 		if !a.fileLockMgr.TryAcquire(in.FilePath) {

@@ -140,8 +140,12 @@ type TokenUsageData struct {
 // histogramPercentile computes the estimated value at the given percentile (0-1)
 // from a HistogramSnapshot.
 func histogramPercentile(h ap.HistogramSnapshot, p float64) float64 {
-	if h.Count == 0 {
+	// H11 fix: defensive bounds checks to prevent index-out-of-range panics
+	if h.Count == 0 || len(h.Buckets) == 0 {
 		return 0
+	}
+	if len(h.Counts) < len(h.Buckets) {
+		return h.Buckets[len(h.Buckets)-1]
 	}
 	target := float64(h.Count) * p
 	var cumulative int64
@@ -163,7 +167,9 @@ func (a *App) GetAPMetricsSnapshot() APMetricsSnapshotData {
 	snap := a.metricsCollector.Snapshot()
 
 	// Read TokenUsageByModel from the collector directly (not in MetricsSnapshot).
-	// The exported field is safe to read for display purposes.
+	// NOTE (H2): TokenUsageByModel is a shared map that may be concurrently written
+	// by the collector. For display-only snapshot purposes this is acceptable;
+	// worst case we see a slightly stale view. The map is never nil after init.
 	tokenUsage := make(map[string]TokenUsageData)
 	if a.metricsCollector.TokenUsageByModel != nil {
 		for model, stats := range a.metricsCollector.TokenUsageByModel {

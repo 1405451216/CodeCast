@@ -84,10 +84,11 @@ func (a *App) castToolChannelSend(ctx context.Context, args json.RawMessage) (*a
 func (a *App) castToolChannelTest(ctx context.Context, args json.RawMessage) (*ap.ToolResult, error) {
 	var in castChannelTestArgs
 	_ = json.Unmarshal(args, &in)
-	// TODO: implement actual channel connectivity test; currently a stub that always returns OK:true
+	// H10 fix: mark stub clearly so callers (including AI agents) know this isn't real
 	out := castChannelTestResult{OK: true}
 	outJSON, _ := json.Marshal(out)
-	return a.recordCastInvocation("cast_channel_test", "channel", "", args, string(outJSON), false, 0), nil
+	result := "[STUB] cast_channel_test is not yet implemented — always returns OK:true. " + string(outJSON)
+	return a.recordCastInvocation("cast_channel_test", "channel", "", args, result, false, 0), nil
 }
 
 // validateWebhookURL checks that the URL scheme is http/https and blocks private/internal IPs
