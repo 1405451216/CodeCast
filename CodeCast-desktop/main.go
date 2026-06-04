@@ -69,6 +69,10 @@ type App struct {
 	orchestrationRuns map[string]*OrchestrationRun
 	orchestrationMu   sync.RWMutex
 
+	// AP WorkflowExecution (Phase 6): live workflow runs with pause/resume/cancel
+	workflowRuns map[string]*workflowRun
+	workflowMu   sync.RWMutex
+
 	// AP CostTracker
 	costTracker  *ap.CostTracker
 	budgetConfig *ap.BudgetConfig
@@ -474,6 +478,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// 14b. AP Orchestration
 	a.orchestrationRuns = make(map[string]*OrchestrationRun)
+	a.initWorkflowRuns()
 	slog.Info("AP Orchestration initialized")
 
 	// 15. Notes Hook — trigger note recording after each agent run
