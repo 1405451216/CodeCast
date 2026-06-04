@@ -65,7 +65,7 @@ type ModelConfig struct {
 type LLMProviderConfig struct {
 	APIURL string `json:"api_url"`
 	Model  string `json:"model"`
-	APIKey string `json:"-"`
+	APIKey string `json:"-"` // intentionally excluded from JSON serialization for security
 }
 
 // ProviderPreset 定义一个模型提供商的预设信息
@@ -214,6 +214,13 @@ type Settings struct {
 
 	ComputerControl bool `json:"computer_control"`
 
+	TelemetryEnabled  bool   `json:"telemetry_enabled"`
+	TelemetryEndpoint string `json:"telemetry_endpoint"`
+
+	SanitizerEnabled  bool     `json:"sanitizer_enabled"`
+	SanitizerStrategy string   `json:"sanitizer_strategy"`
+	TopicConstraints  []string `json:"topic_constraints"`
+
 	MCPServers []MCPServer `json:"mcp_servers"`
 
 	ModelConfigs []ModelConfigItem `json:"model_configs"`
@@ -300,6 +307,11 @@ var DefaultSettings = Settings{
 	BrowserPlugin:       "",
 	SeleniumInstalled:   false,
 	ComputerControl:     true,
+	TelemetryEnabled:    false,
+	TelemetryEndpoint:   "http://localhost:4318",
+	SanitizerEnabled:    false,
+	SanitizerStrategy:   "Mask",
+	TopicConstraints:    []string{},
 	MCPServers: []MCPServer{
 		{
 			ID:      "builtin_chrome_devtools_mcp",
@@ -367,7 +379,9 @@ func (a *App) loadSettings() {
 
 	data, err := os.ReadFile(a.settingsPath)
 	if err == nil {
-		_ = json.Unmarshal(data, &s)
+		if unmarshalErr := json.Unmarshal(data, &s); unmarshalErr != nil {
+			fmt.Printf("warning: failed to parse settings.json: %v\n", unmarshalErr)
+		}
 	}
 
 	if s.MCPServers == nil {
@@ -390,6 +404,9 @@ func (a *App) loadSettings() {
 	}
 	if s.AllowedDomains == nil {
 		s.AllowedDomains = []string{}
+	}
+	if s.TopicConstraints == nil {
+		s.TopicConstraints = []string{}
 	}
 
 	a.ensureBuiltinMCP(&s)
@@ -440,6 +457,11 @@ func (a *App) ensureBuiltinMCP(s *Settings) {
 	}
 }
 
+// saveSettingsToFile persists the current settings to disk.
+// NOTE: This performs file I/O while the caller holds a.mu. This is a known trade-off:
+// releasing the lock before I/O would require copying all settings data and risk TOCTOU
+// races if another goroutine modifies settings between unlock and write. The current
+// approach is simpler and correct for a desktop app where lock contention is low.
 func (a *App) saveSettingsToFile() error {
 	settingsCopy := *a.settings
 
@@ -516,6 +538,10 @@ func (a *App) GetProviderModels(providerID string) []string {
 
 // ==================== Settings Methods (exposed to frontend) ====================
 
+// GetSettings returns a copy of the current settings.
+// NOTE: The slice copies are shallow — but this is safe because all element types
+// (MCPServer, ModelConfigItem, EnvVar, SlashCommand, string) are value types with
+// no pointer fields, so shallow and deep copies are equivalent.
 func (a *App) GetSettings() Settings {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -555,15 +581,46 @@ func (a *App) SaveSettings(s Settings) error {
 	if s.AllowedDomains == nil {
 		s.AllowedDomains = []string{}
 	}
+	if s.TopicConstraints == nil {
+		s.TopicConstraints = []string{}
+	}
 
 	a.settings = &s
 	a.syncSettingsToConfig()
 	return a.saveSettingsToFile()
 }
 
+// allowedSettingKeys defines the whitelist of settings that can be modified via UpdateSetting.
+// This prevents arbitrary field modification through reflection.
+var allowedSettingKeys = map[string]bool{
+	"work_mode": true, "default_perm": true, "auto_review": true,
+	"full_access": true, "shell": true, "open_target": true,
+	"language": true, "hotkey": true, "ctrl_enter_send": true,
+	"followup_mode": true, "review_mode": true,
+	"notify_complete": true, "notify_permission": true, "notify_issue": true,
+	"notification_turn": true, "notification_permission": true, "notification_question": true,
+	"theme": true, "font_size": true,
+	"long_context": true, "llm_provider": true, "llm_api_url": true, "llm_model": true,
+	"personality": true, "custom_instructions": true,
+	"auto_memory": true, "tool_memory": true, "message_history_limit": true,
+	"smtp_host": true, "smtp_port": true, "smtp_user": true, "smtp_pass": true,
+	"auto_commit": true, "confirm_before_commit": true,
+	"use_worktree": true,
+	"allow_browser": true, "browser_approval": true, "browser_history": true,
+	"browser_clear_data": true, "browser_plugin": true,
+	"computer_control": true,
+	"telemetry_enabled": true, "telemetry_endpoint": true,
+	"sanitizer_enabled": true, "sanitizer_strategy": true,
+}
+
 func (a *App) UpdateSetting(key string, value interface{}) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	if !allowedSettingKeys[key] {
+		fmt.Printf("[Settings] ⚠️ 未知或禁止修改的设置 key: \"%s\"\n", key)
+		return fmt.Errorf("unknown or disallowed setting key: %s", key)
+	}
 
 	v := reflect.ValueOf(a.settings).Elem()
 	t := v.Type()
@@ -966,7 +1023,9 @@ func (a *App) AddModelConfig(name, provider, model, apiKey, apiURL string, maxCo
 	defer a.mu.Unlock()
 
 	randBytes := make([]byte, 8)
-	rand.Read(randBytes)
+	if n, err := rand.Read(randBytes); err != nil || n != 8 {
+		return nil, fmt.Errorf("failed to generate ID: %w", err)
+	}
 	item := ModelConfigItem{
 		ID:         fmt.Sprintf("mc_%s", hex.EncodeToString(randBytes)),
 		Name:       name,
@@ -999,7 +1058,11 @@ func (a *App) UpdateModelConfig(id, name, provider, model, apiKey, apiURL string
 			a.settings.ModelConfigs[i].Name = name
 			a.settings.ModelConfigs[i].Provider = provider
 			a.settings.ModelConfigs[i].Model = model
-			// 仅在用户实际输入新 Key 时更新，空值或含 **** 的脱敏值不覆盖
+						// CONVENTION: maskAPIKey() replaces the middle of keys with "****".
+						// When the frontend sends back a value containing "****", it means the user
+						// did not change the key, so we skip the update to preserve the real value.
+						// An empty string means "clear the key", while a new value without "****"
+						// means "update to this new key".
 			if apiKey != "" && !strings.Contains(apiKey, "****") {
 				a.settings.ModelConfigs[i].APIKey = apiKey
 			}
