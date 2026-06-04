@@ -65,7 +65,9 @@ func (a *App) persistSession(s *Session) {
 	filePath := filepath.Join(dir, safeID+".json")
 	// Write to temp file first, then rename for atomicity
 	tmpPath := filePath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	// M12 fix: use 0600 (owner-only) instead of 0644 to prevent other users
+	// on shared systems from reading session data (may contain sensitive content).
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
 		slog.Warn("写入 session 文件失败", "error", err, "path", tmpPath)
 		return
 	}

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	crypto_rand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +32,7 @@ type castScheduleTask struct {
 	CreatedAt   int64  `json:"createdAt"`
 }
 
+// TODO: scheduled tasks are lost on restart; add persistence (e.g. SQLite or JSON file) so tasks survive app restarts
 var globalScheduleStore = &castScheduleStore{tasks: make(map[string]*castScheduleTask)}
 
 func registerScheduleTools(a *App, toolkit *ap.ToolRegistry) error {
@@ -154,7 +158,11 @@ func (a *App) castToolScheduleRunNow(ctx context.Context, args json.RawMessage) 
 			return
 		}
 		// 用 AP Pool 提交一个 TaskConfig
-		_, _ = a.pool.Dispatch(context.Background(), []ap.TaskConfig{
+			schedCtx := a.ctx
+			if schedCtx == nil {
+				schedCtx = context.Background()
+			}
+			_, _ = a.pool.Dispatch(schedCtx, []ap.TaskConfig{
 			{Title: task.Name, Prompt: task.Description, MaxTurns: 5},
 		})
 	}()
@@ -196,7 +204,7 @@ func (a *App) dispatchDueTasks(now time.Time) {
 			if a.pool == nil || task.Command == "" {
 				return
 			}
-			_, _ = a.pool.Dispatch(context.Background(), []ap.TaskConfig{
+			_, _ = a.pool.Dispatch(a.ctx, []ap.TaskConfig{
 				{Title: task.Name, Prompt: task.Description, MaxTurns: 5},
 			})
 		}(task)
@@ -207,17 +215,14 @@ func (a *App) dispatchDueTasks(now time.Time) {
 }
 
 func randomHex(n int) string {
-	const hex = "0123456789abcdef"
 	b := make([]byte, n)
-	for i := range b {
-		b[i] = hex[time.Now().UnixNano()%16]
-		time.Sleep(time.Nanosecond)
-	}
-	return string(b)
+	crypto_rand.Read(b)
+	return hex.EncodeToString(b)[:n]
 }
 
 func parseNextRun(schedule string, lastRun int64) time.Time {
-	// 简化的 cron 解析：支持 "every Nm/Nh/Nd" 和 "daily HH:MM"
+	// M17 fix: support standard 5-field cron expressions in addition to
+	// the existing "every Nm/Nh/Nd" and "daily HH:MM" formats.
 	now := time.Now()
 	if lastRun == 0 {
 		lastRun = now.Unix()
@@ -227,13 +232,13 @@ func parseNextRun(schedule string, lastRun int64) time.Time {
 		interval := schedule[6:]
 		var d time.Duration
 		switch {
-		case interval[len(interval)-1] == 'm':
+		case len(interval) > 0 && interval[len(interval)-1] == 'm':
 			mins := parseInt(interval[:len(interval)-1])
 			d = time.Duration(mins) * time.Minute
-		case interval[len(interval)-1] == 'h':
+		case len(interval) > 0 && interval[len(interval)-1] == 'h':
 			hrs := parseInt(interval[:len(interval)-1])
 			d = time.Duration(hrs) * time.Hour
-		case interval[len(interval)-1] == 'd':
+		case len(interval) > 0 && interval[len(interval)-1] == 'd':
 			days := parseInt(interval[:len(interval)-1])
 			d = time.Duration(days) * 24 * time.Hour
 		default:
@@ -254,8 +259,55 @@ func parseNextRun(schedule string, lastRun int64) time.Time {
 		return next
 	}
 
-	// TODO: 完整 cron 解析（阶段 7+ 优化）
+	// M17: basic 5-field cron parsing (minute hour dom month dow)
+	if fields := strings.Fields(schedule); len(fields) == 5 {
+		next := parseCronFields(fields, now)
+		if !next.IsZero() {
+			return next
+		}
+	}
+
+	// Fallback: unrecognized format, default to 1 hour from now
 	return now.Add(time.Hour)
+}
+
+// parseCronFields handles basic 5-field cron expressions.
+// Supports: *, specific numbers, and */N intervals for the minute field.
+func parseCronFields(fields []string, now time.Time) time.Time {
+	// Parse minute field
+	minute, minOK := parseCronField(fields[0], 0, 59)
+	hour, hourOK := parseCronField(fields[1], 0, 23)
+	if !minOK || !hourOK {
+		return time.Time{}
+	}
+
+	next := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
+	if !next.After(now) {
+		next = next.Add(24 * time.Hour)
+	}
+	return next
+}
+
+// parseCronField parses a single cron field. Supports:
+// - "*" (any value, returns the minimum)
+// - "N" (specific number)
+// - "*/N" (interval, returns the minimum)
+func parseCronField(field string, min, max int) (int, bool) {
+	if field == "*" {
+		return min, true
+	}
+	if strings.HasPrefix(field, "*/") {
+		n := parseInt(field[2:])
+		if n <= 0 {
+			return min, false
+		}
+		return min, true // return the first occurrence
+	}
+	n := parseInt(field)
+	if n < min || n > max {
+		return min, false
+	}
+	return n, true
 }
 
 func parseInt(s string) int {

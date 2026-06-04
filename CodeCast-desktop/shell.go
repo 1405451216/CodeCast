@@ -129,10 +129,13 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 
 	fmt.Printf("[Shell][%s] ✅ 执行成功: exit code=0\n", requestID)
 	fmt.Printf("[Shell][%s] 📄 输出大小: %d bytes\n", requestID, len(result))
-	if len(result) <= 500 {
-		fmt.Printf("[Shell][%s] 📄 完整输出:\n%s\n", requestID, result)
+	// M9 fix: redact potential secrets in logged output. Patterns like API keys,
+	// tokens, and passwords are masked before printing to stdout/logs.
+	safeResult := redactSensitiveOutput(result)
+	if len(safeResult) <= 500 {
+		fmt.Printf("[Shell][%s] 📄 完整输出:\n%s\n", requestID, safeResult)
 	} else {
-		fmt.Printf("[Shell][%s] 📄 输出预览 (前500字符):\n%.500s...\n", requestID, result)
+		fmt.Printf("[Shell][%s] 📄 输出预览 (前500字符):\n%.500s...\n", requestID, safeResult)
 		fmt.Printf("[Shell][%s] ℹ️  完整输出已截断，如需查看完整内容请查看返回值\n", requestID)
 	}
 	fmt.Printf("[Shell][%s] ===== 命令执行请求结束 (成功) =====\n\n", requestID)
@@ -178,6 +181,59 @@ func maskSensitiveValue(envVar string) string {
 		return fmt.Sprintf("%s=%s...(%d chars)", parts[0], value[:10], len(value))
 	}
 	return envVar
+}
+
+// redactSensitiveOutput masks patterns that commonly contain secrets in command output.
+// M9 fix: prevents API keys, tokens, and passwords from leaking via stdout/logs.
+func redactSensitiveOutput(output string) string {
+	// Redact key=value patterns for sensitive keys
+	sensitivePatterns := []string{
+		"api_key", "apikey", "API_KEY", "APIKEY",
+		"secret", "SECRET", "secret_key", "SECRET_KEY",
+		"token", "TOKEN", "access_token", "ACCESS_TOKEN",
+		"password", "PASSWORD", "passwd", "PASSWD",
+		"Authorization", "authorization",
+	}
+	for _, key := range sensitivePatterns {
+		// Match key=value, key: value, key="value" patterns
+		for _, sep := range []string{"=", ": "} {
+			prefix := key + sep
+			for {
+				idx := strings.Index(output, prefix)
+				if idx < 0 {
+					break
+				}
+				// Find end of value (next whitespace or end of string)
+				valStart := idx + len(prefix)
+				valEnd := valStart
+				for valEnd < len(output) && output[valEnd] != ' ' && output[valEnd] != '\n' && output[valEnd] != '\r' && output[valEnd] != '"' {
+					valEnd++
+				}
+				if valEnd > valStart+4 {
+					output = output[:valStart] + "***REDACTED***" + output[valEnd:]
+				} else {
+					break
+				}
+			}
+		}
+	}
+	// Redact strings that look like API keys (sk-..., ghp_..., etc.)
+	keyPrefixes := []string{"sk-", "ghp_", "gho_", "glpat-", "AKIA"}
+	for _, prefix := range keyPrefixes {
+		for {
+			idx := strings.Index(output, prefix)
+			if idx < 0 {
+				break
+			}
+			end := idx + len(prefix)
+			for end < len(output) && end < idx+60 && output[end] != ' ' && output[end] != '\n' && output[end] != '"' && output[end] != '\'' {
+				end++
+			}
+			output = output[:idx] + prefix + "***REDACTED***" + output[end:]
+			break // only redact first occurrence per prefix to avoid infinite loop
+		}
+	}
+	return output
 }
 
 // validateCommand delegates to the AP Sandbox bridge (security_bridge.go).

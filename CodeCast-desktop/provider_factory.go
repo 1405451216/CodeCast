@@ -138,6 +138,13 @@ func (a *App) createCachedProvider() (ap.Provider, error) {
 
 // simpleEmbeddingFunc provides a deterministic hash-based embedding for cache keys.
 // This avoids calling the LLM just for cache lookups.
+//
+// M7 NOTE: This produces 64-dimensional binary vectors from FNV-32a hashes.
+// These are NOT semantic embeddings — they cannot capture meaning or similarity.
+// They serve as fast, deterministic cache keys for exact-match lookups only.
+// For true semantic search (RAG, similarity matching), use the real provider
+// embeddings via ap.EmbeddingAdapter. Do not use this function where semantic
+// similarity matters.
 func simpleEmbeddingFunc(ctx context.Context, text string) ([]float32, error) {
 	h := fnv.New32a()
 	h.Write([]byte(text))

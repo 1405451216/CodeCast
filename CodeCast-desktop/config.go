@@ -516,7 +516,17 @@ func (a *App) saveSettingsToFile() error {
 		return err
 	}
 
-	return os.WriteFile(a.settingsPath, data, 0600)
+	// M1/M5 fix: atomic write — write to temp file then rename to prevent
+	// JSON corruption on crash or power loss during write.
+	tmpPath := a.settingsPath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
+		return fmt.Errorf("write settings tmp: %w", err)
+	}
+	if err := os.Rename(tmpPath, a.settingsPath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("rename settings: %w", err)
+	}
+	return nil
 }
 
 func (a *App) syncSettingsToConfig() {

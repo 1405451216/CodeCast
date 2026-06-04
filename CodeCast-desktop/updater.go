@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -116,7 +117,12 @@ func (a *App) CheckForUpdate() (*UpdateInfo, error) {
 }
 
 // DownloadUpdate 下载更新文件到临时目录，返回下载路径
+// Accepts an optional context for cancellation support.
 func (a *App) DownloadUpdate(downloadURL string) (string, error) {
+	return a.downloadUpdateWithContext(a.ctx, downloadURL)
+}
+
+func (a *App) downloadUpdateWithContext(ctx context.Context, downloadURL string) (string, error) {
 	if downloadURL == "" {
 		return "", fmt.Errorf("下载地址为空")
 	}
@@ -135,7 +141,12 @@ func (a *App) DownloadUpdate(downloadURL string) (string, error) {
 
 	// 下载文件
 	client := &http.Client{Timeout: 10 * time.Minute}
-	resp, err := client.Get(downloadURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
+	if err != nil {
+		a.emitUpdateProgress("error", 0, "下载请求创建失败: "+err.Error())
+		return "", fmt.Errorf("下载请求创建失败: %w", err)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		a.emitUpdateProgress("error", 0, "下载失败: "+err.Error())
 		return "", fmt.Errorf("下载失败: %w", err)
@@ -353,9 +364,14 @@ func (a *App) emitUpdateProgress(phase string, percent float64, message string) 
 }
 
 // autoCheckUpdate 启动时后台检查更新
-func (a *App) autoCheckUpdate() {
-	// 延迟 10 秒检查，避免影响启动速度
-	time.Sleep(10 * time.Second)
+func (a *App) autoCheckUpdate(stop <-chan struct{}) {
+	// 延迟 10 秒检查，避免影响启动速度；可通过 stop channel 取消
+	select {
+	case <-time.After(10 * time.Second):
+	case <-stop:
+		slog.Debug("自动检查更新已取消")
+		return
+	}
 
 	info, err := a.CheckForUpdate()
 	if err != nil {
@@ -377,11 +393,17 @@ func (a *App) autoCheckUpdate() {
 
 // compareVersions 比较两个语义化版本号
 // 返回: 1 (a > b), -1 (a < b), 0 (a == b)
+// Supports arbitrary segment counts (e.g. "1.2.3.4" vs "1.2.3").
 func compareVersions(a, b string) int {
 	aParts := parseVersionParts(a)
 	bParts := parseVersionParts(b)
 
-	for i := 0; i < 3; i++ {
+	maxLen := len(aParts)
+	if len(bParts) > maxLen {
+		maxLen = len(bParts)
+	}
+
+	for i := 0; i < maxLen; i++ {
 		av, bv := 0, 0
 		if i < len(aParts) {
 			av = aParts[i]
@@ -618,7 +640,11 @@ func (a *App) GetAllReleases(limit int) ([]UpdateInfo, error) {
 
 // SilentDownload 后台静默下载更新文件，不阻塞 UI，通过事件通知完成
 func (a *App) SilentDownload(downloadURL string) {
+	// M21 fix: use a.ctx so the download is cancelled when the app shuts down,
+	// preventing goroutine leaks on exit.
+	reqCtx, reqCancel := context.WithCancel(a.ctx)
 	go func() {
+		defer reqCancel()
 		if downloadURL == "" {
 			wailsRuntime.EventsEmit(a.ctx, "silent-download-complete", map[string]interface{}{
 				"success": false,
@@ -644,9 +670,9 @@ func (a *App) SilentDownload(downloadURL string) {
 		fileName := filepath.Base(downloadURL)
 		destPath := filepath.Join(tmpDir, fileName)
 
-		// 如果文件已存在，直接返回成功（避免重复下载）
-		if stat, err := os.Stat(destPath); err == nil && stat.Size() > 0 {
-			slog.Info("更新文件已存在，跳过下载", "path", destPath)
+		// 如果文件已存在且大小合理，直接返回成功（避免重复下载；若后续发现不完整会重新下载）
+		if stat, err := os.Stat(destPath); err == nil && stat.Size() > 1048576 {
+			slog.Info("更新文件已存在，跳过下载", "path", destPath, "size", stat.Size())
 			wailsRuntime.EventsEmit(a.ctx, "silent-download-complete", map[string]interface{}{
 				"success": true,
 				"error":   "",
@@ -655,9 +681,18 @@ func (a *App) SilentDownload(downloadURL string) {
 			return
 		}
 
-		// 执行下载
+		// M21 fix: use request context for HTTP so app shutdown cancels the download
 		client := &http.Client{Timeout: 15 * time.Minute}
-		resp, err := client.Get(downloadURL)
+		req, reqErr := http.NewRequestWithContext(reqCtx, http.MethodGet, downloadURL, nil)
+		if reqErr != nil {
+			wailsRuntime.EventsEmit(a.ctx, "silent-download-complete", map[string]interface{}{
+				"success": false,
+				"error":   "创建请求失败: " + reqErr.Error(),
+				"path":    "",
+			})
+			return
+		}
+		resp, err := client.Do(req)
 		if err != nil {
 			wailsRuntime.EventsEmit(a.ctx, "silent-download-complete", map[string]interface{}{
 				"success": false,

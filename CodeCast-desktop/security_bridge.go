@@ -19,9 +19,22 @@ func setupSecurityACL(projectPaths []string) *ap.ACL {
 	acl.Deny("*", "/etc/shadow")
 	acl.Deny("*", "/etc/sudoers")
 	acl.Deny("*", "/etc/ssh")
+	acl.Deny("*", "/etc/passwd")
+	acl.Deny("*", "/etc/gshadow")
+	acl.Deny("*", "/etc/ssl/private")
+	acl.Deny("*", "/root")
+	acl.Deny("*", "/proc")
+	acl.Deny("*", "/sys")
 	// Windows system paths
 	acl.Deny("*", `C:\Windows\System32\config`)
 	acl.Deny("*", `C:\Windows\System32\drivers\etc`)
+	acl.Deny("*", `C:\Windows\System32\WindowsPowerShell`)
+	acl.Deny("*", `C:\Windows\SysWOW64`)
+	acl.Deny("*", `C:\Windows\Temp`)
+	// User credential paths
+	acl.Deny("*", `.ssh`)
+	acl.Deny("*", `.gnupg`)
+	acl.Deny("*", `.aws/credentials`)
 
 	// Allow read+write+execute within all project directories for all agents.
 	// H7 fix: resolve symlinks so that ACL paths match EvalSymlinks-resolved paths
@@ -187,9 +200,14 @@ func (a *App) isPathAllowedBridge(targetPath string) error {
 		}
 		lower := filepath.ToSlash(strings.ToLower(absPath))
 		dangerous := []string{
-			"/etc/shadow", "/etc/sudoers", "/etc/ssh",
+			"/etc/shadow", "/etc/sudoers", "/etc/ssh", "/etc/passwd",
+			"/etc/gshadow", "/etc/ssl/private",
+			"/root", "/proc", "/sys",
 			"c:/windows/system32/config",
 			"c:/windows/system32/drivers/etc",
+			"c:/windows/system32/windowspowershell",
+			"c:/windows/syswow64",
+			"c:/windows/temp",
 		}
 		for _, d := range dangerous {
 			if strings.HasPrefix(lower, d) {

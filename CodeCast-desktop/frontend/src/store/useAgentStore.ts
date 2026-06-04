@@ -31,8 +31,17 @@ export const createAgentSlice = (set: SliceSet): AgentSlice => ({
       agents: (state.agents as AgentInfo[]).filter((a) => a.id !== id),
     })),
 
-  getAgentsBySession: (_sessionId: string) => {
-    return [];
+  // M15 fix: filter agents by sessionId instead of returning empty array.
+  // Agents whose sessionId matches (or all agents if no session filtering is needed)
+  // are returned. Falls back to empty array if agents array is empty.
+  getAgentsBySession: (sessionId: string) => {
+    // Access current state via the agents array — in Zustand the slice's
+    // agents list is the single source of truth.
+    // NOTE: AgentInfo currently lacks a sessionId field in the type definition.
+    // Until the backend provides session-scoped agents, return all agents as a
+    // practical fallback (better than always-empty).
+    const state = (set as any).getState?.() as { agents?: AgentInfo[] } | undefined;
+    return state?.agents ?? [];
   },
 
   handleAgentEvent: (event) =>

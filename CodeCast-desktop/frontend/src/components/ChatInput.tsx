@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useChatSender } from '../hooks/useChatSender';
 import * as api from '../api';
-import type { ImageAttachment } from '../api/types';
+import type { APIImageAttachment as ImageAttachment } from '../api/types';
 
 interface ChatInputProps {
   onSend: (msg: string) => void;

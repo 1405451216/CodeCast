@@ -311,9 +311,16 @@ export interface ImageAnalysisResult {
   inputTokens: number;
 }
 
-export interface ImageAttachment {
+// M14 fix: renamed from ImageAttachment to APIImageAttachment to avoid collision
+// with the richer store/types.ts ImageAttachment. Use toAPIImageAttachment() to convert.
+export interface APIImageAttachment {
   type: 'image';
   data: string; // file path, URL, or data:image/...;base64,...
+}
+
+/** Convert a store ImageAttachment to the API wire format. */
+export function toAPIImageAttachment(att: { dataUrl: string; type?: string }): APIImageAttachment {
+  return { type: 'image', data: att.dataUrl };
 }
 
 // Telemetry types

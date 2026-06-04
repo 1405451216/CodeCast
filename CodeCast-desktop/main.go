@@ -386,10 +386,18 @@ func (a *App) startup(ctx context.Context) {
 	if providerErr != nil {
 		slog.Warn("AP Provider 初始化失败", "error", providerErr)
 	} else {
-		// RAG Store with embedding adapter
-		embeddingAdapter := ap.NewEmbeddingAdapter(provider, 1536)
-		a.ragStore = ap.NewRAGStore(a.memory, embeddingAdapter)
-		slog.Info("AP RAGStore 已启动")
+		// M3 fix: verify critical AP subsystems are initialized before creating agent.
+		// If any required subsystem is nil (due to earlier init failure), skip agent
+		// creation to prevent nil-pointer panics on first message.
+		if a.memory == nil {
+			slog.Error("AP memory store is nil — skipping default agent creation; messaging will fail until restart")
+		} else if a.toolkit == nil {
+			slog.Error("AP toolkit is nil — skipping default agent creation; messaging will fail until restart")
+		} else {
+			// RAG Store with embedding adapter
+			embeddingAdapter := ap.NewEmbeddingAdapter(provider, 1536)
+			a.ragStore = ap.NewRAGStore(a.memory, embeddingAdapter)
+			slog.Info("AP RAGStore 已启动")
 
 		// 11. Default Agent
 		a.agent = ap.NewReActAgent(ap.ReActConfig{
@@ -463,6 +471,7 @@ func (a *App) startup(ctx context.Context) {
 				"video", mmCaps.HasCapability(ap.CapVideo),
 			)
 		}
+		} // end M3 nil-check else (memory/toolkit non-nil)
 	}
 
 	// 13. Event bridge (AP EventBus → Wails Events)
@@ -573,6 +582,34 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.httpTransport != nil {
 		_ = a.httpTransport.Close()
 		slog.Info("AP HTTPTransport 已关闭")
+	}
+	// M2 fix: close remaining AP subsystems that were previously leaked.
+	// Use type assertions since some types/interfaces don't expose Close().
+	if closer, ok := a.checkpointStore.(interface{ Close() error }); ok {
+		_ = closer.Close()
+		slog.Info("AP CheckpointStore 已关闭")
+	}
+	if closer, ok := interface{}(a.ragStore).(interface{ Close() error }); ok && a.ragStore != nil {
+		_ = closer.Close()
+		slog.Info("AP RAGStore 已关闭")
+	}
+	if a.messageBus != nil {
+		if closer, ok := interface{}(a.messageBus).(interface{ Close() error }); ok {
+			_ = closer.Close()
+			slog.Info("AP MessageBus 已关闭")
+		}
+	}
+	if a.pluginLoader != nil {
+		if closer, ok := interface{}(a.pluginLoader).(interface{ Close() error }); ok {
+			_ = closer.Close()
+			slog.Info("AP PluginLoader 已关闭")
+		}
+	}
+	if a.summaryEngine != nil {
+		if closer, ok := interface{}(a.summaryEngine).(interface{ Close() error }); ok {
+			_ = closer.Close()
+			slog.Info("AP SummaryEngine 已关闭")
+		}
 	}
 	slog.Info("应用即将关闭", "action", "cleaned_all_active_connections")
 }

@@ -141,13 +141,21 @@ func (a *App) waitForCheckpointConfirmation(checkpointID string) bool {
 }
 
 // ResolveCheckpoint is a Wails binding method called by the frontend.
+// M10 fix: validate the checkpointID was actually pending before forwarding
+// the approval decision, preventing phantom approvals from XSS-compromised frontends.
 func (a *App) ResolveCheckpoint(checkpointID string, approved bool) {
 	a.mu.Lock()
 	ch, ok := a.checkpointConfirmations[checkpointID]
-	a.mu.Unlock()
-	if ok {
-		ch <- approved
+	if !ok {
+		a.mu.Unlock()
+		slog.Warn("[Security] ResolveCheckpoint for unknown/expired checkpoint",
+			"checkpointID", checkpointID, "approved", approved)
+		return
 	}
+	// Remove the entry before sending to prevent double-resolution
+	delete(a.checkpointConfirmations, checkpointID)
+	a.mu.Unlock()
+	ch <- approved
 }
 
 func (a *App) assessRiskLevel(toolName string, args string) string {
