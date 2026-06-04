@@ -65,6 +65,10 @@ type App struct {
 	sessionCancels    map[string]context.CancelFunc
 	checkpointConfirmations map[string]chan bool
 
+	// AP Orchestration
+	orchestrationRuns map[string]*OrchestrationRun
+	orchestrationMu   sync.RWMutex
+
 	// CodeCast 应用层（保留）
 	llmConfig   LLMProviderConfig  // KEEP: syncSettingsToConfig() 依赖
 	cachedProvider ap.Provider // cached for castLLM to avoid re-creating per call
@@ -356,6 +360,10 @@ func (a *App) startup(ctx context.Context) {
 	a.sessionAgents = make(map[string]ap.Agent)
 	a.sessionCancels = make(map[string]context.CancelFunc)
 	a.checkpointConfirmations = make(map[string]chan bool)
+
+	// 14b. AP Orchestration
+	a.orchestrationRuns = make(map[string]*OrchestrationRun)
+	slog.Info("AP Orchestration initialized")
 
 	// 15. Notes Hook — trigger note recording after each agent run
 	// 已迁移到 cast_kb_save（AI 主动调用） + ap.Memory（自动）
