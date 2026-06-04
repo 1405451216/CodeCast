@@ -103,6 +103,7 @@ func (a *App) RegisterCastTools(toolkit *ap.ToolRegistry) error {
 		registerCollabTools,
 		registerSoulTools,
 		registerMarketplaceTools,
+		registerWorkflowTools,
 	} {
 		if err := r(a, toolkit); err != nil {
 			return err
