@@ -263,8 +263,11 @@ func (a *App) GetMCPStatus() []MCPStatusEntry {
 		}
 
 		regEntry, ok := a.mcpReg.Get(s.ID)
-		if ok && regEntry.Client != nil {
+		if ok && regEntry != nil && regEntry.Client != nil {
 			entry.Connected = true
+		} else if s.Enabled {
+			// Server is enabled but not connected; set error indicator
+			entry.Error = "未连接"
 		}
 
 		result = append(result, entry)

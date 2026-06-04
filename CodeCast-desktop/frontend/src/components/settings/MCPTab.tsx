@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { MCPServerItem } from './settingsHelpers';
 import * as api from '../../api';
 
+interface MCPStatusEntry {
+  id: string;
+  name: string;
+  connected: boolean;
+  error?: string;
+}
+
 const MCPTab: React.FC = () => {
   const [mcpServers, setMcpServers] = useState<MCPServerItem[]>([]);
   const [mcpType, setMcpType] = useState<'stdio' | 'websocket'>('stdio');
@@ -10,6 +17,7 @@ const MCPTab: React.FC = () => {
   const [mcpCmd, setMcpCmd] = useState('');
   const [mcpArgs, setMcpArgs] = useState('');
   const [serverTools, setServerTools] = useState<Record<string, string[]>>({});
+  const [mcpStatus, setMcpStatus] = useState<Record<string, MCPStatusEntry>>({});
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
 
   const loadMCPServers = async () => {
@@ -19,6 +27,19 @@ const MCPTab: React.FC = () => {
         setMcpServers(s.mcp_servers as unknown as MCPServerItem[]);
       }
     } catch (e) { /* ignore */ }
+  };
+
+  const loadMCPStatus = async () => {
+    try {
+      const statuses = await api.getMCPStatus();
+      const statusMap: Record<string, MCPStatusEntry> = {};
+      statuses.forEach((status) => {
+        statusMap[status.id] = status;
+      });
+      setMcpStatus(statusMap);
+    } catch (e) {
+      console.error('Failed to load MCP status:', e);
+    }
   };
 
   const loadServerTools = async (serverId: string) => {
@@ -43,6 +64,7 @@ const MCPTab: React.FC = () => {
 
   useEffect(() => {
     loadMCPServers();
+    loadMCPStatus();
   }, []);
 
   return (
@@ -70,11 +92,24 @@ const MCPTab: React.FC = () => {
                           setMcpServers((prev) =>
                             prev.map((s) => (s.id === server.id ? { ...s, enabled: !s.enabled } : s)),
                           );
+                          await loadMCPStatus();
                         } catch (e) {
                           console.error('Toggle MCP server failed:', e);
                         }
                       }}
                     />
+                    {server.enabled && mcpStatus[server.id] && !mcpStatus[server.id].connected && (
+                      <span
+                        style={{
+                          color: '#d63030',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                        }}
+                        title={mcpStatus[server.id].error || '未连接'}
+                      >
+                        ⚠
+                      </span>
+                    )}
                     <span
                       style={{ cursor: 'pointer', userSelect: 'none' }}
                       onClick={() => handleToggleExpand(server.id)}
@@ -97,11 +132,14 @@ const MCPTab: React.FC = () => {
                           if (result.success) {
                             await loadServerTools(server.id);
                             setExpandedServer(server.id);
+                            await loadMCPStatus();
                             alert('连接成功! ' + (result.message || ''));
                           } else {
+                            await loadMCPStatus();
                             alert('连接失败: ' + (result.message || '未知错误'));
                           }
                         } catch (e) {
+                          await loadMCPStatus();
                           alert('测试失败: ' + e);
                         }
                       }}
