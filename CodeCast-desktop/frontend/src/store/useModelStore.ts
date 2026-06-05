@@ -5,6 +5,8 @@ import type { ModelProvider, ModelConfig, ProviderConfig, MultiModelSettings, Mo
 import { DEFAULT_MODEL, type AvailableModel } from './types';
 import { StorageEncryption } from '../utils/StorageEncryption';
 
+import { toError } from '../utils/errors';
+
 const STORAGE_KEY = 'codecast_multi_model_settings';
 
 interface ProviderConnectionStatus {
@@ -331,14 +333,14 @@ const createModelSlice = (set: SliceSet): ModelSlice => {
         }
 
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         const latencyMs = Date.now() - startTime;
         const status: ProviderConnectionStatus = {
           providerId,
           connected: false,
           lastTested: Date.now(),
           latencyMs,
-          error: error?.message || '连接失败',
+          error: toError(error).message || '连接失败',
         };
 
         updateState({
@@ -351,7 +353,7 @@ const createModelSlice = (set: SliceSet): ModelSlice => {
 
         logger.error('ModelStore', '❌ Connection test failed', {
           providerId,
-          error: error?.message,
+          error: toError(error).message,
           latencyMs,
         });
 

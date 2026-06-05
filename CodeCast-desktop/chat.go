@@ -139,14 +139,14 @@ func (a *App) getOrCreateAgent(sessionID string, model string) (ap.Agent, contex
 	}
 	a.mu.RUnlock()
 
-	// createProvider() requires caller to hold a.mu — we acquire it here
+	// createProviderLocked() requires caller to hold a.mu — we acquire it here
 	a.mu.Lock()
 	// H1 fix: re-check after acquiring write lock to prevent TOCTOU race
 	if agent, ok := a.sessionAgents[sessionID]; ok {
 		a.mu.Unlock()
 		return agent, nil, nil
 	}
-	provider, err := a.createProvider(model)
+	provider, err := a.createProviderLocked(model)
 	a.mu.Unlock()
 	if err != nil {
 		return nil, nil, err

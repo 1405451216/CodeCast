@@ -2,6 +2,8 @@ import React, { useState, useCallback, useRef, useEffect, useMemo, forwardRef, u
 import * as api from '../api';
 import TerminalPanel, { TerminalHandle } from './TerminalPanel';
 
+import { toError } from '../utils/errors';
+
 export interface AgentLoopConfig {
   maxTurns: number;
   autoFixErrors: boolean;
@@ -146,9 +148,9 @@ const AgentLoopEngine = forwardRef<{
         output: result,
         success: true
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
-        output: error.message || '执行失败',
+        output: toError(error).message || '执行失败',
         success: false
       };
     }
@@ -221,9 +223,9 @@ const AgentLoopEngine = forwardRef<{
       }
 
       return true;
-    } catch (error: any) {
-      addLog(`修复失败: ${error.message}`, 'error');
-      onError?.(error);
+    } catch (error: unknown) {
+      addLog(`修复失败: ${toError(error).message}`, 'error');
+      onError?.(toError(error));
       return false;
     }
   }, [mergedConfig?.autoFixErrors, executeInTerminal, addLog, onError]);
@@ -322,11 +324,11 @@ const AgentLoopEngine = forwardRef<{
             break;
         }
 
-      } catch (err: any) {
-        error = err.message;
+      } catch (err: unknown) {
+        error = toError(err).message;
         success = false;
         addLog(`❌ 第 ${turn} 轮出错: ${error}`, 'error');
-        onError?.(err);
+        onError?.(toError(err));
       }
 
       const duration = Date.now() - turnStart;

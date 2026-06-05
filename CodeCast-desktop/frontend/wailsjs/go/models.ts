@@ -1,5 +1,212 @@
+export namespace agent {
+	
+	export class BudgetConfig {
+	    MaxTotalCostUSD: number;
+	    MaxTokensPerCall: number;
+	    MaxTokensPerSession: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BudgetConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.MaxTotalCostUSD = source["MaxTotalCostUSD"];
+	        this.MaxTokensPerCall = source["MaxTokensPerCall"];
+	        this.MaxTokensPerSession = source["MaxTokensPerSession"];
+	    }
+	}
+	export class ModelCost {
+	    cost_usd: number;
+	    calls: number;
+	    tokens: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModelCost(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.cost_usd = source["cost_usd"];
+	        this.calls = source["calls"];
+	        this.tokens = source["tokens"];
+	    }
+	}
+	export class CostSummary {
+	    total_cost_usd: number;
+	    total_prompt_tokens: number;
+	    total_completion_tokens: number;
+	    total_tokens: number;
+	    call_count: number;
+	    by_model: Record<string, ModelCost>;
+	
+	    static createFrom(source: any = {}) {
+	        return new CostSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total_cost_usd = source["total_cost_usd"];
+	        this.total_prompt_tokens = source["total_prompt_tokens"];
+	        this.total_completion_tokens = source["total_completion_tokens"];
+	        this.total_tokens = source["total_tokens"];
+	        this.call_count = source["call_count"];
+	        this.by_model = this.convertValues(source["by_model"], ModelCost, true);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class WorkflowMetrics {
+	    total_nodes: number;
+	    executed_nodes: number;
+	    failed_nodes: number;
+	    skipped_nodes: number;
+	    total_duration: number;
+	    avg_node_duration: number;
+	    iterations: number;
+	    branches_taken: number;
+	    retries_attempted: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkflowMetrics(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total_nodes = source["total_nodes"];
+	        this.executed_nodes = source["executed_nodes"];
+	        this.failed_nodes = source["failed_nodes"];
+	        this.skipped_nodes = source["skipped_nodes"];
+	        this.total_duration = source["total_duration"];
+	        this.avg_node_duration = source["avg_node_duration"];
+	        this.iterations = source["iterations"];
+	        this.branches_taken = source["branches_taken"];
+	        this.retries_attempted = source["retries_attempted"];
+	    }
+	}
+
+}
+
+export namespace llm {
+	
+	export class CacheStats {
+	    total_queries: number;
+	    cache_hits: number;
+	    cache_misses: number;
+	    hit_rate: number;
+	    entry_count: number;
+	    tokens_saved: number;
+	    cost_saved_usd: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CacheStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total_queries = source["total_queries"];
+	        this.cache_hits = source["cache_hits"];
+	        this.cache_misses = source["cache_misses"];
+	        this.hit_rate = source["hit_rate"];
+	        this.entry_count = source["entry_count"];
+	        this.tokens_saved = source["tokens_saved"];
+	        this.cost_saved_usd = source["cost_saved_usd"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
+	export class TokenUsageData {
+	    promptTokens: number;
+	    completionTokens: number;
+	    totalTokens: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TokenUsageData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.promptTokens = source["promptTokens"];
+	        this.completionTokens = source["completionTokens"];
+	        this.totalTokens = source["totalTokens"];
+	    }
+	}
+	export class APMetricsSnapshotData {
+	    llmTotalCalls: number;
+	    llmTotalErrors: number;
+	    toolTotalCalls: number;
+	    toolTotalErrors: number;
+	    totalTurns: number;
+	    totalEpisodes: number;
+	    activeAgents: number;
+	    poolQueueLength: number;
+	    memorySizeBytes: number;
+	    llmLatencyP50: number;
+	    llmLatencyP99: number;
+	    toolLatencyP50: number;
+	    toolLatencyP99: number;
+	    tokenUsageByModel: Record<string, TokenUsageData>;
+	
+	    static createFrom(source: any = {}) {
+	        return new APMetricsSnapshotData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.llmTotalCalls = source["llmTotalCalls"];
+	        this.llmTotalErrors = source["llmTotalErrors"];
+	        this.toolTotalCalls = source["toolTotalCalls"];
+	        this.toolTotalErrors = source["toolTotalErrors"];
+	        this.totalTurns = source["totalTurns"];
+	        this.totalEpisodes = source["totalEpisodes"];
+	        this.activeAgents = source["activeAgents"];
+	        this.poolQueueLength = source["poolQueueLength"];
+	        this.memorySizeBytes = source["memorySizeBytes"];
+	        this.llmLatencyP50 = source["llmLatencyP50"];
+	        this.llmLatencyP99 = source["llmLatencyP99"];
+	        this.toolLatencyP50 = source["toolLatencyP50"];
+	        this.toolLatencyP99 = source["toolLatencyP99"];
+	        this.tokenUsageByModel = this.convertValues(source["tokenUsageByModel"], TokenUsageData, true);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class AgentInfo {
 	    id: string;
 	    sessionId: string;
@@ -109,6 +316,64 @@ export namespace main {
 		}
 	}
 	
+	export class CheckpointInfo {
+	    ID: string;
+	    SessionID: string;
+	    Turn: number;
+	    Status: string;
+	    ToolName: string;
+	    CreatedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CheckpointInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.SessionID = source["SessionID"];
+	        this.Turn = source["Turn"];
+	        this.Status = source["Status"];
+	        this.ToolName = source["ToolName"];
+	        this.CreatedAt = source["CreatedAt"];
+	    }
+	}
+	export class CodeReviewResult {
+	    summary: string;
+	    issues: string[];
+	    suggestions: string[];
+	    score: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CodeReviewResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.summary = source["summary"];
+	        this.issues = source["issues"];
+	        this.suggestions = source["suggestions"];
+	        this.score = source["score"];
+	    }
+	}
+	export class DocumentPipelineConfig {
+	    chunkSize: number;
+	    chunkOverlap: number;
+	    maxFileSize: number;
+	    extensions: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DocumentPipelineConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.chunkSize = source["chunkSize"];
+	        this.chunkOverlap = source["chunkOverlap"];
+	        this.maxFileSize = source["maxFileSize"];
+	        this.extensions = source["extensions"];
+	    }
+	}
 	export class EditorInfo {
 	    id: string;
 	    name: string;
@@ -202,6 +467,100 @@ export namespace main {
 	        this.value = source["value"];
 	    }
 	}
+	export class GuardrailStatusData {
+	    sanitizerEnabled: boolean;
+	    sanitizerStrategy: string;
+	    topicConstraints: string[];
+	    ruleCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GuardrailStatusData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sanitizerEnabled = source["sanitizerEnabled"];
+	        this.sanitizerStrategy = source["sanitizerStrategy"];
+	        this.topicConstraints = source["topicConstraints"];
+	        this.ruleCount = source["ruleCount"];
+	    }
+	}
+	export class ImageAnalysisResult {
+	    content: string;
+	    model: string;
+	    inputTokens: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImageAnalysisResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.content = source["content"];
+	        this.model = source["model"];
+	        this.inputTokens = source["inputTokens"];
+	    }
+	}
+	export class IngestionResult {
+	    filesProcessed: number;
+	    chunksCreated: number;
+	    filesSkipped: number;
+	    skippedReasons?: string[];
+	    totalBytes: number;
+	    durationMs: number;
+	    directory: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new IngestionResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filesProcessed = source["filesProcessed"];
+	        this.chunksCreated = source["chunksCreated"];
+	        this.filesSkipped = source["filesSkipped"];
+	        this.skippedReasons = source["skippedReasons"];
+	        this.totalBytes = source["totalBytes"];
+	        this.durationMs = source["durationMs"];
+	        this.directory = source["directory"];
+	    }
+	}
+	export class IngestionStatus {
+	    lastIngestionDir?: string;
+	    lastIngestionAt?: string;
+	    totalDocuments: number;
+	    totalChunks: number;
+	    isRunning: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new IngestionStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lastIngestionDir = source["lastIngestionDir"];
+	        this.lastIngestionAt = source["lastIngestionAt"];
+	        this.totalDocuments = source["totalDocuments"];
+	        this.totalChunks = source["totalChunks"];
+	        this.isRunning = source["isRunning"];
+	    }
+	}
+	export class MCPConnectionResult {
+	    success: boolean;
+	    message?: string;
+	    tools?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new MCPConnectionResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.message = source["message"];
+	        this.tools = source["tools"];
+	    }
+	}
 	export class MCPServer {
 	    id: string;
 	    name: string;
@@ -226,6 +585,24 @@ export namespace main {
 	        this.type = source["type"];
 	        this.enabled = source["enabled"];
 	        this.builtin = source["builtin"];
+	    }
+	}
+	export class MCPStatusEntry {
+	    id: string;
+	    name: string;
+	    connected: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MCPStatusEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.connected = source["connected"];
+	        this.error = source["error"];
 	    }
 	}
 	export class ToolCall {
@@ -312,6 +689,120 @@ export namespace main {
 	        this.multimodal = source["multimodal"];
 	    }
 	}
+	export class MultimodalCapabilities {
+	    image: boolean;
+	    audio: boolean;
+	    video: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new MultimodalCapabilities(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.image = source["image"];
+	        this.audio = source["audio"];
+	        this.video = source["video"];
+	    }
+	}
+	export class OrchestrationRun {
+	    id: string;
+	    type: string;
+	    status: string;
+	    sessionId: string;
+	    input: string;
+	    output?: string;
+	    error?: string;
+	    startedAt: string;
+	    endedAt?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OrchestrationRun(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.type = source["type"];
+	        this.status = source["status"];
+	        this.sessionId = source["sessionId"];
+	        this.input = source["input"];
+	        this.output = source["output"];
+	        this.error = source["error"];
+	        this.startedAt = source["startedAt"];
+	        this.endedAt = source["endedAt"];
+	    }
+	}
+	export class ParallelAnalysisResult {
+	    results: string[];
+	    errors?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ParallelAnalysisResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.results = source["results"];
+	        this.errors = source["errors"];
+	    }
+	}
+	export class PluginInfoData {
+	    id: string;
+	    name: string;
+	    version: string;
+	    description?: string;
+	    path?: string;
+	    status: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PluginInfoData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.description = source["description"];
+	        this.path = source["path"];
+	        this.status = source["status"];
+	        this.error = source["error"];
+	    }
+	}
+	export class PluginStatusData {
+	    loadedCount: number;
+	    plugins: PluginInfoData[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PluginStatusData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.loadedCount = source["loadedCount"];
+	        this.plugins = this.convertValues(source["plugins"], PluginInfoData);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Project {
 	    id: string;
 	    path: string;
@@ -352,6 +843,24 @@ export namespace main {
 	        this.api_url = source["api_url"];
 	        this.default_model = source["default_model"];
 	        this.models = source["models"];
+	    }
+	}
+	export class RefactoringResult {
+	    originalCode: string;
+	    refactoredCode: string;
+	    changes: string[];
+	    explanation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RefactoringResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.originalCode = source["originalCode"];
+	        this.refactoredCode = source["refactoredCode"];
+	        this.changes = source["changes"];
+	        this.explanation = source["explanation"];
 	    }
 	}
 	export class SecurityIssue {
@@ -417,13 +926,13 @@ export namespace main {
 		}
 	}
 	export class Session {
-	    ID: string;
-	    Name: string;
+	    id: string;
+	    name: string;
 	    // Go type: time
-	    CreatedAt: any;
-	    SkillID: string;
-	    Mode: string;
-	    Messages: Message[];
+	    created_at: any;
+	    skill_id: string;
+	    mode: string;
+	    messages: Message[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Session(source);
@@ -431,12 +940,12 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ID = source["ID"];
-	        this.Name = source["Name"];
-	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
-	        this.SkillID = source["SkillID"];
-	        this.Mode = source["Mode"];
-	        this.Messages = this.convertValues(source["Messages"], Message);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.skill_id = source["skill_id"];
+	        this.mode = source["mode"];
+	        this.messages = this.convertValues(source["messages"], Message);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -520,6 +1029,11 @@ export namespace main {
 	    browser_plugin: string;
 	    selenium_installed: boolean;
 	    computer_control: boolean;
+	    telemetry_enabled: boolean;
+	    telemetry_endpoint: string;
+	    sanitizer_enabled: boolean;
+	    sanitizer_strategy: string;
+	    topic_constraints: string[];
 	    mcp_servers: MCPServer[];
 	    model_configs: ModelConfigItem[];
 	    env_vars: EnvVar[];
@@ -576,6 +1090,11 @@ export namespace main {
 	        this.browser_plugin = source["browser_plugin"];
 	        this.selenium_installed = source["selenium_installed"];
 	        this.computer_control = source["computer_control"];
+	        this.telemetry_enabled = source["telemetry_enabled"];
+	        this.telemetry_endpoint = source["telemetry_endpoint"];
+	        this.sanitizer_enabled = source["sanitizer_enabled"];
+	        this.sanitizer_strategy = source["sanitizer_strategy"];
+	        this.topic_constraints = source["topic_constraints"];
 	        this.mcp_servers = this.convertValues(source["mcp_servers"], MCPServer);
 	        this.model_configs = this.convertValues(source["model_configs"], ModelConfigItem);
 	        this.env_vars = this.convertValues(source["env_vars"], EnvVar);
@@ -621,6 +1140,43 @@ export namespace main {
 	        this.prompt = source["prompt"];
 	        this.type = source["type"];
 	        this.created_at = source["created_at"];
+	    }
+	}
+	
+	export class TelemetryStatus {
+	    enabled: boolean;
+	    endpoint: string;
+	    active: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TelemetryStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.endpoint = source["endpoint"];
+	        this.active = source["active"];
+	        this.error = source["error"];
+	    }
+	}
+	export class TestPipelineResult {
+	    testCode: string;
+	    coverage: number;
+	    skipped?: string[];
+	    framework: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TestPipelineResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.testCode = source["testCode"];
+	        this.coverage = source["coverage"];
+	        this.skipped = source["skipped"];
+	        this.framework = source["framework"];
 	    }
 	}
 	
@@ -683,6 +1239,71 @@ export namespace main {
 	        this.updated_at = source["updated_at"];
 	        this.success = source["success"];
 	        this.notes = source["notes"];
+	    }
+	}
+	export class WorkflowRunData {
+	    id: string;
+	    name: string;
+	    type: string;
+	    status: string;
+	    startedAt: string;
+	    endedAt?: string;
+	    output?: Record<string, any>;
+	    metrics?: agent.WorkflowMetrics;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkflowRunData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.status = source["status"];
+	        this.startedAt = source["startedAt"];
+	        this.endedAt = source["endedAt"];
+	        this.output = source["output"];
+	        this.metrics = this.convertValues(source["metrics"], agent.WorkflowMetrics);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace memory {
+	
+	export class SummaryResult {
+	    Summary: string;
+	    Topics: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SummaryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Summary = source["Summary"];
+	        this.Topics = source["Topics"];
 	    }
 	}
 

@@ -2,6 +2,8 @@ import { useAppStore } from '../store';
 import { getProviderById } from '../types/builtin-providers';
 import { logger } from './logger';
 
+import { toError } from './errors';
+
 /**
  * 调用当前已配置的模型，把用户输入的原始指令改写成更清晰、结构化、
  * 便于 AI 准确理解和执行的高质量 Prompt，并返回改写后的纯文本。
@@ -72,8 +74,8 @@ export async function optimizePrompt(rawInput: string): Promise<string> {
       }),
       signal: AbortSignal.timeout(30000),
     });
-  } catch (e: any) {
-    logger.error('PromptOptimizer', '优化请求发送失败', { error: e?.message });
+  } catch (e: unknown) {
+    logger.error('PromptOptimizer', '优化请求发送失败', { error: toError(e).message });
     throw new Error('优化请求失败，请检查网络或模型配置');
   }
 

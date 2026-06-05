@@ -433,7 +433,7 @@ func (a *App) ExportWorkflow(runID string) ([]byte, error) {
 // system prompt so each node can have specialized instructions.
 func (a *App) createWorkflowAgent(name, systemPrompt string) (ap.Agent, error) {
 	a.mu.Lock()
-	provider, err := a.createProvider("")
+	provider, err := a.createProviderLocked("")
 	a.mu.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("create provider for %s: %w", name, err)

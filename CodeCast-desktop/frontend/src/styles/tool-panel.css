@@ -1,20 +1,7 @@
 /* ============================================
-   ToolPanel 3 栏布局右侧面板
+   ToolPanel — overlay 面板样式
+   现在使用 .panel-overlay 容器（与 PluginsPanel 等一致）
    ============================================ */
-
-.tool-panel {
-  display: flex;
-  flex-direction: column;
-  width: 360px;
-  min-width: 300px;
-  max-width: 480px;
-  height: 100%;
-  background: var(--bg-panel, #fafafa);
-  border-left: 1px solid var(--border, #e8e8e8);
-  overflow: hidden;
-  font-size: 13px;
-  color: var(--text-primary, #333);
-}
 
 /* === Tabs === */
 .tool-panel-tabs {
@@ -597,23 +584,6 @@
 }
 
 /* ============================================
-   响应式
+   响应式 — ToolPanel 使用 panel-overlay，
+   已由 plugins.css 中的 .panel-overlay 统一处理
    ============================================ */
-@media (max-width: 768px) {
-  .tool-panel {
-    position: fixed;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 85%;
-    max-width: 360px;
-    z-index: 1000;
-    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
-    transform: translateX(100%);
-    transition: transform 0.25s;
-  }
-
-  .tool-panel.open {
-    transform: translateX(0);
-  }
-}

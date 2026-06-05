@@ -123,7 +123,7 @@ func (a *App) CancelSessionAgents(sessionID string) error {
 func (a *App) createPoolAgentFactory() ap.AgentFactory {
 	return func(config ap.AgentFactoryConfig) ap.Agent {
 		a.mu.Lock()
-		provider, err := a.createProvider("")
+		provider, err := a.createProviderLocked("")
 		a.mu.Unlock()
 		if err != nil {
 			slog.Warn("createPoolAgentFactory: provider failed", "error", err)

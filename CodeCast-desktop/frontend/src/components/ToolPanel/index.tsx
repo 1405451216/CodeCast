@@ -8,15 +8,15 @@ import type { ToolInvocation } from '../../store/useToolsStore';
 type Tab = 'catalog' | 'history';
 
 /**
- * ToolPanel 3 栏布局右侧的动态工具面板。
+ * ToolPanel — 工具目录与调用历史面板
  *
- * - 工具目录：列出所有可调用的 Cast AP Tool（按类别分组 + 搜索）
- * - 调用历史：按时间倒序显示 CastToolCall 卡片
- * - 顶栏显示当前 Tab 标题 + 总数徽章
- * - 移动端可折叠（< 768px）
+ * 以 overlay 形式覆盖在 main 区域上，与 PluginsPanel/AutomationPanel 一致。
+ * 通过 activePanel === 'tools' 控制显示/隐藏。
  */
 export const ToolPanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>('catalog');
+  const activePanel = useAppStore((s: AppState) => s.activePanel);
+  const setActivePanel = useAppStore((s: AppState) => s.setActivePanel);
   const invocations = useAppStore((s: AppState) => (s as any).invocations) as ToolInvocation[];
   const catalog = useAppStore((s: AppState) => (s as any).catalog) as any[];
 
@@ -29,8 +29,27 @@ export const ToolPanel: React.FC = () => {
     };
   }, [invocations]);
 
+  if (activePanel !== 'tools') return null;
+
   return (
-    <aside className="tool-panel" role="complementary" aria-label="工具面板">
+    <div className="panel-overlay">
+      {/* Header */}
+      <div className="panel-header">
+        <span className="panel-title">工具面板</span>
+        <button
+          className="panel-close-btn"
+          onClick={() => setActivePanel(null)}
+          title="关闭"
+          aria-label="关闭工具面板"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Tabs */}
       <div className="tool-panel-tabs" role="tablist">
         <button
           className={`tool-panel-tab ${tab === 'catalog' ? 'active' : ''}`}
@@ -95,7 +114,7 @@ export const ToolPanel: React.FC = () => {
           )
         )}
       </div>
-    </aside>
+    </div>
   );
 };
 

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
 import { logger } from '../utils/logger';
 import { createSessionSlice } from './useSessionStore';
@@ -69,7 +70,9 @@ export interface AppState extends
   setIsStreaming: (val: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set, _get, _api) => {
+export const useAppStore = create<AppState>()(
+  devtools(
+    (set, _get, _api) => {
   logger.info('Store', '🏗️  Initializing AppState with all slices...');
   
   const startTime = performance.now();
@@ -117,6 +120,9 @@ export const useAppStore = create<AppState>((set, _get, _api) => {
   });
 
   return store;
-});
+},
+    { name: 'CodeCast-AppStore' }
+  )
+);
 
 export * from './types';

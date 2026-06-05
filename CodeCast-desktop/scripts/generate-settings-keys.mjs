@@ -56,6 +56,9 @@ for (const k of keys) {
   else if (/commit|worktree/.test(k)) cat = 'git';
   else if (/browser|domain|selenium|allow_browser/.test(k)) cat = 'browser';
   else if (/computer_control/.test(k)) cat = 'computer';
+  else if (/smtp/.test(k)) cat = 'smtp';
+  else if (/telemetry/.test(k)) cat = 'telemetry';
+  else if (/sanitizer/.test(k)) cat = 'sanitizer';
 
   (categorized[cat] ??= []).push(k);
 }
@@ -66,12 +69,15 @@ const catLabels = {
   ui: '外观',
   api: 'API',
   memory: '个性化 / 记忆',
+  smtp: 'SMTP',
+  telemetry: '遥测',
+  sanitizer: '安全净化',
   git: 'Git',
   browser: '浏览器',
   computer: '计算机控制',
 };
 
-const catOrder = ['work', 'notify', 'ui', 'api', 'memory', 'git', 'browser', 'computer'];
+const catOrder = ['work', 'notify', 'ui', 'api', 'memory', 'smtp', 'telemetry', 'sanitizer', 'git', 'browser', 'computer'];
 
 let output = `/**
  * settingsKeys.ts — 由 scripts/generate-settings-keys.mjs 自动生成

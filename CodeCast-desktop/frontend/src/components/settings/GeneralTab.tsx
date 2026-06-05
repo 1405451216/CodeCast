@@ -5,6 +5,8 @@ import * as api from '../../api';
 import { UpdateInfo, UpdateProgress } from '../../api';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 
+import { toError } from '../../utils/errors';
+
 const GeneralTab: React.FC<TabProps> = ({ settings, updateAndSave, isDarwin, modKey }) => {
   const [version, setVersion] = useState('');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -26,8 +28,8 @@ const GeneralTab: React.FC<TabProps> = ({ settings, updateAndSave, isDarwin, mod
     try {
       const info = await api.checkForUpdate();
       setUpdateInfo(info);
-    } catch (e: any) {
-      setProgress({ phase: 'error', percent: 0, message: e?.message || '检查失败' });
+    } catch (e: unknown) {
+      setProgress({ phase: 'error', percent: 0, message: toError(e).message || '检查失败' });
     } finally {
       setChecking(false);
     }
@@ -39,8 +41,8 @@ const GeneralTab: React.FC<TabProps> = ({ settings, updateAndSave, isDarwin, mod
     try {
       const filePath = await api.downloadUpdate(updateInfo.download_url);
       await api.openDownloadedFile(filePath);
-    } catch (e: any) {
-      setProgress({ phase: 'error', percent: 0, message: e?.message || '下载失败' });
+    } catch (e: unknown) {
+      setProgress({ phase: 'error', percent: 0, message: toError(e).message || '下载失败' });
     } finally {
       setDownloading(false);
     }

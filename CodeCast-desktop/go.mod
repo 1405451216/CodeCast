@@ -45,7 +45,17 @@ require (
 	modernc.org/sqlite v1.50.1 // indirect
 )
 
-// NOTE: agentprimordia is a local-only dependency not yet published as a Go module.
-// The zero-value pseudo-version and replace directive are required for local development.
-// Remove the replace directive and use a real version once the package is published.
+// NOTE: agentprimordia is developed in a sibling repository and not yet published
+// as a public Go module. There are two ways to resolve this dependency:
+//
+//   Option A (recommended): Create a go.work file in this directory:
+//     go 1.26
+//     use .
+//     use ../../../agentprimordia/agentprimordia
+//   Then `go build` will use the workspace to resolve the module.
+//   go.work is git-ignored so it won't affect CI.
+//
+//   Option B: The replace directive below is a fallback that points to the
+//   sibling directory. This works for local dev but breaks CI/reproducibility.
+//   Remove the replace directive once agentprimordia is published as a module.
 replace agentprimordia => ../../agentprimordia/agentprimordia

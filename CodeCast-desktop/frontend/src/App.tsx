@@ -20,19 +20,33 @@ import CommandPalette from './components/CommandPalette';
 const WelcomeView = lazy(() => import('./components/WelcomeView'));
 const MessagesView = lazy(() => import('./components/MessagesView'));
 const ChatInput = lazy(() => import('./components/ChatInput'));
-const PreviewPanel = lazy(() => import('./components/PreviewPanel'));
-const FilesPanel = lazy(() => import('./components/FilesPanel'));
 const PluginsPanel = lazy(() => import('./components/PluginsPanel'));
 const AutomationPanel = lazy(() => import('./components/AutomationPanel'));
 const ProjectsPanel = lazy(() => import('./components/ProjectsPanel'));
 const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
-const PanelResizer = lazy(() => import('./components/PanelResizer'));
 const ToolPanel = lazy(() => import('./components/ToolPanel'));
 
+/**
+ * CodeCast 主应用 — Claude Code 桌面版风格
+ *
+ * 布局：
+ * ┌──────────────────────────────────────────────────┐
+ * │  TitleBar                                        │
+ * ├──────────┬───────────────────────────────────────┤
+ * │          │  TopBar                                │
+ * │  Sidebar ├───────────────────────────────────────┤
+ * │  (会话)   │  Chat Area (WelcomeView / MessagesView)│
+ * │          ├───────────────────────────────────────┤
+ * │          │  ChatInput                             │
+ * │          ├───────────────────────────────────────┤
+ * │          │  [overlay panels: Plugin/Auto/Project] │
+ * └──────────┴───────────────────────────────────────┘
+ *
+ * 右侧面板（Preview/Files/Tools）以叠加层形式按需显示，
+ * 不会挤占主聊天区宽度。
+ */
 const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(260);
-  const [previewWidth, setPreviewWidth] = useState(420);
-  const [filesWidth, setFilesWidth] = useState(240);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuOpenRef = useRef(mobileMenuOpen);
   mobileMenuOpenRef.current = mobileMenuOpen;
@@ -45,8 +59,6 @@ const App: React.FC = () => {
   });
 
   const sidebarVisible = useAppStore((s: AppState) => s.sidebarVisible);
-  const previewPanelVisible = useAppStore((s: AppState) => s.previewPanelVisible);
-  const filesPanelVisible = useAppStore((s: AppState) => s.filesPanelVisible);
   const view = useAppStore((s: AppState) => s.view);
   const currentSession = useAppStore((s: AppState) => s.currentSessionId);
   const sessions = useAppStore((s: AppState) => s.sessions);
@@ -92,14 +104,6 @@ const App: React.FC = () => {
     setSidebarWidth((w) => Math.max(180, Math.min(500, w + delta)));
   }, []);
 
-  const handlePreviewResize = useCallback((delta: number) => {
-    setPreviewWidth((w) => Math.max(250, Math.min(800, w - delta)));
-  }, []);
-
-  const handleFilesResize = useCallback((delta: number) => {
-    setFilesWidth((w) => Math.max(160, Math.min(500, w - delta)));
-  }, []);
-
   const isWailsEnvironment = typeof window !== 'undefined' && 'go' in window;
 
   if (!isWailsEnvironment) {
@@ -138,12 +142,6 @@ const App: React.FC = () => {
           isMobileMenuOpen={mobileMenuOpen}
         />
         
-        {sidebarVisible && !mobileMenuOpen && (
-          <Suspense fallback={<LoadingFallback message="调整侧边栏..." />}>
-            <PanelResizer onResize={handleSidebarResize} />
-          </Suspense>
-        )}
-        
         <div className="main" id="main-content" tabIndex={-1}>
           <TopBar />
           <div className="chat-area" id="chatArea" role="main">
@@ -162,6 +160,7 @@ const App: React.FC = () => {
             </Suspense>
           )}
 
+          {/* Overlay panels — 按需叠加在 main 区域上 */}
           <Suspense fallback={null}>
             <PluginsPanel />
           </Suspense>
@@ -171,29 +170,10 @@ const App: React.FC = () => {
           <Suspense fallback={null}>
             <ProjectsPanel />
           </Suspense>
-
-          <Suspense fallback={<LoadingFallback message="加载工具面板..." />}>
+          <Suspense fallback={null}>
             <ToolPanel />
           </Suspense>
         </div>
-        
-        {previewPanelVisible && (
-          <Suspense fallback={null}>
-            <PanelResizer onResize={handlePreviewResize} />
-          </Suspense>
-        )}
-        <Suspense fallback={<LoadingFallback message="加载预览..." />}>
-          <PreviewPanel style={previewPanelVisible ? { width: previewWidth } : undefined} />
-        </Suspense>
-        
-        {filesPanelVisible && (
-          <Suspense fallback={null}>
-            <PanelResizer onResize={handleFilesResize} />
-          </Suspense>
-        )}
-        <Suspense fallback={<LoadingFallback message="加载文件..." />}>
-          <FilesPanel style={filesPanelVisible ? { width: filesWidth } : undefined} />
-        </Suspense>
       </div>
 
       <Suspense fallback={null}>
@@ -221,24 +201,6 @@ const App: React.FC = () => {
             shortcut: ['Ctrl', 'B'],
             category: 'view',
             action: () => useAppStore.getState().toggleSidebar()
-          },
-          {
-            id: 'toggle-preview',
-            title: '切换预览面板',
-            description: '显示或隐藏预览面板',
-            icon: '👁️',
-            shortcut: ['Ctrl', 'P'],
-            category: 'view',
-            action: () => useAppStore.getState().togglePreviewPanel()
-          },
-          {
-            id: 'toggle-files',
-            title: '切换文件面板',
-            description: '显示或隐藏文件管理面板',
-            icon: '📁',
-            shortcut: ['Ctrl', 'E'],
-            category: 'view',
-            action: () => useAppStore.getState().toggleFilesPanel()
           },
           {
             id: 'focus-input',

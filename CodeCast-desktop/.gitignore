@@ -30,3 +30,7 @@ Thumbs.db
 
 # Debug
 *.log
+
+# Go workspace
+go.work
+go.work.sum

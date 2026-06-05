@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as api from '../api';
 
+import { toError } from '../utils/errors';
+
 export interface FixError {
   id: string;
   file: string;
@@ -173,8 +175,8 @@ const AutoFixPipeline: React.FC<AutoFixPipelineProps> = ({
               const parsedErrors = parseTscOutput(commandOutput);
               errors.push(...parsedErrors);
             }
-          } catch (fallbackError: any) {
-            addLog(`❌ 备用检测也失败: ${fallbackError.message}`, 'error');
+          } catch (fallbackError: unknown) {
+            addLog(`❌ 备用检测也失败: ${toError(fallbackError).message}`, 'error');
           }
         }
       } else {
@@ -186,8 +188,8 @@ const AutoFixPipeline: React.FC<AutoFixPipelineProps> = ({
             const parsedErrors = parseTscOutput(commandOutput);
             errors.push(...parsedErrors);
           }
-        } catch (apiError: any) {
-          addLog(`❌ API 命令执行失败: ${apiError.message}`, 'error');
+        } catch (apiError: unknown) {
+          addLog(`❌ API 命令执行失败: ${toError(apiError).message}`, 'error');
         }
       }
 
@@ -199,14 +201,14 @@ const AutoFixPipeline: React.FC<AutoFixPipelineProps> = ({
       }
 
       return errors;
-    } catch (error: any) {
-      addLog(`❌ 错误检测失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`❌ 错误检测失败: ${toError(error).message}`, 'error');
       return [];
     }
   }, [onCommandExecute, addLog, parseTscOutput]);
 
   const analyzeAndGenerateFix = useCallback(async (error: FixError): Promise<string> => {
-    addLog(`🤖 分析错误: ${error.message.slice(0, 60)}...`, 'info');
+    addLog(`🤖 分析错误: ${toError(error).message.slice(0, 60)}...`, 'info');
     
     await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -230,7 +232,7 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
 
     const solution = fixTemplates[error.code || ''] || 
       `// AI Generated Fix for ${error.type} error in ${error.file}:${error.line}
-// Error: ${sanitizeErrorMessage(error.message)}
+// Error: ${sanitizeErrorMessage(toError(error).message)}
 // Suggested: Review the type definitions and ensure proper imports`;
 
     addLog(`💡 生成修复方案`, 'success');
@@ -262,8 +264,8 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
         try {
           await api.writeFile(error.file, solution);
           addLog(`📝 修复已写入 ${error.file}`, 'info');
-        } catch (writeError: any) {
-          addLog(`⚠️ 写入修复失败: ${writeError.message}`, 'warning');
+        } catch (writeError: unknown) {
+          addLog(`⚠️ 写入修复失败: ${toError(writeError).message}`, 'warning');
         }
       }
 
@@ -284,7 +286,7 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
         const stillHasError = remainingErrors.some(e => 
           e.file === error.file && 
           e.line === error.line && 
-          e.message === error.message
+          e.message === toError(error).message
         );
 
         if (!stillHasError) {
@@ -293,8 +295,8 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
         } else {
           addLog(`⚠️ 错误仍然存在，可能需要手动修复`, 'warning');
         }
-      } catch (verifyError: any) {
-        addLog(`⚠️ 验证过程出错: ${verifyError.message}，假设修复失败`, 'warning');
+      } catch (verifyError: unknown) {
+        addLog(`⚠️ 验证过程出错: ${toError(verifyError).message}，假设修复失败`, 'warning');
         success = false;
       }
 
@@ -347,11 +349,11 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
 
       setFixHistory(prev => prev.map(f => f.id === attemptId ? attempt : f));
       return success;
-    } catch (error: any) {
+    } catch (error: unknown) {
       attempt.status = 'failed';
       attempt.duration = Date.now() - startTime;
       setFixHistory(prev => prev.map(f => f.id === attemptId ? attempt : f));
-      addLog(`❌ 修复过程出错: ${error.message}`, 'error');
+      addLog(`❌ 修复过程出错: ${toError(error).message}`, 'error');
       return false;
     } finally {
       setIsProcessingSync(false);
@@ -411,8 +413,8 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
       setTimeout(() => {
         addLog(`✅ 已回滚修复`, 'success');
       }, 500);
-    } catch (error: any) {
-      addLog(`❌ 回滚失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`❌ 回滚失败: ${toError(error).message}`, 'error');
     }
   }, [fixHistory, addLog]);
 
@@ -519,7 +521,7 @@ const handleSubmit = async (formData: FormData): Promise<void> => {`
                       <span className="error-type">{error.type}</span>
                     </div>
                     
-                    <div className="error-message">{error.message}</div>
+                    <div className="error-message">{toError(error).message}</div>
                     
                     <div className="error-location">
                       <span className="file-path">{error.file}</span>

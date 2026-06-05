@@ -255,6 +255,9 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	// 0. Initialize cast tool persistent stores (todos, schedules, plugins, etc.)
+	a.initCastStores()
+
 	// 1. AP Memory (SQLite + FTS5)
 	memoryPath := filepath.Join(filepath.Dir(a.settingsPath), "memory.db")
 	apMemory, err := ap.NewSQLiteStore(memoryPath)
@@ -381,7 +384,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// 10. Provider + RAG (createProvider requires a.mu — safe during startup, no contention)
 	a.mu.Lock()
-	provider, providerErr := a.createProvider("")
+	provider, providerErr := a.createProviderLocked("")
 	a.mu.Unlock()
 	if providerErr != nil {
 		slog.Warn("AP Provider 初始化失败", "error", providerErr)
@@ -458,7 +461,7 @@ func (a *App) startup(ctx context.Context) {
 
 		// 9g. AP MultimodalProvider (vision/image/audio/video)
 		a.mu.Lock()
-		mmProvider, mmErr := a.createMultimodalProvider()
+		mmProvider, mmErr := a.createMultimodalProviderLocked()
 		a.mu.Unlock()
 		if mmErr != nil {
 			slog.Warn("AP MultimodalProvider 初始化失败", "error", mmErr)

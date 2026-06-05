@@ -82,7 +82,7 @@ export interface ChangedFile {
 
 export type View = 'welcome' | 'chat';
 
-export type ActivePanel = null | 'plugins' | 'automation' | 'projects' | 'agents';
+export type ActivePanel = null | 'plugins' | 'automation' | 'projects' | 'agents' | 'tools';
 
 export type PreviewTab = 'browser' | 'editor';
 

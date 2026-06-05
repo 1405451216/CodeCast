@@ -30,8 +30,9 @@ func (a *App) sessionsDir() string {
 
 // persistSession saves a single session to disk as a JSON file.
 // It is safe to call from a goroutine.
-// IMPORTANT: The caller must either hold a.mu or pass a snapshot/copy of the Session;
-// reading s.* fields without synchronization is a data race if the session is mutable.
+// IMPORTANT: The caller MUST pass a snapshot/copy of the Session, not a live pointer.
+// A live pointer creates a data race when the goroutine reads fields after the caller
+// has released a.mu. Use: go a.persistSession(func() *Session { s := *session; return &s }())
 func (a *App) persistSession(s *Session) {
 	// H8 fix: validate session ID to prevent path traversal via crafted IDs
 	safeID := filepath.Base(s.ID)

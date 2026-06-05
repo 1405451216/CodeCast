@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore, AppState } from '../store';
 import * as api from '../api';
 
+import { toError } from '../utils/errors';
+
 // ─── Task Templates ─────────────────────────────────────────────
 
 interface TaskTemplate {
@@ -183,8 +185,8 @@ const AutomationPanel: React.FC = () => {
     try {
       setError(null);
       await api.runTaskNow(id);
-    } catch (e: any) {
-      setError('运行任务失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('运行任务失败: ' + (toError(e).message || '未知错误'));
     }
   };
 
@@ -197,8 +199,8 @@ const AutomationPanel: React.FC = () => {
           t.id === task.id ? { ...t, enabled: !t.enabled } : t
         )
       );
-    } catch (e: any) {
-      setError('切换状态失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('切换状态失败: ' + (toError(e).message || '未知错误'));
     }
   };
 
@@ -207,8 +209,8 @@ const AutomationPanel: React.FC = () => {
       setError(null);
       await api.deleteTask(id);
       setTasks((prev) => prev.filter((t) => t.id !== id));
-    } catch (e: any) {
-      setError('删除失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('删除失败: ' + (toError(e).message || '未知错误'));
     }
   };
 
@@ -228,8 +230,8 @@ const AutomationPanel: React.FC = () => {
       setFormSchedule('');
       setView('list');
       loadTasks();
-    } catch (e: any) {
-      setError('创建任务失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('创建任务失败: ' + (toError(e).message || '未知错误'));
     }
   };
 
@@ -251,8 +253,8 @@ const AutomationPanel: React.FC = () => {
       }
       await api.runCodeReviewWorkflow(currentSessionId, 'current-file');
       loadWorkflowRuns();
-    } catch (e: any) {
-      setError('代码审查失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('代码审查失败: ' + (toError(e).message || '未知错误'));
     }
   };
 
@@ -266,8 +268,8 @@ const AutomationPanel: React.FC = () => {
       }
       await api.runRefactoringWorkflow(currentSessionId, 'current-file');
       loadWorkflowRuns();
-    } catch (e: any) {
-      setError('重构工作流失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('重构工作流失败: ' + (toError(e).message || '未知错误'));
     }
   };
 
@@ -281,8 +283,8 @@ const AutomationPanel: React.FC = () => {
       }
       await api.runTestPipelineWorkflow(currentSessionId, 'current-file');
       loadWorkflowRuns();
-    } catch (e: any) {
-      setError('测试生成失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('测试生成失败: ' + (toError(e).message || '未知错误'));
     }
   };
 
@@ -296,8 +298,8 @@ const AutomationPanel: React.FC = () => {
       }
       await api.runParallelAnalysis(currentSessionId, 'analyze current context');
       loadWorkflowRuns();
-    } catch (e: any) {
-      setError('并行分析失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('并行分析失败: ' + (toError(e).message || '未知错误'));
     }
   };
 
@@ -306,8 +308,8 @@ const AutomationPanel: React.FC = () => {
       setError(null);
       await api.cancelWorkflowRun(runId);
       loadWorkflowRuns();
-    } catch (e: any) {
-      setError('取消工作流失败: ' + (e?.message || '未知错误'));
+    } catch (e: unknown) {
+      setError('取消工作流失败: ' + (toError(e).message || '未知错误'));
     }
   };
 

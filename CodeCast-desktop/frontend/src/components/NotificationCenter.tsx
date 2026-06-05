@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 import * as api from '../api';
 
+import { toError } from '../utils/errors';
+
 interface Toast {
   id: string;
   title: string;
@@ -88,8 +90,8 @@ const NotificationCenter: React.FC = () => {
           try {
             await api.confirmGitCommit(data.file);
             addToast('Git 已提交', `已自动提交: ${data.file}`, 'success');
-          } catch (e: any) {
-            addToast('Git 提交失败', e.message || '未知错误', 'error');
+          } catch (e: unknown) {
+            addToast('Git 提交失败', toError(e).message || '未知错误', 'error');
           }
           setConfirm((p) => ({ ...p, open: false }));
         },

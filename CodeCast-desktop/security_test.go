@@ -163,19 +163,22 @@ func TestChainOperatorsRegex_Coverage(t *testing.T) {
 
 func TestSanitizeWindowsCommand_Implementation(t *testing.T) {
 	t.Parallel()
-	t.Log("Testing sanitizeWindowsCommand implementation")
+	t.Log("Testing sanitizeWindowsCommand implementation (now delegates to PowerShell sanitizer)")
 
+	// M8 fix: sanitizeWindowsCommand now delegates to sanitizePowerShellCommand.
+	// PowerShell uses backtick (`) as escape character instead of caret (^).
+	// % is NOT a variable delimiter in PowerShell, so it passes through unchanged.
 	testCases := []struct {
 		input    string
 		expected string
 		desc     string
 	}{
-		{`echo hello & world`, `echo hello ^& world`, "escape & symbol"},
-		{`echo test | pipe`, `echo test ^| pipe`, "escape | symbol"},
-		{`echo a > b.txt`, `echo a ^> b.txt`, "escape > redirect"},
-		{`echo a < b.txt`, `echo a ^< b.txt`, "escape < redirect"},
-		{`echo (grouping)`, `echo ^(grouping^)`, "escape parentheses"},
-		{`echo %VAR%`, `echo %%VAR%%`, "escape env variable"},
+		{`echo hello & world`, "echo hello `& world", "escape & symbol"},
+		{"echo test | pipe", "echo test `| pipe", "escape | symbol"},
+		{"echo a > b.txt", "echo a `> b.txt", "escape > redirect"},
+		{"echo a < b.txt", "echo a `< b.txt", "escape < redirect"},
+		{"echo (grouping)", "echo `(grouping`)", "escape parentheses"},
+		{`echo %VAR%`, `echo %VAR%`, "% not expanded in PowerShell (M8 fix)"},
 		{`echo normal text`, `echo normal text`, "normal text unchanged"},
 		{`echo "quoted"`, `echo "quoted"`, "preserve quotes"},
 	}

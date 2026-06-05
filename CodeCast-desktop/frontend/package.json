@@ -25,7 +25,6 @@
   },
   "dependencies": {
     "@agentprimordia/sdk": "file:../../../agentprimordia/agentprimordia/sdk/typescript",
-    "_comment_agentprimordia_sdk": "Local dev only via file: protocol; replace with published package version once available",
     "@sentry/react": "^10.54.0",
     "@sentry/tracing": "^7.120.4",
     "@tanstack/react-virtual": "^3.13.25",

@@ -83,3 +83,7 @@ out/
 # ---------- AI Assistants ----------
 .claude/
 .codebuddy/
+
+# ---------- Go Workspace ----------
+go.work
+go.work.sum

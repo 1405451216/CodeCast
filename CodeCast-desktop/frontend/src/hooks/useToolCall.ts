@@ -4,6 +4,8 @@ import type { ToolInvocation } from '../store/useToolsStore';
 import type { ToolCallResponse } from '@agentprimordia/sdk';
 import * as api from '../api';
 
+import { toError } from '../utils/errors';
+
 interface UseToolCallOptions {
   toolName: string;
   category: string;
@@ -58,8 +60,8 @@ export const useToolCall = (opts: UseToolCallOptions): UseToolCallResult => {
         addInvocation(invocation);
         setLastInvocation(invocation);
         return { ...response, durationMs: duration };
-      } catch (e: any) {
-        const errMsg = e?.message || String(e);
+      } catch (e: unknown) {
+        const errMsg = toError(e).message || String(e);
         setError(errMsg);
         return {
           result: '',

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAppStore, AppState } from '../store';
 import * as api from '../api';
 
+import { toError } from '../utils/errors';
+
 interface Skill {
   id: string;
   name: string;
@@ -204,9 +206,9 @@ const PluginsPanel: React.FC = () => {
         plugin.prompt || ''
       );
       loadSkills();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Upload plugin failed:', err);
-      alert(`插件文件解析失败: ${err.message || '请确保为有效的 JSON 格式'}`);
+      alert(`插件文件解析失败: ${toError(err).message || '请确保为有效的 JSON 格式'}`);
     }
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';

@@ -18,7 +18,7 @@ import (
 // Go's sync.RWMutex is NOT reentrant — do NOT add a.mu.RLock() here or it will deadlock.
 //
 // modelOverride: if non-empty, overrides the default model from settings.
-func (a *App) createProvider(modelOverride string) (ap.Provider, error) {
+func (a *App) createProviderLocked(modelOverride string) (ap.Provider, error) {
 	creds, err := a.resolveCredentialsLocked(modelOverride)
 	if err != nil {
 		return nil, fmt.Errorf("resolve credentials: %w", err)
@@ -131,11 +131,11 @@ func (a *App) createProvider(modelOverride string) (ap.Provider, error) {
 	return resilient, nil
 }
 
-// createCachedProvider creates a cached provider for code completion use cases.
-// Now delegates to createProvider() since CacheManager-backed caching is always active.
-// IMPORTANT: Caller MUST hold a.mu lock (calls createProvider which requires it).
-func (a *App) createCachedProvider() (ap.Provider, error) {
-	return a.createProvider("")
+// createCachedProviderLocked creates a cached provider for code completion use cases.
+// Now delegates to createProviderLocked() since CacheManager-backed caching is always active.
+// IMPORTANT: Caller MUST hold a.mu lock (calls createProviderLocked which requires it).
+func (a *App) createCachedProviderLocked() (ap.Provider, error) {
+	return a.createProviderLocked("")
 }
 
 // simpleEmbeddingFunc provides a deterministic hash-based embedding for cache keys.
@@ -158,12 +158,12 @@ func simpleEmbeddingFunc(ctx context.Context, text string) ([]float32, error) {
 	return vec, nil
 }
 
-// createMultimodalProvider creates an AP MultimodalProvider from current settings.
+// createMultimodalProviderLocked creates an AP MultimodalProvider from current settings.
 // Returns the multimodal provider for vision/image/audio/video capabilities.
 //
-// IMPORTANT: Caller MUST hold a.mu lock — calls createProvider (and resolveCredentialsLocked)
+// IMPORTANT: Caller MUST hold a.mu lock — calls createProviderLocked (and resolveCredentialsLocked)
 // which require it. Do NOT add a.mu.Lock() here; Go's sync.RWMutex is not reentrant.
-func (a *App) createMultimodalProvider() (ap.MultimodalProvider, error) {
+func (a *App) createMultimodalProviderLocked() (ap.MultimodalProvider, error) {
 	creds, err := a.resolveCredentialsLocked("")
 	if err != nil {
 		return nil, fmt.Errorf("resolve credentials for multimodal: %w", err)

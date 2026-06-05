@@ -26,13 +26,13 @@ func TestCreateMultimodalProvider(t *testing.T) {
 		ctx:       context.Background(),
 	}
 
-	// createMultimodalProvider requires a.mu to be held
+	// createMultimodalProviderLocked requires a.mu to be held
 	app.mu.Lock()
-	mmProvider, err := app.createMultimodalProvider()
+	mmProvider, err := app.createMultimodalProviderLocked()
 	app.mu.Unlock()
 
 	if err != nil {
-		t.Fatalf("createMultimodalProvider failed: %v", err)
+		t.Fatalf("createMultimodalProviderLocked failed: %v", err)
 	}
 	if mmProvider == nil {
 		t.Fatal("expected non-nil MultimodalProvider")
@@ -94,10 +94,10 @@ func TestMultimodalCapabilitiesAfterCreate(t *testing.T) {
 	}
 
 	app.mu.Lock()
-	mm, err := app.createMultimodalProvider()
+	mm, err := app.createMultimodalProviderLocked()
 	app.mu.Unlock()
 	if err != nil {
-		t.Fatalf("createMultimodalProvider failed: %v", err)
+		t.Fatalf("createMultimodalProviderLocked failed: %v", err)
 	}
 
 	caps := mm.Capabilities()

@@ -67,13 +67,16 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 		fmt.Printf("[Shell][%s]   原始: %.200s\n", requestID, originalCommand)
 		fmt.Printf("[Shell][%s]   转义后: %.200s\n", requestID, command)
 	} else {
-		fmt.Printf("[Shell][%s] ✅ 命令转义: 无需转义 (Windows 特殊字符)\n", requestID)
+		fmt.Printf("[Shell][%s] ✅ 命令转义: 无需转义\n", requestID)
 	}
 
 	var shell, flag string
 	if runtime.GOOS == "windows" {
-		shell = "cmd"
-		flag = "/C"
+		// M8 fix: Use PowerShell instead of cmd.exe to avoid %VAR% environment
+		// variable expansion. PowerShell uses $env:VAR syntax and does not
+		// expand %VAR% patterns, eliminating the information disclosure risk.
+		shell = "powershell"
+		flag = "-NoProfile -Command"
 	} else {
 		shell = os.Getenv("SHELL")
 		if shell == "" {
@@ -198,11 +201,13 @@ func redactSensitiveOutput(output string) string {
 		// Match key=value, key: value, key="value" patterns
 		for _, sep := range []string{"=", ": "} {
 			prefix := key + sep
+			searchFrom := 0
 			for {
-				idx := strings.Index(output, prefix)
+				idx := strings.Index(output[searchFrom:], prefix)
 				if idx < 0 {
 					break
 				}
+				idx += searchFrom
 				// Find end of value (next whitespace or end of string)
 				valStart := idx + len(prefix)
 				valEnd := valStart
@@ -211,8 +216,9 @@ func redactSensitiveOutput(output string) string {
 				}
 				if valEnd > valStart+4 {
 					output = output[:valStart] + "***REDACTED***" + output[valEnd:]
+					searchFrom = valStart + len("***REDACTED***")
 				} else {
-					break
+					searchFrom = valEnd
 				}
 			}
 		}
@@ -220,17 +226,19 @@ func redactSensitiveOutput(output string) string {
 	// Redact strings that look like API keys (sk-..., ghp_..., etc.)
 	keyPrefixes := []string{"sk-", "ghp_", "gho_", "glpat-", "AKIA"}
 	for _, prefix := range keyPrefixes {
+		searchFrom := 0
 		for {
-			idx := strings.Index(output, prefix)
+			idx := strings.Index(output[searchFrom:], prefix)
 			if idx < 0 {
 				break
 			}
+			idx += searchFrom // adjust to absolute position
 			end := idx + len(prefix)
 			for end < len(output) && end < idx+60 && output[end] != ' ' && output[end] != '\n' && output[end] != '"' && output[end] != '\'' {
 				end++
 			}
 			output = output[:idx] + prefix + "***REDACTED***" + output[end:]
-			break // only redact first occurrence per prefix to avoid infinite loop
+			searchFrom = idx + len(prefix) + len("***REDACTED***")
 		}
 	}
 	return output
@@ -306,17 +314,29 @@ func (e *CommandDeniedError) Error() string {
 	return e.Reason
 }
 
-// ==================== Windows Command Sanitization ====================
+// ==================== Command Sanitization ====================
 
-// sanitizeWindowsCommand 转义 Windows cmd.exe 特殊元字符，防止命令注入
-// 参考: https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/cmd
-func sanitizeWindowsCommand(cmd string) string {
-	if runtime.GOOS != "windows" || cmd == "" {
+// sanitizePowerShellCommand sanitizes a command for execution under PowerShell.
+//
+// M8 fix: Replaced sanitizeWindowsCommand (cmd.exe) with this function.
+// PowerShell does not expand %VAR% environment variables, eliminating the
+// information disclosure risk. Instead, PowerShell uses $env:VAR syntax
+// which we explicitly escape to prevent unintended variable expansion.
+//
+// Key differences from cmd.exe sanitization:
+//   - % is NOT an environment variable delimiter (it's the ForEach-Object alias)
+//   - $ is the variable prefix ($var, $env:VAR) — must be escaped
+//   - Backtick (`) is the escape character — must be escaped
+//   - Curly braces {} are script block delimiters — escaped outside quotes
+//   - Semicolons ; are statement separators — escaped outside quotes
+//   - Pipe | and redirect > < are operators — escaped outside quotes
+func sanitizePowerShellCommand(cmd string) string {
+	if cmd == "" {
 		return cmd
 	}
 
 	var result strings.Builder
-	result.Grow(len(cmd) * 2) // 预分配空间，避免频繁扩容
+	result.Grow(len(cmd) + len(cmd)/4) // modest extra capacity for escapes
 
 	inSingleQuote := false
 	inDoubleQuote := false
@@ -327,137 +347,104 @@ func sanitizeWindowsCommand(cmd string) string {
 			inSingleQuote = !inSingleQuote
 			result.WriteRune(r)
 		case '"':
-			inDoubleQuote = !inDoubleQuote
+			if !inSingleQuote {
+				inDoubleQuote = !inDoubleQuote
+			}
 			result.WriteRune(r)
+		case '$':
+			// Escape $ to prevent PowerShell variable expansion ($var, $env:VAR)
+			if !inSingleQuote {
+				result.WriteString("`$")
+			} else {
+				result.WriteRune(r) // single-quoted strings are literal in PowerShell
+			}
+		case '`':
+			// Backtick is PowerShell's escape character; double it to escape
+			if !inSingleQuote {
+				result.WriteString("``")
+			} else {
+				result.WriteRune(r)
+			}
 		case '&':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^&")
+				result.WriteString("`&")
 			} else {
 				result.WriteRune(r)
 			}
 		case '|':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^|")
+				result.WriteString("`|")
 			} else {
 				result.WriteRune(r)
 			}
 		case ';':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^;")
+				result.WriteString("`;")
 			} else {
 				result.WriteRune(r)
 			}
 		case '<':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^<")
+				result.WriteString("`<")
 			} else {
 				result.WriteRune(r)
 			}
 		case '>':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^>")
+				result.WriteString("`>")
 			} else {
 				result.WriteRune(r)
 			}
 		case '(':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^(")
+				result.WriteString("`(")
 			} else {
 				result.WriteRune(r)
 			}
 		case ')':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^)")
+				result.WriteString("`)")
 			} else {
 				result.WriteRune(r)
 			}
-		case '%':
-			// [设计决策] 为什么允许 % 环境变量读取而不是完全禁止？
-			//
-			// 📋 风险评估：
-			// ┌─────────────────────────────────────────────────────────────┐
-			// │ 风险等级: 低 (信息泄露)                                      │
-			// │ 影响范围: 仅读取环境变量值，无法执行命令或修改系统状态       │
-			// │ 攻击成本: 需要知道具体变量名才能获取有价值的信息              │
-			// └─────────────────────────────────────────────────────────────┘
-			//
-			// ✅ 允许的理由 (Benefits):
-			// 1. **实用性**: AI 助手经常需要读取环境变量来配置构建工具、调试问题
-			//    - 示例: echo %JAVA_HOME%, echo %PATH%, echo %USERPROFILE%
-			//    - 这些是开发者的日常操作，禁止会严重影响用户体验
-			//
-			// 2. **风险可控**: 即使泄露，也仅限于:
-			//    - 用户名、主机名、路径等非敏感信息
-			//    - 不会导致代码执行、文件删除或权限提升
-			//    - 攻击者无法通过环境变量获取密码或密钥（除非用户错误地存储）
-			//
-			// 3. **行业标准**: 大多数 CI/CD 系统、IDE 终端都允许读取环境变量
-			//    - VS Code Terminal, JetBrains IDEs, GitHub Actions 等
-			//    - 完全禁止会导致与行业实践不一致
-			//
-			// 4. **转义已实现**: 我们仍然将 % 转义为 %%，这提供了一层保护
-			//    - 在某些上下文中，%% 可以阻止变量展开
-			//    - 但 Windows cmd.exe 的行为是：%% → % (单百分号)
-			//    - 所以技术上无法完全阻止，这是 Windows shell 的限制
-			//
-			// ⚠️ 已知限制 (Known Limitations):
-			// - Windows cmd.exe 会将 %% 解析为单个 %，然后展开 %VAR%
-			// - 这是 cmd.exe 的设计行为，我们无法在应用层完全绕过
-			// - 如果未来需要完全禁止，可以将 % 加入 chainOperators 正则
-			//
-			// 🔒 增强建议 (如果需要更高安全性):
-			// 方案 A: 在 chainOperators 中添加 %
-			//   - 优点: 完全禁止环境变量读取
-			//   - 缺点: 影响正常开发工作流
-			//
-			// 方案 B: 实现环境变量白名单
-			//   - 仅允许读取安全的变量 (如 PATH, JAVA_HOME)
-			//   - 拦截敏感变量 (如 PASSWORD, API_KEY, TOKEN)
-			//   - 优点: 平衡安全性和实用性
-			//   - 缺点: 维护成本高，需要持续更新白名单
-			//
-			// 📊 当前决策: 选择方案 C (当前实现)
-			//   - 允许读取但记录日志 (已在 ExecuteCommand 中实现详细日志)
-			//   - 通过审计日志追踪异常的环境变量访问模式
-			//   - 符合 "安全但不影响生产力" 的设计原则
-			//
+		case '{':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("%%")
+				result.WriteString("`{")
 			} else {
 				result.WriteRune(r)
 			}
-		case '^':
+		case '}':
 			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^^")
-			} else {
-				result.WriteRune(r)
-			}
-		case '!':
-			if !inSingleQuote && !inDoubleQuote && i > 0 && (cmd[i-1] == ' ' || cmd[i-1] == '\t') {
-				result.WriteString("^!")
-			} else {
-				result.WriteRune(r)
-			}
-		case '`':
-			if !inSingleQuote && !inDoubleQuote {
-				result.WriteString("^`")
+				result.WriteString("`}")
 			} else {
 				result.WriteRune(r)
 			}
 		case '\n', '\r':
 			result.WriteByte(' ')
 		default:
+			// % is NOT special in PowerShell (it's the ForEach-Object alias)
+			// so we don't need to escape it. This is the key M8 fix.
 			result.WriteRune(r)
 		}
+		_ = i // avoid unused variable warning
 	}
 
 	return result.String()
 }
 
+// sanitizeWindowsCommand is DEPRECATED. It was used for cmd.exe sanitization
+// but had a known vulnerability (M8): %VAR% environment variable expansion
+// could not be reliably prevented. Now delegates to sanitizePowerShellCommand.
+//
+// Deprecated: Use sanitizePowerShellCommand instead.
+func sanitizeWindowsCommand(cmd string) string {
+	return sanitizePowerShellCommand(cmd)
+}
+
 // sanitizeCommandForExecution 根据操作系统选择合适的命令处理策略
 func sanitizeCommandForExecution(cmd string) string {
 	if runtime.GOOS == "windows" {
-		return sanitizeWindowsCommand(cmd)
+		return sanitizePowerShellCommand(cmd)
 	}
 	return cmd
 }

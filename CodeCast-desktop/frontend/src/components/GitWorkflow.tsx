@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as api from '../api';
 import { useAppStore } from '../store';
 
+import { toError } from '../utils/errors';
+
 export interface GitFileStatus {
   path: string;
   status: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflict';
@@ -175,8 +177,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
         setFiles(gitFiles);
         addLog(`加载 Git 状态: ${gitFiles.length} 个文件变更`, 'info');
       }
-    } catch (error: any) {
-      addLog(`获取 Git 状态失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`获取 Git 状态失败: ${toError(error).message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -212,12 +214,12 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
           setCommits([]);
           addLog('⚠️ 没有找到提交记录', 'warning');
         }
-      } catch (execError: any) {
-        addLog(`⚠️ 获取 Git 日志失败: ${execError.message}，显示空列表`, 'warning');
+      } catch (execError: unknown) {
+        addLog(`⚠️ 获取 Git 日志失败: ${toError(execError).message}，显示空列表`, 'warning');
         setCommits([]);
       }
-    } catch (error: any) {
-      addLog(`加载提交历史失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`加载提交历史失败: ${toError(error).message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -258,12 +260,12 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
           setBranches([]);
           addLog('⚠️ 没有找到分支信息', 'warning');
         }
-      } catch (execError: any) {
-        addLog(`⚠️ 获取分支列表失败: ${execError.message}`, 'warning');
+      } catch (execError: unknown) {
+        addLog(`⚠️ 获取分支列表失败: ${toError(execError).message}`, 'warning');
         setBranches([]);
       }
-    } catch (error: any) {
-      addLog(`加载分支列表失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`加载分支列表失败: ${toError(error).message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -292,8 +294,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
       if (onFileChange) {
         onFileChange(filePath);
       }
-    } catch (error: any) {
-      addLog(`暂存失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`暂存失败: ${toError(error).message}`, 'error');
     }
   }, [addLog, onFileChange]);
 
@@ -304,8 +306,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
         f.path === filePath ? { ...f, staged: false } : f
       ));
       addLog(`取消暂存: ${filePath}`, 'success');
-    } catch (error: any) {
-      addLog(`取消暂存失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`取消暂存失败: ${toError(error).message}`, 'error');
     }
   }, [addLog]);
 
@@ -314,8 +316,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
       await api.executeCommand(`git checkout -- ${shellEscape(filePath)}`);
       setFiles(prev => prev.filter(f => f.path !== filePath));
       addLog(`丢弃更改: ${filePath}`, 'success');
-    } catch (error: any) {
-      addLog(`丢弃更改失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`丢弃更改失败: ${toError(error).message}`, 'error');
     }
   }, [addLog]);
 
@@ -324,8 +326,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
       await api.executeCommand('git add -A');
       setFiles(prev => prev.map(f => ({ ...f, staged: true })));
       addLog('暂存所有变更', 'success');
-    } catch (error: any) {
-      addLog(`暂存全部失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`暂存全部失败: ${toError(error).message}`, 'error');
     }
   }, [addLog]);
 
@@ -345,8 +347,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
 
       await loadGitStatus();
       await loadCommits();
-    } catch (error: any) {
-      addLog(`提交失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`提交失败: ${toError(error).message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -364,8 +366,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
       addLog(`创建并切换到新分支: ${newBranchName}`, 'success');
       setNewBranchName('');
       await loadBranches();
-    } catch (error: any) {
-      addLog(`创建分支失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`创建分支失败: ${toError(error).message}`, 'error');
     }
   }, [newBranchName, addLog, loadBranches]);
 
@@ -376,8 +378,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
       addLog(`切换到分支: ${branchName}`, 'success');
       await loadBranches();
       await loadGitStatus();
-    } catch (error: any) {
-      addLog(`切换分支失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`切换分支失败: ${toError(error).message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -432,8 +434,8 @@ const GitWorkflow: React.FC<GitWorkflowProps> = ({
         setDiffContent(diffLines);
         addLog(`显示 Diff: ${filePath}`, 'info');
       }
-    } catch (error: any) {
-      addLog(`获取 Diff 失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`获取 Diff 失败: ${toError(error).message}`, 'error');
     }
   }, [addLog]);
 
@@ -527,8 +529,8 @@ ${recentCommits || '(无历史记录)'}
         setShowAiCommitPreview(true);
         addLog('✅ AI 已生成建议', 'success');
       }
-    } catch (error: any) {
-      addLog(`AI 生成失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`AI 生成失败: ${toError(error).message}`, 'error');
     } finally {
       setIsGeneratingCommit(false);
     }
@@ -600,8 +602,8 @@ ${issueNumber ? `\n关联 Issue: #${issueNumber}` : ''}
         }));
         addLog('✅ PR 描述已生成（原始格式）', 'success');
       }
-    } catch (error: any) {
-      addLog(`PR 模板生成失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`PR 模板生成失败: ${toError(error).message}`, 'error');
     } finally {
       setIsGeneratingPR(false);
     }
@@ -634,8 +636,8 @@ ${issueNumber ? `\n关联 Issue: #${issueNumber}` : ''}
         setRebaseCommits(rebaseList);
         addLog(`✅ 加载 ${rebaseList.length} 个提交用于 Rebase`, 'success');
       }
-    } catch (error: any) {
-      addLog(`加载 Rebase 提交失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`加载 Rebase 提交失败: ${toError(error).message}`, 'error');
     } finally {
       setIsLoadingRebase(false);
     }
@@ -676,8 +678,8 @@ ${issueNumber ? `\n关联 Issue: #${issueNumber}` : ''}
       addLog('✅ Rebase 操作已执行（请在终端确认交互式操作）', 'success');
       setShowRebasePreview(false);
       await loadCommits();
-    } catch (error: any) {
-      addLog(`Rebase 执行失败: ${error.message}（可能需要手动解决冲突）`, 'error');
+    } catch (error: unknown) {
+      addLog(`Rebase 执行失败: ${toError(error).message}（可能需要手动解决冲突）`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -716,8 +718,8 @@ ${issueNumber ? `\n关联 Issue: #${issueNumber}` : ''}
         setConflictFiles([]);
         addLog('✅ 当前没有检测到合并冲突', 'success');
       }
-    } catch (error: any) {
-      addLog(`冲突检测失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`冲突检测失败: ${toError(error).message}`, 'error');
     } finally {
       setIsLoadingConflicts(false);
     }
@@ -741,8 +743,8 @@ ${issueNumber ? `\n关联 Issue: #${issueNumber}` : ''}
 
       setConflictContent(lines);
       addLog(`显示冲突详情: ${filePath}`, 'info');
-    } catch (error: any) {
-      addLog(`读取冲突文件失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`读取冲突文件失败: ${toError(error).message}`, 'error');
     }
   }, [addLog]);
 
@@ -795,8 +797,8 @@ ${content}
           );
         }
       }
-    } catch (error: any) {
-      addLog(`冲突解决失败: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      addLog(`冲突解决失败: ${toError(error).message}`, 'error');
     } finally {
       setIsLoading(false);
     }

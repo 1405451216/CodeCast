@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as api from '../api';
 
+import { toError } from '../utils/errors';
+
 export interface TestResult {
   id: string;
   name: string;
@@ -188,9 +190,9 @@ All files      |   85.42 |    72.18 |   88.89 |   84.21 |
         setTestOutput(prev => [...prev, mockOutput]);
         setIsRunning(false);
       }, 2000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[TestVisualizer] Run tests failed:', error);
-      setTestOutput(prev => [...prev, `❌ 测试运行失败: ${error.message}\n`]);
+      setTestOutput(prev => [...prev, `❌ 测试运行失败: ${toError(error).message}\n`]);
       setIsRunning(false);
     }
   }, [onCommandExecute, parseTestOutput]);

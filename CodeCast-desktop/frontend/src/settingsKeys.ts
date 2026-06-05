@@ -4,7 +4,7 @@
  * ⚠️ 请勿手动编辑此文件！修改后端 Settings struct 后重新运行:
  *   node scripts/generate-settings-keys.mjs
  *
- * 生成时间: 2026-06-03T09:30:29.008Z
+ * 生成时间: 2026-06-05T06:38:11.705Z
  */
 
 export const S = {
@@ -47,6 +47,20 @@ export const S = {
   tool_memory: 'tool_memory',
   message_history_limit: 'message_history_limit',
 
+  // ===== SMTP =====
+  smtp_host: 'smtp_host',
+  smtp_port: 'smtp_port',
+  smtp_user: 'smtp_user',
+  smtp_pass: 'smtp_pass',
+
+  // ===== 遥测 =====
+  telemetry_enabled: 'telemetry_enabled',
+  telemetry_endpoint: 'telemetry_endpoint',
+
+  // ===== 安全净化 =====
+  sanitizer_enabled: 'sanitizer_enabled',
+  sanitizer_strategy: 'sanitizer_strategy',
+
   // ===== Git =====
   auto_commit: 'auto_commit',
   confirm_before_commit: 'confirm_before_commit',
@@ -66,6 +80,7 @@ export const S = {
   // ===== 数组 / 对象类型（通过完整 API 操作） =====
   blocked_domains: 'blocked_domains',
   allowed_domains: 'allowed_domains',
+  topic_constraints: 'topic_constraints',
   mcp_servers: 'mcp_servers',
   model_configs: 'model_configs',
   env_vars: 'env_vars',
@@ -105,6 +120,10 @@ export const SCALAR_KEYS: readonly SettingKey[] = [
   S.auto_memory,
   S.tool_memory,
   S.message_history_limit,
+  S.smtp_host,
+  S.smtp_port,
+  S.smtp_user,
+  S.smtp_pass,
   S.auto_commit,
   S.confirm_before_commit,
   S.use_worktree,
@@ -115,4 +134,8 @@ export const SCALAR_KEYS: readonly SettingKey[] = [
   S.browser_plugin,
   S.selenium_installed,
   S.computer_control,
+  S.telemetry_enabled,
+  S.telemetry_endpoint,
+  S.sanitizer_enabled,
+  S.sanitizer_strategy,
 ] as const;

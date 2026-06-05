@@ -26,8 +26,7 @@ type castPomodoroSession struct {
 }
 
 var (
-	todoStoreMu sync.RWMutex
-	todoStore   = make(map[string]*castTodoItem)
+	todoStore *castPersistentStore[map[string]*castTodoItem]
 
 	pomodoroMu       sync.RWMutex
 	currentPomodoro  *castPomodoroSession
@@ -105,9 +104,9 @@ func (a *App) castToolTodoCreate(ctx context.Context, args json.RawMessage) (*ap
 		Done:      false,
 		CreatedAt: time.Now().Unix(),
 	}
-	todoStoreMu.Lock()
-	todoStore[item.ID] = item
-	todoStoreMu.Unlock()
+	todoStore.Mutate(func(m map[string]*castTodoItem) {
+		m[item.ID] = item
+	})
 	out := castTodoCreateResult{ID: item.ID}
 	outJSON, _ := json.Marshal(out)
 	return a.recordCastInvocation("cast_todo_create", "todo", "", args, string(outJSON), false, 0), nil
@@ -118,15 +117,16 @@ func (a *App) castToolTodoList(ctx context.Context, args json.RawMessage) (*ap.T
 		IncludeDone bool `json:"includeDone"`
 	}
 	_ = json.Unmarshal(args, &in)
-	todoStoreMu.RLock()
-	defer todoStoreMu.RUnlock()
-	items := make([]*castTodoItem, 0, len(todoStore))
-	for _, it := range todoStore {
-		if !in.IncludeDone && it.Done {
-			continue
+	var items []*castTodoItem
+	todoStore.Get(func(m map[string]*castTodoItem) {
+		items = make([]*castTodoItem, 0, len(m))
+		for _, it := range m {
+			if !in.IncludeDone && it.Done {
+				continue
+			}
+			items = append(items, it)
 		}
-		items = append(items, it)
-	}
+	})
 	outJSON, _ := json.Marshal(items)
 	return a.recordCastInvocation("cast_todo_list", "todo", "", args, string(outJSON), false, 0), nil
 }
@@ -138,11 +138,11 @@ func (a *App) castToolTodoDone(ctx context.Context, args json.RawMessage) (*ap.T
 	if err := json.Unmarshal(args, &in); err != nil {
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
 	}
-	todoStoreMu.Lock()
-	defer todoStoreMu.Unlock()
-	if it, ok := todoStore[in.ID]; ok {
-		it.Done = true
-	}
+	todoStore.Mutate(func(m map[string]*castTodoItem) {
+		if it, ok := m[in.ID]; ok {
+			it.Done = true
+		}
+	})
 	out := map[string]any{"id": in.ID, "done": true}
 	outJSON, _ := json.Marshal(out)
 	return a.recordCastInvocation("cast_todo_done", "todo", "", args, string(outJSON), false, 0), nil

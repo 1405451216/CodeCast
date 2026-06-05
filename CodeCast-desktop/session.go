@@ -105,7 +105,8 @@ func (a *App) CreateSession(name, skillID, mode string) *Session {
 	session := NewSession(name, skillID)
 	session.Mode = mode
 	a.sessions = append(a.sessions, session)
-	go a.persistSession(session)
+	snapshot := *session
+	go a.persistSession(&snapshot)
 	return deepCopySession(session)
 }
 
@@ -267,7 +268,8 @@ func (a *App) RenameSession(id, newName string) error {
 	for _, s := range a.sessions {
 		if s.ID == id {
 			s.Name = newName
-			go a.persistSession(s)
+			snapshot := *s
+			go a.persistSession(&snapshot)
 			return nil
 		}
 	}

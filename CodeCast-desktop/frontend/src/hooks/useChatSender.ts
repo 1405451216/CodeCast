@@ -4,6 +4,8 @@ import * as api from '../api';
 import { toSession, toMessage } from '../api/types';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 
+import { toError } from '../utils/errors';
+
 // AP StreamRun event types (from chat.go)
 type APStreamEventType = 'content' | 'reasoning' | 'tool_call' | 'tool_result' | 'error' | 'done';
 
@@ -119,13 +121,13 @@ export function useChatSender() {
       if (!streamingRef.current && resp && resp.length > 0) {
         addMessage(toMessage(resp[0]));
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (!streamingRef.current) {
-        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '抱歉，发生了错误: ' + (e.message || e), timestamp: Date.now() });
+        addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '抱歉，发生了错误: ' + (toError(e).message || e), timestamp: Date.now() });
       } else {
         updateLastMessage((last) => {
           if (last && last.role === 'assistant' && !last.content) {
-            return { ...last, content: '抱歉，发生了错误: ' + (e.message || e) };
+            return { ...last, content: '抱歉，发生了错误: ' + (toError(e).message || e) };
           }
           return last;
         });

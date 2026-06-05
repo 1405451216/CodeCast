@@ -125,7 +125,7 @@ func (r *castToolRegistry) recordInvocation(inv CastToolInvocation) {
 }
 
 // castLLM 是 Cast 工具调用 LLM 的统一入口。
-// 复用 createProvider() 拿 AP Provider，构造系统+用户 Prompt，单轮 Complete 返回。
+// 复用 createProviderLocked() 拿 AP Provider，构造系统+用户 Prompt，单轮 Complete 返回。
 // 所有 Cast 内容生成类 Tool 都通过这个函数调 LLM，避免每个 Tool 重复样板代码。
 //
 // The provider is cached and reused across calls; it is refreshed only when
@@ -140,7 +140,7 @@ func (a *App) castLLM(ctx context.Context, systemPrompt, userPrompt string) (str
 		provider = a.cachedProvider
 	} else {
 		var err error
-		provider, err = a.createProvider("")
+		provider, err = a.createProviderLocked("")
 		if err != nil {
 			a.mu.Unlock()
 			return "", fmt.Errorf("create provider: %w", err)

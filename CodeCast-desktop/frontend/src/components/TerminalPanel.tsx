@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import * as api from '../api';
 
+import { toError } from '../utils/errors';
+
 export interface TerminalSession {
   id: string;
   title: string;
@@ -181,8 +183,8 @@ const TerminalPanel = forwardRef<TerminalHandle, TerminalPanelProps>(({
 
       addSystemLine(activeSessionId, '✅ 执行完成');
 
-    } catch (error: any) {
-      const errorMsg = error?.message || '命令执行失败';
+    } catch (error: unknown) {
+      const errorMsg = toError(error).message || '命令执行失败';
       
       setSessions(prev => prev.map(s => {
         if (s.id !== activeSessionId) return s;

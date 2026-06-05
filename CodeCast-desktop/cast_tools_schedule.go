@@ -7,18 +7,14 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	ap "agentprimordia/pkg"
 )
 
-// castScheduleStore 内存中的日程存储。
-// 阶段 3 简化实现：用内存 + AP Memory 持久化。
-// 未来可迁到 AP SQLiteStore 或独立 SQLite 表。
-type castScheduleStore struct {
-	mu    sync.RWMutex
-	tasks map[string]*castScheduleTask
+// castScheduleTaskData is the JSON-serializable content of the schedule store.
+type castScheduleTaskData struct {
+	Tasks map[string]*castScheduleTask `json:"tasks"`
 }
 
 type castScheduleTask struct {
@@ -33,8 +29,7 @@ type castScheduleTask struct {
 	CreatedAt   int64  `json:"createdAt"`
 }
 
-// TODO: scheduled tasks are lost on restart; add persistence (e.g. SQLite or JSON file) so tasks survive app restarts
-var globalScheduleStore = &castScheduleStore{tasks: make(map[string]*castScheduleTask)}
+var globalScheduleStore *castPersistentStore[castScheduleTaskData]
 
 func registerScheduleTools(a *App, toolkit *ap.ToolRegistry) error {
 	tools := []*castTool{
@@ -99,9 +94,9 @@ func (a *App) castToolScheduleCreate(ctx context.Context, args json.RawMessage) 
 		CreatedAt:   time.Now().Unix(),
 		NextRun:     parseNextRun(in.Schedule, 0).Unix(),
 	}
-	globalScheduleStore.mu.Lock()
-	globalScheduleStore.tasks[task.ID] = task
-	globalScheduleStore.mu.Unlock()
+	globalScheduleStore.Mutate(func(d castScheduleTaskData) {
+		d.Tasks[task.ID] = task
+	})
 
 	out := castScheduleCreateResult{ID: task.ID}
 	outJSON, _ := json.Marshal(out)
@@ -116,11 +111,9 @@ func (a *App) castToolScheduleList(ctx context.Context, args json.RawMessage) (*
 		limit = 50
 	}
 
-	globalScheduleStore.mu.RLock()
-	defer globalScheduleStore.mu.RUnlock()
-
-	out := castScheduleListResult{}
-	for _, t := range globalScheduleStore.tasks {
+	var out castScheduleListResult
+	globalScheduleStore.Get(func(d castScheduleTaskData) {
+		for _, t := range d.Tasks {
 		out.Tasks = append(out.Tasks, struct {
 			ID          string `json:"id"`
 			Name        string `json:"name"`
@@ -129,10 +122,11 @@ func (a *App) castToolScheduleList(ctx context.Context, args json.RawMessage) (*
 			NextRun     int64  `json:"nextRun"`
 			Enabled     bool   `json:"enabled"`
 		}{t.ID, t.Name, t.Schedule, t.LastRun, t.NextRun, t.Enabled})
-		if len(out.Tasks) >= limit {
-			break
+			if len(out.Tasks) >= limit {
+				break
+			}
 		}
-	}
+	})
 	outJSON, _ := json.Marshal(out)
 	return a.recordCastInvocation("cast_schedule_list", "schedule", "", args, string(outJSON), false, 0), nil
 }
@@ -142,16 +136,22 @@ func (a *App) castToolScheduleRunNow(ctx context.Context, args json.RawMessage) 
 	if err := json.Unmarshal(args, &in); err != nil {
 		return &ap.ToolResult{Content: "invalid args: " + err.Error(), IsError: true}, nil
 	}
-	globalScheduleStore.mu.Lock()
-	task, ok := globalScheduleStore.tasks[in.TaskID]
-	if !ok {
-		globalScheduleStore.mu.Unlock()
+	var task *castScheduleTask
+	var taskFound bool
+	globalScheduleStore.Mutate(func(d castScheduleTaskData) {
+		var ok bool
+		task, ok = d.Tasks[in.TaskID]
+		if !ok {
+			return
+		}
+		taskFound = true
+		task.LastRun = time.Now().Unix()
+		task.NextRun = parseNextRun(task.Schedule, task.LastRun).Unix()
+	})
+	if !taskFound {
 		return a.recordCastInvocation("cast_schedule_run_now", "schedule", "", args,
 			"task not found: "+in.TaskID, true, 0), nil
 	}
-	task.LastRun = time.Now().Unix()
-	task.NextRun = parseNextRun(task.Schedule, task.LastRun).Unix()
-	globalScheduleStore.mu.Unlock()
 
 	// 异步执行（避免阻塞）
 	go func() {
@@ -194,9 +194,8 @@ func (a *App) runScheduleDispatcher(stop <-chan struct{}) {
 
 func (a *App) dispatchDueTasks(now time.Time) {
 	nowUnix := now.Unix()
-	globalScheduleStore.mu.Lock()
-	defer globalScheduleStore.mu.Unlock()
-	for _, task := range globalScheduleStore.tasks {
+	globalScheduleStore.Mutate(func(d castScheduleTaskData) {
+		for _, task := range d.Tasks {
 		if !task.Enabled || task.NextRun == 0 || task.NextRun > nowUnix {
 			continue
 		}
@@ -212,7 +211,8 @@ func (a *App) dispatchDueTasks(now time.Time) {
 		// 更新 lastRun / nextRun
 		task.LastRun = nowUnix
 		task.NextRun = parseNextRun(task.Schedule, nowUnix).Unix()
-	}
+		}
+	})
 }
 
 func randomHex(n int) string {

@@ -1,5 +1,7 @@
 import * as api from '../api';
 
+import { toError } from './errors';
+
 export interface FileInfo {
   path: string;
   name: string;
@@ -60,8 +62,8 @@ class MultiFileOperations {
           content,
           language: this.detectLanguage(path)
         });
-      } catch (error: any) {
-        errors.push({ path, error: error.message || '读取失败' });
+      } catch (error: unknown) {
+        errors.push({ path, error: toError(error).message || '读取失败' });
       }
     });
 
@@ -88,11 +90,11 @@ class MultiFileOperations {
           path,
           operation: 'write'
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.push({
           success: false,
           path,
-          error: error.message || '写入失败',
+          error: toError(error).message || '写入失败',
           operation: 'write'
         });
       }
@@ -245,11 +247,11 @@ class MultiFileOperations {
         });
 
         console.log(`[MultiFile] Renamed: ${oldPaths[i]} → ${newPaths[i]}`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.push({
           success: false,
           path: oldPaths[i],
-          error: error.message || '重命名失败',
+          error: toError(error).message || '重命名失败',
           operation: 'write'
         });
       }
@@ -268,7 +270,7 @@ class MultiFileOperations {
 
       console.log(`[MultiFile] Created backup: ${backupPath}`);
       return backupPath;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[MultiFile] Backup failed for ${filePath}:`, error);
       throw error;
     }
@@ -285,7 +287,7 @@ class MultiFileOperations {
       });
 
       console.log(`[MultiFile] Restored from backup: ${originalPath}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[MultiFile] Restore failed:`, error);
       throw error;
     }

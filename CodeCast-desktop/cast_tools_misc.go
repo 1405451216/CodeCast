@@ -1,15 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -237,269 +234,14 @@ func (a *App) doOCR(ctx context.Context, in castOCRArgs) (text, model string, in
 		slog.Warn("MultimodalProvider OCR failed, falling back to manual HTTP", "error", mmErr)
 	}
 
-	// 4. 回退：原始 HTTP 实现
-	a.mu.RLock()
-	creds, credsErr := a.resolveCredentialsLocked("")
-	a.mu.RUnlock()
-	if credsErr != nil || creds.APIKey == "" {
-		return "", "", 0, 0, fmt.Errorf("API key not configured (Settings → API Key)")
-	}
-
-	providerID := ""
-	if a.settings != nil {
-		providerID = a.settings.LLMProvider
-	}
-	if providerID == "" {
-		providerID = guessProviderForModel(creds.Model)
-	}
-
-	model = in.Model
-	if model == "" {
-		model = creds.Model
-	}
-
-	switch {
-	case isAnthropicProvider(providerID):
-		return doAnthropicVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
-	case isOpenAIVision(providerID, model):
-		return doOpenAIVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
-	case isGeminiProvider(providerID):
-		return doGeminiVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
-	default:
-		return doOpenAIVision(ctx, creds, model, prompt, imgData, mimeType, maxTokens)
-	}
+	// 4. AP MultimodalProvider 不可用时，返回明确错误
+	// (旧的手写 HTTP vision 实现已移除，统一走 AP MultimodalProvider)
+	return "", "", 0, 0, fmt.Errorf("OCR 需要支持多模态的 AI 模型，当前 Provider 不支持视觉能力。请在设置中切换到支持视觉的模型（如 Claude Sonnet、GPT-4o、Gemini Pro Vision）")
 }
 
-// isOpenAIVision 检测 OpenAI 或 OpenAI 兼容 vision 模型
-func isOpenAIVision(providerID, model string) bool {
-	p := strings.ToLower(providerID)
-	m := strings.ToLower(model)
-	if strings.Contains(p, "openai") || strings.Contains(p, "gpt") {
-		return true
-	}
-	// gpt-4o / gpt-4-vision / o1 都支持 vision
-	return strings.HasPrefix(m, "gpt-4o") ||
-		strings.HasPrefix(m, "gpt-4-vision") ||
-		strings.Contains(m, "vision")
-}
-
-func isGeminiProvider(id string) bool {
-	id = strings.ToLower(id)
-	return strings.Contains(id, "gemini") || strings.Contains(id, "google")
-}
-
-// doAnthropicVision 调用 Anthropic Messages API
-func doAnthropicVision(ctx context.Context, creds APICredentials, model, prompt, imgData, mimeType string, maxTokens int) (text, modelRet string, inTok, outTok int, err error) {
-	baseURL := creds.APIURL
-	if baseURL == "" {
-		baseURL = "https://api.anthropic.com"
-	}
-	baseURL = strings.TrimRight(baseURL, "/")
-	url := baseURL + "/v1/messages"
-
-	reqBody := map[string]any{
-		"model":      model,
-		"max_tokens": maxTokens,
-		"messages": []map[string]any{
-			{
-				"role": "user",
-				"content": []map[string]any{
-					{
-						"type": "image",
-						"source": map[string]any{
-							"type":       "base64",
-							"media_type": mimeType,
-							"data":       imgData,
-						},
-					},
-					{
-						"type": "text",
-						"text": prompt,
-					},
-				},
-			},
-		},
-	}
-
-	bodyJSON, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyJSON))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", creds.APIKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", "", 0, 0, fmt.Errorf("anthropic request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
-	if resp.StatusCode >= 400 {
-		return "", "", 0, 0, fmt.Errorf("anthropic API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
-	}
-
-	var ar struct {
-		Content []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-		} `json:"content"`
-		Usage struct {
-			InputTokens  int `json:"input_tokens"`
-			OutputTokens int `json:"output_tokens"`
-		} `json:"usage"`
-	}
-	if err := json.Unmarshal(respBody, &ar); err != nil {
-		return "", "", 0, 0, fmt.Errorf("parse anthropic response: %w", err)
-	}
-
-	var textBuilder strings.Builder
-	for _, c := range ar.Content {
-		if c.Type == "text" {
-			textBuilder.WriteString(c.Text)
-		}
-	}
-	return textBuilder.String(), model, ar.Usage.InputTokens, ar.Usage.OutputTokens, nil
-}
-
-// doOpenAIVision 调用 OpenAI Chat Completions API（兼容所有 OpenAI 格式第三方）
-func doOpenAIVision(ctx context.Context, creds APICredentials, model, prompt, imgData, mimeType string, maxTokens int) (text, modelRet string, inTok, outTok int, err error) {
-	baseURL := creds.APIURL
-	if baseURL == "" {
-		baseURL = "https://api.openai.com"
-	}
-	baseURL = strings.TrimRight(baseURL, "/")
-	url := baseURL + "/v1/chat/completions"
-
-	// OpenAI 用 data URL 形式传图
-	dataURL := "data:" + mimeType + ";base64," + imgData
-	reqBody := map[string]any{
-		"model": model,
-		"messages": []map[string]any{
-			{
-				"role": "user",
-				"content": []map[string]any{
-					{
-						"type": "image_url",
-						"image_url": map[string]any{
-							"url": dataURL,
-						},
-					},
-					{
-						"type": "text",
-						"text": prompt,
-					},
-				},
-			},
-		},
-		"max_tokens": maxTokens,
-	}
-
-	bodyJSON, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyJSON))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+creds.APIKey)
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", "", 0, 0, fmt.Errorf("openai request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
-	if resp.StatusCode >= 400 {
-		return "", "", 0, 0, fmt.Errorf("openai API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
-	}
-
-	var ar struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-		Usage struct {
-			PromptTokens     int `json:"prompt_tokens"`
-			CompletionTokens int `json:"completion_tokens"`
-		} `json:"usage"`
-	}
-	if err := json.Unmarshal(respBody, &ar); err != nil {
-		return "", "", 0, 0, fmt.Errorf("parse openai response: %w", err)
-	}
-	if len(ar.Choices) == 0 {
-		return "", "", 0, 0, fmt.Errorf("openai returned no choices")
-	}
-	return ar.Choices[0].Message.Content, model, ar.Usage.PromptTokens, ar.Usage.CompletionTokens, nil
-}
-
-// doGeminiVision 调用 Google Gemini generateContent API
-func doGeminiVision(ctx context.Context, creds APICredentials, model, prompt, imgData, mimeType string, maxTokens int) (text, modelRet string, inTok, outTok int, err error) {
-	baseURL := creds.APIURL
-	if baseURL == "" {
-		baseURL = "https://generativelanguage.googleapis.com"
-	}
-	baseURL = strings.TrimRight(baseURL, "/")
-	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent", baseURL, model)
-
-	reqBody := map[string]any{
-		"contents": []map[string]any{
-			{
-				"parts": []map[string]any{
-					{
-						"inline_data": map[string]any{
-							"mime_type": mimeType,
-							"data":      imgData,
-						},
-					},
-					{
-						"text": prompt,
-					},
-				},
-			},
-		},
-		"generationConfig": map[string]any{
-			"maxOutputTokens": maxTokens,
-		},
-	}
-
-	bodyJSON, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyJSON))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-goog-api-key", creds.APIKey)
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", "", 0, 0, fmt.Errorf("gemini request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, MaxResponseSize))
-	if resp.StatusCode >= 400 {
-		return "", "", 0, 0, fmt.Errorf("gemini API %d: %s", resp.StatusCode, truncate(string(respBody), 200))
-	}
-
-	var ar struct {
-		Candidates []struct {
-			Content struct {
-				Parts []struct {
-					Text string `json:"text"`
-				} `json:"parts"`
-			} `json:"content"`
-		} `json:"candidates"`
-		UsageMetadata struct {
-			PromptTokenCount     int `json:"promptTokenCount"`
-			CandidatesTokenCount  int `json:"candidatesTokenCount"`
-		} `json:"usageMetadata"`
-	}
-	if err := json.Unmarshal(respBody, &ar); err != nil {
-		return "", "", 0, 0, fmt.Errorf("parse gemini response: %w", err)
-	}
-	if len(ar.Candidates) == 0 || len(ar.Candidates[0].Content.Parts) == 0 {
-		return "", "", 0, 0, fmt.Errorf("gemini returned no content")
-	}
-	return ar.Candidates[0].Content.Parts[0].Text, model, ar.UsageMetadata.PromptTokenCount, ar.UsageMetadata.CandidatesTokenCount, nil
-}
+// NOTE: doAnthropicVision, doOpenAIVision, doGeminiVision, isOpenAIVision, isGeminiProvider
+// have been removed. All OCR/vision calls now go through AP MultimodalProvider.
+// If the current provider doesn't support vision, doOCR returns a clear error message.
 
 // loadImageAsBase64 读取本地文件或解析 data URL，返回 base64 字符串 + MIME。
 // For local files, it checks that the path is within an allowed project directory.
@@ -549,11 +291,6 @@ func mimeFromExt(ext string) string {
 	default:
 		return ""
 	}
-}
-
-func isAnthropicProvider(id string) bool {
-	id = strings.ToLower(id)
-	return strings.Contains(id, "anthropic") || strings.Contains(id, "claude")
 }
 
 func escapeJSON(s string) string {
