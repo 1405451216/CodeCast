@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../store';
-import type { APMetricsSnapshot } from '../wails/types';
+import type { APMetricsSnapshot, AgentInfo } from '../wails/types';
 
 const I = {
   chevron: (
@@ -44,15 +44,6 @@ interface Step {
   active?: boolean;
 }
 
-const sampleSteps: Step[] = [
-  { id: '1', label: '读取 repository 结构', done: true },
-  { id: '2', label: '分析现有 agents', done: true },
-  { id: '3', label: '识别可优化模式', done: true },
-  { id: '4', label: '生成优化建议报告', done: true, active: true },
-  { id: '5', label: '应用变更', done: false },
-  { id: '6', label: '验证回归', done: false },
-];
-
 /**
  * Claude Code 风格右侧浮动面板
  *  - 默认折叠（仅显示切换按钮）
@@ -61,8 +52,24 @@ const sampleSteps: Step[] = [
 export function RightPanel() {
   const [open, setOpen] = useState(false);
   const currentProject = useAppStore((s) => s.currentProject);
+  const agents = useAppStore((s) => s.agents) as AgentInfo[] | undefined;
+  const currentModel = useAppStore((s) => s.current);
+  const configs = useAppStore((s) => s.configs);
   // metricsSnap is set via onMetricsSnapshot event in App.tsx
   const metricsSnap = useAppStore((s) => (s as unknown as Record<string, unknown>).metricsSnap as APMetricsSnapshot | undefined);
+
+  // Derive context window size from current model config
+  const activeConfig = configs?.find((c) => c.model === currentModel);
+  const maxContext = activeConfig?.maxContext ?? 200_000;
+  const maxContextDisplay = maxContext >= 1000 ? `${(maxContext / 1000).toFixed(0)}k` : String(maxContext);
+
+  // Derive progress steps from agent list
+  const steps: Step[] = (agents ?? []).map((a, i) => ({
+    id: a.id,
+    label: a.title || `Agent ${i + 1}`,
+    done: a.status === 'completed' || a.status === 'done',
+    active: a.status === 'running' || a.status === 'active',
+  }));
 
   // Compute total tokens from metrics snapshot
   const totalTokens = metricsSnap
@@ -163,8 +170,9 @@ export function RightPanel() {
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         <Section icon={I.progress} title="进度" defaultOpen>
+          {steps.length > 0 ? (
           <ol style={{ listStyle: 'none', margin: 0, padding: 0, fontSize: 12 }}>
-            {sampleSteps.map((s) => (
+            {steps.map((s) => (
               <li
                 key={s.id}
                 style={{
@@ -206,6 +214,9 @@ export function RightPanel() {
               </li>
             ))}
           </ol>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--c-textMute)', padding: '4px 0' }}>No active agents</div>
+          )}
         </Section>
 
         <Section icon={I.folder} title="工作文件夹">
@@ -232,7 +243,7 @@ export function RightPanel() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
               <span>窗口</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>200k</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{maxContextDisplay}</span>
             </div>
             <div
               style={{
@@ -243,7 +254,7 @@ export function RightPanel() {
                 overflow: 'hidden',
               }}
             >
-              <div style={{ width: `${Math.min(100, (totalTokens / 200_000) * 100).toFixed(1)}%`, height: '100%', background: 'var(--c-accent)' }} />
+              <div style={{ width: `${Math.min(100, (totalTokens / maxContext) * 100).toFixed(1)}%`, height: '100%', background: 'var(--c-accent)' }} />
             </div>
           </div>
         </Section>

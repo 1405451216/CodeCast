@@ -88,7 +88,20 @@ export function BottomBar() {
   const navigate = useNavigate();
   const model = useAppStore((s) => s.current);
   const thinking = useAppStore((s) => s.planMode);
+  const configs = useAppStore((s) => s.configs);
+  const currentVersion = useAppStore((s) => s.currentVersion);
+  const refreshVersion = useAppStore((s) => s.refreshVersion);
   const metricsSnap = useAppStore((s) => (s as unknown as Record<string, unknown>).metricsSnap as APMetricsSnapshot | undefined);
+
+  // Derive context window from active model config
+  const activeConfig = configs?.find((c) => c.model === model);
+  const maxContext = activeConfig?.maxContext ?? 200_000;
+  const maxContextDisplay = maxContext >= 1000 ? `${(maxContext / 1000).toFixed(0)}k` : String(maxContext);
+
+  // Load version on mount if not yet set
+  useEffect(() => {
+    if (!currentVersion) refreshVersion();
+  }, [currentVersion, refreshVersion]);
 
   // Compute total tokens from metrics
   const totalTokens = metricsSnap
@@ -194,13 +207,13 @@ export function BottomBar() {
           </span>
         </button>
         <span style={{ color: 'var(--c-textMute)' }}>·</span>
-        <span style={{ fontFamily: 'var(--font-mono)' }}>{model || 'Opus 4.5'}</span>
+        <span style={{ fontFamily: 'var(--font-mono)' }}>{model || '—'}</span>
         <span style={{ color: 'var(--c-textMute)' }}>·</span>
-        <span>context {totalTokens > 0 ? tokenStr : '0'}/200k</span>
+        <span>context {totalTokens > 0 ? tokenStr : '0'}/{maxContextDisplay}</span>
         <div style={{ flex: 1 }} />
         <span>Plan</span>
         <span style={{ color: 'var(--c-textMute)' }}>·</span>
-        <span style={{ fontFamily: 'var(--font-mono)' }}>v2.0.0</span>
+        <span style={{ fontFamily: 'var(--font-mono)' }}>v{currentVersion || '…'}</span>
       </div>
 
       {open && (

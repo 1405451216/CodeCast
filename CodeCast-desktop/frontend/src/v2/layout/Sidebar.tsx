@@ -123,36 +123,25 @@ export function Sidebar({ activeId, onSelect }: Props) {
             label: '项目',
             collapsible: true,
             defaultOpen: true,
-            items: projects.length > 0
-              ? projects.map((p) => ({
-                  id: p.id,
-                  label: p.name || p.path.split('/').pop() || p.path,
-                  icon: I.folder,
-                  active: activeId === p.id,
-                }))
-              : [
-                  { id: 'p-codecast', label: 'CodeCast', icon: I.folder, active: activeId === 'p-codecast' },
-                  { id: 'p-blog', label: 'blog-site', icon: I.folder, active: activeId === 'p-blog' },
-                ],
+            items: projects.map((p) => ({
+              id: p.id,
+              label: p.name || p.path.split('/').pop() || p.path,
+              icon: I.folder,
+              active: activeId === p.id,
+            })),
           },
           {
             id: 'scheduled',
             label: '计划任务',
             collapsible: true,
             defaultOpen: true,
-            items: [
-              { id: 's-standup', label: '每日站会简报', icon: I.schedule, badge: '8:00' },
-              { id: 's-weekly', label: '周报汇总', icon: I.schedule, badge: '周五' },
-            ],
+            items: [],
           },
           {
             id: 'artifacts',
             label: '实时 Artifacts',
             collapsible: true,
-            items: [
-              { id: 'a-1', label: '2026Q2 OKR', icon: I.artifact },
-              { id: 'a-2', label: 'API 设计草案', icon: I.artifact },
-            ],
+            items: [],
           },
           {
             id: 'custom',
@@ -173,19 +162,13 @@ export function Sidebar({ activeId, onSelect }: Props) {
             label: '最近使用',
             collapsible: true,
             defaultOpen: true,
-            items: sessions.length > 0
-              ? sessions.slice(0, 8).map((s) => ({
-                  id: s.id,
-                  label: s.name || 'Untitled',
-                  icon: I.chat,
-                  active: currentSessionId === s.id,
-                  onClick: () => handleSessionSelect(s.id),
-                }))
-              : [
-                  { id: 'r-1', label: '修复 Vite 启动问题', icon: I.recent },
-                  { id: 'r-2', label: '重构 WorkspaceFrame', icon: I.recent },
-                  { id: 'r-3', label: '添加 Cast 工作流', icon: I.recent },
-                ],
+            items: sessions.slice(0, 8).map((s) => ({
+              id: s.id,
+              label: s.name || 'Untitled',
+              icon: I.chat,
+              active: currentSessionId === s.id,
+              onClick: () => handleSessionSelect(s.id),
+            })),
           },
         ]
       : [
@@ -211,19 +194,13 @@ export function Sidebar({ activeId, onSelect }: Props) {
             label: '最近使用',
             collapsible: true,
             defaultOpen: true,
-            items: sessions.length > 0
-              ? sessions.slice(0, 8).map((s) => ({
-                  id: s.id,
-                  label: s.name || 'Untitled',
-                  icon: I.chat,
-                  active: currentSessionId === s.id,
-                  onClick: () => handleSessionSelect(s.id),
-                }))
-              : [
-                  { id: 'r-1', label: 'SD session', icon: I.recent, active: activeId === 'r-1' },
-                  { id: 'r-2', label: 'Auth module', icon: I.recent },
-                  { id: 'r-3', label: 'Wails 绑定', icon: I.recent },
-                ],
+            items: sessions.slice(0, 8).map((s) => ({
+              id: s.id,
+              label: s.name || 'Untitled',
+              icon: I.chat,
+              active: currentSessionId === s.id,
+              onClick: () => handleSessionSelect(s.id),
+            })),
           },
         ];
 
