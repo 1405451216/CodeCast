@@ -18,6 +18,7 @@ import { ToastProvider, useToast } from './components/primitives/Toast';
 import { CastEmptyState } from './pages/CastEmptyState';
 import { CodeEmptyState } from './pages/CodeEmptyState';
 import { ChatPage } from './pages/ChatPage';
+import { Window } from './wails/adapter';
 import { CastWritingPage } from './pages/CastWritingPage';
 import { CastTranslationPage } from './pages/CastTranslationPage';
 import { CastKnotePage } from './pages/CastKnotePage';
@@ -108,10 +109,10 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
         toast.show(n.body, n.type === 'error' ? 'danger' : 'info');
       }),
       onMetricsSnapshot((snap) => {
-        useAppStore.setState({ metricsSnap: snap } as Record<string, unknown>);
+        useAppStore.getState().setMetricsSnap(snap);
       }),
       onLifecycleStates((states) => {
-        useAppStore.setState({ agentStates: states } as Record<string, unknown>);
+        useAppStore.getState().setAgentStates(states);
       }),
       onSummaryReady(({ sessionID, summary }) => {
         toast.show(`[${sessionID.slice(0, 8)}] ${summary.slice(0, 40)}…`, 'info');
@@ -128,70 +129,49 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       }),
       // ---- Cost tracking ----
       onCostSummary((cost) => {
-        useAppStore.setState({ costSummary: cost } as Record<string, unknown>);
+        useAppStore.getState().setCostSummary(cost);
       }),
       // ---- Cache stats ----
       onCacheStats((stats) => {
-        useAppStore.setState({ cacheStats: stats } as Record<string, unknown>);
+        useAppStore.getState().setCacheStats(stats);
       }),
       // ---- Agent lifecycle ----
       onAgentStart((p) => {
-        const s = useAppStore.getState() as unknown as Record<string, unknown>;
-        useAppStore.setState({
-          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:start', _ts: Date.now() }],
-        } as Record<string, unknown>);
+        useAppStore.getState().appendAgentEvent({ ...p, _type: 'agent:start', _ts: Date.now() });
       }),
       onAgentStop((p) => {
-        const s = useAppStore.getState() as unknown as Record<string, unknown>;
-        useAppStore.setState({
-          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:stop', _ts: Date.now() }],
-        } as Record<string, unknown>);
+        useAppStore.getState().appendAgentEvent({ ...p, _type: 'agent:stop', _ts: Date.now() });
         if (p.error) toast.show(`Agent 停止: ${p.error}`, 'danger');
       }),
       onAgentError((p) => {
-        const s = useAppStore.getState() as unknown as Record<string, unknown>;
-        useAppStore.setState({
-          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:error', _ts: Date.now() }],
-        } as Record<string, unknown>);
+        useAppStore.getState().appendAgentEvent({ ...p, _type: 'agent:error', _ts: Date.now() });
         toast.show(`Agent 错误: ${p.error || '未知错误'}`, 'danger');
       }),
       onAgentTurn((p) => {
-        const s = useAppStore.getState() as unknown as Record<string, unknown>;
-        useAppStore.setState({
-          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:turn', _ts: Date.now() }],
-        } as Record<string, unknown>);
+        useAppStore.getState().appendAgentEvent({ ...p, _type: 'agent:turn', _ts: Date.now() });
       }),
       onAgentTurnEnd((p) => {
-        const s = useAppStore.getState() as unknown as Record<string, unknown>;
-        useAppStore.setState({
-          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:turn_end', _ts: Date.now() }],
-        } as Record<string, unknown>);
+        useAppStore.getState().appendAgentEvent({ ...p, _type: 'agent:turn_end', _ts: Date.now() });
       }),
       onAgentTool((p) => {
-        const s = useAppStore.getState() as unknown as Record<string, unknown>;
-        useAppStore.setState({
-          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:tool', _ts: Date.now() }],
-        } as Record<string, unknown>);
+        useAppStore.getState().appendAgentEvent({ ...p, _type: 'agent:tool', _ts: Date.now() });
       }),
       onAgentToolResult((p) => {
-        const s = useAppStore.getState() as unknown as Record<string, unknown>;
-        useAppStore.setState({
-          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:tool_result', _ts: Date.now() }],
-        } as Record<string, unknown>);
+        useAppStore.getState().appendAgentEvent({ ...p, _type: 'agent:tool_result', _ts: Date.now() });
       }),
       // ---- LLM events (store only, no toast) ----
       onLLMCall(() => { /* high-frequency, tracked via metricsSnap */ }),
       onLLMResponse(() => { /* high-frequency, tracked via metricsSnap */ }),
       // ---- Pool events ----
       onPoolDispatch((p) => {
-        useAppStore.setState({ poolQueue: (p.queueLength ?? 0) } as Record<string, unknown>);
+        useAppStore.getState().setPoolQueue(p.queueLength ?? 0);
       }),
       onPoolComplete((p) => {
-        useAppStore.setState({ poolQueue: (p.queueLength ?? 0) } as Record<string, unknown>);
+        useAppStore.getState().setPoolQueue(p.queueLength ?? 0);
       }),
       // ---- Environment check ----
       onEnvCheckReport((report) => {
-        useAppStore.setState({ envCheckReport: report } as Record<string, unknown>);
+        useAppStore.getState().setEnvCheckReport(report);
         if (report.OverallStatus !== 'ok') {
           toast.show(`环境问题: ${report.Summary}`, 'warn');
         }
@@ -301,6 +281,9 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
             menuOpen={menuOpen}
             onOpenMenu={openMenu}
             onOpenSearch={() => setPaletteOpen(true)}
+            onMinimize={() => Window.minimise()}
+            onMaximize={() => Window.maximise()}
+            onClose={() => Window.close()}
           />
         }
         sidebar={<Sidebar />}

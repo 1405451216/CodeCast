@@ -18,8 +18,9 @@ import { createWorkflowSlice, type WorkflowSlice } from './slices/workflowSlice'
 import { createPluginSlice, type PluginSlice } from './slices/pluginSlice';
 import { createUpdaterSlice, type UpdaterSlice } from './slices/updaterSlice';
 import { createOrchestrationSlice, type OrchestrationSlice } from './slices/orchestrationSlice';
+import { createRuntimeSlice, type RuntimeSlice } from './slices/runtimeSlice';
 
-export type AppState = & UISlice & SessionSlice & ChatSlice & ModelSlice & ProjectSlice & CastSlice & CastToolSlice & MemorySlice & MCPSlice & GitSlice & SettingsSlice & ErrorsSlice & NotificationSlice & AgentSlice & CostSlice & WorkflowSlice & PluginSlice & UpdaterSlice & OrchestrationSlice;
+export type AppState = & UISlice & SessionSlice & ChatSlice & ModelSlice & ProjectSlice & CastSlice & CastToolSlice & MemorySlice & MCPSlice & GitSlice & SettingsSlice & ErrorsSlice & NotificationSlice & AgentSlice & CostSlice & WorkflowSlice & PluginSlice & UpdaterSlice & OrchestrationSlice & RuntimeSlice;
 export type { AppMode };
 
 export const useAppStore = create<AppState>()((...a) => ({
@@ -42,4 +43,5 @@ export const useAppStore = create<AppState>()((...a) => ({
   ...createPluginSlice(...a),
   ...createUpdaterSlice(...a),
   ...createOrchestrationSlice(...a),
+  ...createRuntimeSlice(...a),
 }));

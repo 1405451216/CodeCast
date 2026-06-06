@@ -14,6 +14,7 @@ export interface CostSlice {
   refreshBudget: () => Promise<void>;
   updateBudget: (config: BudgetConfig) => Promise<void>;
   setLimit: (maxUSD: number) => void;
+  setCostSummary: (summary: CostSummaryData) => void;
 }
 
 export const createCostSlice: StateCreator<CostSlice, [], [], CostSlice> = (set, get) => ({
@@ -70,5 +71,9 @@ export const createCostSlice: StateCreator<CostSlice, [], [], CostSlice> = (set,
 
   setLimit: (maxUSD) => {
     Cost.setLimit(maxUSD);
+  },
+
+  setCostSummary: (summary) => {
+    set({ costSummary: summary });
   },
 });

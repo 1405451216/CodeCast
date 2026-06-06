@@ -56,7 +56,7 @@ export function RightPanel() {
   const currentModel = useAppStore((s) => s.current);
   const configs = useAppStore((s) => s.configs);
   // metricsSnap is set via onMetricsSnapshot event in App.tsx
-  const metricsSnap = useAppStore((s) => (s as unknown as Record<string, unknown>).metricsSnap as APMetricsSnapshot | undefined);
+  const metricsSnap = useAppStore((s) => s.metricsSnap);
 
   // Derive context window size from current model config
   const activeConfig = configs?.find((c) => c.model === currentModel);

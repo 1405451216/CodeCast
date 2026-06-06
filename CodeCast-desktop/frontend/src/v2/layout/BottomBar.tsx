@@ -91,7 +91,7 @@ export function BottomBar() {
   const configs = useAppStore((s) => s.configs);
   const currentVersion = useAppStore((s) => s.currentVersion);
   const refreshVersion = useAppStore((s) => s.refreshVersion);
-  const metricsSnap = useAppStore((s) => (s as unknown as Record<string, unknown>).metricsSnap as APMetricsSnapshot | undefined);
+  const metricsSnap = useAppStore((s) => s.metricsSnap);
 
   // Derive context window from active model config
   const activeConfig = configs?.find((c) => c.model === model);
