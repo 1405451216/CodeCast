@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
+import { useToast } from '../components/primitives/Toast';
 import type { APMetricsSnapshot } from '../wails/types';
 
 interface GatewayItem {
@@ -92,6 +93,10 @@ export function BottomBar() {
   const currentVersion = useAppStore((s) => s.currentVersion);
   const refreshVersion = useAppStore((s) => s.refreshVersion);
   const metricsSnap = useAppStore((s) => s.metricsSnap);
+  const updateKey = useAppStore((s) => s.updateKey);
+  const checkUpdate = useAppStore((s) => s.checkUpdate);
+  const settings = useAppStore((s) => s.settings);
+  const toast = useToast();
 
   // Derive context window from active model config
   const activeConfig = configs?.find((c) => c.model === model);
@@ -113,6 +118,10 @@ export function BottomBar() {
       ? `${(totalTokens / 1000).toFixed(1)}k`
       : String(totalTokens);
 
+  // Current language from settings
+  const currentLang = (settings as Record<string, unknown> | null)?.language as string | undefined;
+  const currentLangLabel = currentLang === 'en-US' ? 'English' : '中文';
+
   const learnChildren = [
     { id: 'about', label: '关于 Anthropic', external: true },
     { id: 'tutorial', label: '教程', external: true },
@@ -124,22 +133,32 @@ export function BottomBar() {
   ];
 
   const langChildren = [
-    { id: 'zh-CN', label: '简体中文' },
-    { id: 'en-US', label: 'English (United States)' },
+    { id: 'zh-CN', label: '简体中文', onClick: () => { updateKey('language', 'zh-CN'); toast.show('语言已切换为简体中文', 'success'); } },
+    { id: 'en-US', label: 'English (United States)', onClick: () => { updateKey('language', 'en-US'); toast.show('Language switched to English', 'success'); } },
   ];
 
   const items: GatewayItem[] = [
     { id: 'settings', label: '设置', desc: '主题、快捷键、API Key', icon: I.settings, onClick: () => { setOpen(false); navigate('/settings'); } },
     {
       id: 'lang', label: '语言', icon: I.lang, onClick: () => { setOpen(false); },
-      right: <span style={{ color: 'var(--c-textMute)', display: 'inline-flex' }}>{I.chevronRight}</span>,
+      right: <span style={{ color: 'var(--c-textMute)', display: 'inline-flex', fontSize: 11, gap: 4 }}>{currentLangLabel}{I.chevronRight}</span>,
       children: langChildren,
     },
     {
       id: 'reasoning', label: '推理配置', icon: I.brain, onClick: () => { setOpen(false); },
       right: <span style={{ fontSize: 11, color: 'var(--c-textMute)' }}>{thinking ? 'On' : 'Off'}</span>,
     },
-    { id: 'changelog', label: '查看更新日志', icon: I.history, onClick: () => { setOpen(false); } },
+    { id: 'changelog', label: '查看更新日志', icon: I.history, onClick: () => {
+      setOpen(false);
+      checkUpdate().then(() => {
+        const info = useAppStore.getState().updateInfo;
+        if (info && info.version !== currentVersion) {
+          toast.show(`最新版本 v${info.version}: ${info.title}`, 'success');
+        } else {
+          toast.show(`当前 v${currentVersion || '…'} 已是最新`, 'info');
+        }
+      });
+    } },
     {
       id: 'learn', label: '了解更多', icon: I.info, onClick: () => { setOpen(false); },
       right: <span style={{ color: 'var(--c-textMute)', display: 'inline-flex' }}>{I.chevronRight}</span>,

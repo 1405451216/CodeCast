@@ -63,7 +63,7 @@ initSentry();
 
 function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: boolean; setPaletteOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
-  const { theme, togglePlanMode, mode, currentSessionId, messages, isStreaming, send, cancel, current, currentVersion } = useAppStore();
+  const { theme, togglePlanMode, mode, currentSessionId, sessions, messages, isStreaming, send, cancel, current, currentVersion, switchSession, updateKey, checkUpdate, updateInfo } = useAppStore();
   const toast = useToast();
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -92,6 +92,23 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
   const handleCancel = useCallback(() => {
     if (currentSessionId) cancel(currentSessionId);
   }, [currentSessionId, cancel]);
+
+  // ---- Session navigation (prev / next) ----
+  const handlePrevSession = useCallback(() => {
+    if (!currentSessionId || sessions.length <= 1) return;
+    const idx = sessions.findIndex((s) => s.id === currentSessionId);
+    const prev = idx > 0 ? sessions[idx - 1] : sessions[sessions.length - 1];
+    switchSession(prev.id);
+  }, [currentSessionId, sessions, switchSession]);
+
+  const handleNextSession = useCallback(() => {
+    if (!currentSessionId || sessions.length <= 1) return;
+    const idx = sessions.findIndex((s) => s.id === currentSessionId);
+    const next = idx < sessions.length - 1 ? sessions[idx + 1] : sessions[0];
+    switchSession(next.id);
+  }, [currentSessionId, sessions, switchSession]);
+
+  const [splitView, setSplitView] = useState(false);
 
   useEffect(() => {
     registerHotkey('mod+k', () => setPaletteOpen(true));
@@ -259,7 +276,17 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       case 'heap-snapshot': toast.show('Write Main Process Heap Snapshot'); break;
       case 'record-mem': toast.show('Record Memory Trace'); break;
       case 'open-docs': window.open('https://docs.anthropic.com/zh-CN/docs/claude-code', '_blank'); break;
-      case 'check-update': toast.show(`检查更新… v${currentVersion || '…'} 已是最新`); break;
+      case 'check-update': {
+        checkUpdate().then(() => {
+          const info = useAppStore.getState().updateInfo;
+          if (info && info.version !== currentVersion) {
+            toast.show(`发现新版本 v${info.version}: ${info.title}`, 'success');
+          } else {
+            toast.show(`v${currentVersion || '…'} 已是最新`, 'info');
+          }
+        });
+        break;
+      }
       case 'get-support': window.open('https://support.anthropic.com', '_blank'); break;
       case 'about': toast.show(`CodeCast v${currentVersion || '…'} · Claude Code 风格前端`); break;
       case 'ext-installed': toast.show('已安装的扩展'); break;
@@ -270,7 +297,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       case 'view-logs': toast.show('查看运行日志'); break;
       case 'report-bug': window.open('https://github.com/anthropics/claude-code/issues', '_blank'); break;
     }
-  }, [navigate, toast]);
+  }, [navigate, toast, checkUpdate, currentVersion]);
 
   return (
     <>
@@ -281,6 +308,9 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
             menuOpen={menuOpen}
             onOpenMenu={openMenu}
             onOpenSearch={() => setPaletteOpen(true)}
+            onPrevSession={handlePrevSession}
+            onNextSession={handleNextSession}
+            onToggleSplit={() => setSplitView((v) => !v)}
             onMinimize={() => Window.minimise()}
             onMaximize={() => Window.maximise()}
             onClose={() => Window.close()}
