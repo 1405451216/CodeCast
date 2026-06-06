@@ -17,6 +17,7 @@ import { mainMenu } from './components/menu/mainMenu';
 import { ToastProvider, useToast } from './components/primitives/Toast';
 import { CastEmptyState } from './pages/CastEmptyState';
 import { CodeEmptyState } from './pages/CodeEmptyState';
+import { ChatPage } from './pages/ChatPage';
 import { CastWritingPage } from './pages/CastWritingPage';
 import { CastTranslationPage } from './pages/CastTranslationPage';
 import { CastKnotePage } from './pages/CastKnotePage';
@@ -37,7 +38,7 @@ initSentry();
 
 function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: boolean; setPaletteOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
-  const { theme, togglePlanMode, mode, currentId, messages, send, cancel, current } = useAppStore();
+  const { theme, togglePlanMode, mode, currentId, messages, isStreaming, send, cancel, current } = useAppStore();
   const toast = useToast();
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -177,7 +178,17 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
               <Route
                 path="/"
                 element={
-                  mode === 'cast' ? (
+                  hasMessages && currentId ? (
+                    <ChatPage
+                      sessionId={currentId}
+                      messages={messages[currentId!] || []}
+                      isStreaming={isStreaming}
+                      model={current || 'Opus 4.5'}
+                      thinking={false}
+                      onSend={handleSend}
+                      onCancel={handleCancel}
+                    />
+                  ) : mode === 'cast' ? (
                     <CastEmptyState
                       onSend={handleSend}
                       onNavigate={navigate}
