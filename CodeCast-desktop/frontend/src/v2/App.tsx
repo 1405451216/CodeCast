@@ -1,0 +1,180 @@
+import { useEffect, useState, useCallback, useRef } from 'react';
+import * as Sentry from '@sentry/react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { initSentry } from './lib/sentry';
+import { applyTheme } from './design/theme';
+import { registerHotkey, unregisterAll } from './lib/hotkeys';
+import { useAppStore } from './store';
+import { WorkspaceFrame } from './layout/WorkspaceFrame';
+import { TopBar } from './layout/TopBar';
+import { Sidebar } from './layout/Sidebar';
+import { BottomBar } from './layout/BottomBar';
+import { ChatArea } from './layout/ChatArea';
+import { RightPanel } from './layout/RightPanel';
+import { CommandPalette } from './components/command/CommandPalette';
+import { MenuPanel, type MenuItem } from './components/menu/MenuPanel';
+import { mainMenu } from './components/menu/mainMenu';
+import { ToastProvider, useToast } from './components/primitives/Toast';
+import { CastEmptyState } from './pages/CastEmptyState';
+import { CodeEmptyState } from './pages/CodeEmptyState';
+import { CastWritingPage } from './pages/CastWritingPage';
+import { CastTranslationPage } from './pages/CastTranslationPage';
+import { CastKnotePage } from './pages/CastKnotePage';
+import { CastSchedulePage } from './pages/CastSchedulePage';
+import { CastEmailPage } from './pages/CastEmailPage';
+import { CastToolsPage } from './pages/CastToolsPage';
+import { SettingsPage } from './pages/SettingsPage';
+
+initSentry();
+
+function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: boolean; setPaletteOpen: (v: boolean) => void }) {
+  const navigate = useNavigate();
+  const { theme, togglePlanMode, mode, currentId, messages } = useAppStore();
+  const toast = useToast();
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+  // 只在"已有对话"时显示右侧浮动面板；新建对话（空状态）不显示
+  const hasMessages = !!currentId && (messages[currentId]?.length ?? 0) > 0;
+
+  useEffect(() => { applyTheme(theme); }, [theme]);
+
+  useEffect(() => {
+    registerHotkey('mod+k', () => setPaletteOpen(true));
+    registerHotkey('mod+p', () => setPaletteOpen(true));
+    registerHotkey('mod+l', () => document.querySelector<HTMLTextAreaElement>('textarea')?.focus());
+    registerHotkey('mod+shift+p', () => togglePlanMode());
+    return () => unregisterAll();
+  }, [togglePlanMode, setPaletteOpen]);
+
+  const openMenu = useCallback(() => {
+    const r = menuBtnRef.current?.getBoundingClientRect();
+    if (r) setMenuAnchor({ x: r.left, y: r.bottom + 4 });
+    setMenuOpen(true);
+  }, []);
+
+  const handleMenuItem = useCallback((it: MenuItem) => {
+    if (it.kind !== 'action') return;
+    const id = it.id;
+    switch (id) {
+      case 'new': navigate('/'); break;
+      case 'settings': navigate('/settings'); break;
+      case 'close-window': window.close(); break;
+      case 'quit': window.close(); break;
+      case 'undo': document.execCommand('undo'); break;
+      case 'redo': document.execCommand('redo'); break;
+      case 'cut': document.execCommand('cut'); break;
+      case 'copy': document.execCommand('copy'); break;
+      case 'paste': document.execCommand('paste'); break;
+      case 'select-all': document.execCommand('selectAll'); break;
+      case 'find': toast.show('查找：' + (window.getSelection()?.toString() || '')); break;
+      case 'reload': window.location.reload(); break;
+      case 'actual-size': (document.body.style as any).zoom = ''; break;
+      case 'zoom-in': (document.body.style as any).zoom = ((Number((document.body.style as any).zoom) || 100) + 10) + '%'; break;
+      case 'zoom-out': (document.body.style as any).zoom = ((Number((document.body.style as any).zoom) || 100) - 10) + '%'; break;
+      case 'copy-url':
+        navigator.clipboard?.writeText(window.location.href);
+        toast.show('已复制 URL', 'success');
+        break;
+      case 'open-mcp-log': toast.show('打开 MCP 日志…（需 Wails 后端）'); break;
+      case 'reload-mcp': toast.show('重新加载 MCP 配置…'); break;
+      case 'config-third-party': navigate('/settings'); break;
+      case 'open-app-config': toast.show('打开应用配置文件…'); break;
+      case 'open-dev-config': toast.show('打开开发者配置文件…'); break;
+      case 'show-devtools': toast.show('显示开发者工具（Wails 后端）'); break;
+      case 'show-all-devtools': toast.show('显示所有开发者工具'); break;
+      case 'enable-main-debugger': toast.show('Enable Main Process Debugger'); break;
+      case 'record-perf': toast.show('Record Performance Trace'); break;
+      case 'heap-snapshot': toast.show('Write Main Process Heap Snapshot'); break;
+      case 'record-mem': toast.show('Record Memory Trace'); break;
+      case 'open-docs': window.open('https://docs.anthropic.com/zh-CN/docs/claude-code', '_blank'); break;
+      case 'check-update': toast.show('检查更新… v2.0.0 已是最新'); break;
+      case 'get-support': window.open('https://support.anthropic.com', '_blank'); break;
+      case 'about': toast.show('CodeCast v2.0.0 · Claude Code 风格前端'); break;
+      case 'ext-installed': toast.show('已安装的扩展'); break;
+      case 'ext-market': toast.show('扩展市场'); break;
+      case 'ext-install-local': toast.show('从本地文件安装扩展'); break;
+      case 'reset-session': toast.show('重置当前会话'); break;
+      case 'clear-cache': toast.show('清除本地缓存'); break;
+      case 'view-logs': toast.show('查看运行日志'); break;
+      case 'report-bug': window.open('https://github.com/anthropics/claude-code/issues', '_blank'); break;
+    }
+  }, [navigate, toast]);
+
+  return (
+    <>
+      <WorkspaceFrame
+        top={
+          <TopBar
+            menuButtonRef={menuBtnRef}
+            menuOpen={menuOpen}
+            onOpenMenu={openMenu}
+            onOpenSearch={() => setPaletteOpen(true)}
+          />
+        }
+        sidebar={<Sidebar />}
+        chat={
+          <ChatArea>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  mode === 'cast' ? (
+                    <CastEmptyState
+                      onSend={() => {}}
+                      onNavigate={navigate}
+                      model="Opus 4.5"
+                      thinking={false}
+                      onCancel={() => {}}
+                    />
+                  ) : (
+                    <CodeEmptyState
+                      onSend={() => {}}
+                      onCancel={() => {}}
+                      model="MiniMax-M3"
+                      sessionName="SD session"
+                      projectName="AgentPrimordia"
+                      thinking={false}
+                    />
+                  )
+                }
+              />
+              <Route path="/cast" element={<CastEmptyState onNavigate={navigate} />} />
+              <Route path="/cast/writing" element={<CastWritingPage />} />
+              <Route path="/cast/translation" element={<CastTranslationPage />} />
+              <Route path="/cast/knowledge" element={<CastKnotePage />} />
+              <Route path="/cast/schedule" element={<CastSchedulePage />} />
+              <Route path="/cast/email" element={<CastEmailPage />} />
+              <Route path="/cast/tools" element={<CastToolsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+          </ChatArea>
+        }
+        rightPanel={hasMessages ? <RightPanel /> : null}
+        bottom={<BottomBar />}
+      />
+      {menuOpen && menuAnchor && (
+        <MenuPanel
+          items={mainMenu}
+          anchor={menuAnchor}
+          align="below"
+          onClose={() => setMenuOpen(false)}
+          onItemClick={handleMenuItem}
+        />
+      )}
+    </>
+  );
+}
+
+export const App = Sentry.withErrorBoundary(function App() {
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  return (
+    <ToastProvider>
+      <BrowserRouter>
+        <AppShell paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onCommand={() => {}} />
+      </BrowserRouter>
+    </ToastProvider>
+  );
+}, { fallback: <div style={{ padding: 24 }}>Something went wrong.</div> });
+

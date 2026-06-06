@@ -4,7 +4,7 @@ import * as App from '../wails/__mocks__/App';
 
 vi.mock('@wailsjs/go/main/App', () => App);
 vi.mock('@wailsjs/runtime/runtime', () => ({
-  EventsOn: vi.fn((_topic: string, _cb: Function) => {}),
+  EventsOn: vi.fn((_topic: string, _cb: (...args: unknown[]) => unknown) => {}),
   EventsOff: vi.fn((_topic: string) => {}),
   EventsEmit: vi.fn(),
 }));

@@ -18,7 +18,7 @@ interface Props {
  *  - 底部：标签栏 + 输入框 + 像素机器人头像
  */
 export function CodeEmptyState({
-  onSend, onCancel, model, sessionName = 'SD session', projectName = 'AgentPrimordia',
+  onSend, onCancel, model, sessionName: _sessionName = 'SD session', projectName: _projectName = 'AgentPrimordia',
   thinking, onToggleEdit,
 }: Props) {
   useError('chat');
