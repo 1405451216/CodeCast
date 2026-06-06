@@ -8,23 +8,23 @@ export interface CastSlice {
   catalog: ToolCatalogItem[];
   recent: CastInvocation[];
   byCategory: Record<string, ToolCatalogItem[]>;
-  loading: boolean;
+  castLoading: boolean;
   loadCatalog: () => Promise<void>;
   loadHistory: (sessionId: string, limit?: number) => Promise<void>;
   invokeTool: (name: string, argsJSON: string) => Promise<string>;
 }
 
 export const createCastSlice: StateCreator<CastSlice, [], [], CastSlice> = (set) => ({
-  catalog: [], recent: [], byCategory: {}, loading: false,
+  catalog: [], recent: [], byCategory: {}, castLoading: false,
 
   loadCatalog: async () => {
-    set({ loading: true });
+    set({ castLoading: true });
     try {
       const catalog = await Cast.catalog();
       const byCategory: Record<string, ToolCatalogItem[]> = {};
       catalog.forEach((t) => { (byCategory[t.category] ||= []).push(t); });
-      set({ catalog, byCategory, loading: false });
-    } catch (e) { set({ loading: false }); reportError('cast', e); }
+      set({ catalog, byCategory, castLoading: false });
+    } catch (e) { set({ castLoading: false }); reportError('cast', e); }
   },
 
   loadHistory: async (sessionId, limit = 50) => {

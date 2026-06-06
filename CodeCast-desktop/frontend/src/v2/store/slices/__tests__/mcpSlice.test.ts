@@ -9,7 +9,7 @@ describe('mcpSlice', () => {
     vi.mocked(App.ToggleMCPServer).mockReset();
     vi.mocked(App.AddMCPServer).mockReset();
     vi.mocked(App.RemoveMCPServer).mockReset();
-    useAppStore.setState({ servers: [], loading: false, errors: {} });
+    useAppStore.setState({ servers: [], mcpLoading: false, errors: {} });
   });
 
   it('refreshMCP: success sets servers', async () => {

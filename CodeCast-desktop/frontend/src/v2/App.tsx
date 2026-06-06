@@ -38,13 +38,13 @@ initSentry();
 
 function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: boolean; setPaletteOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
-  const { theme, togglePlanMode, mode, currentId, messages, isStreaming, send, cancel, current } = useAppStore();
+  const { theme, togglePlanMode, mode, currentSessionId, messages, isStreaming, send, cancel, current } = useAppStore();
   const toast = useToast();
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   // 只在"已有对话"时显示右侧浮动面板；新建对话（空状态）不显示
-  const hasMessages = !!currentId && (messages[currentId]?.length ?? 0) > 0;
+  const hasMessages = !!currentSessionId && (messages[currentSessionId]?.length ?? 0) > 0;
 
   useEffect(() => { applyTheme(theme); }, [theme]);
 
@@ -61,12 +61,12 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
 
   // ---- Message send / cancel wired to real store dispatches ----
   const handleSend = useCallback((text: string) => {
-    if (currentId) send(currentId, text);
-  }, [currentId, send]);
+    if (currentSessionId) send(currentSessionId, text);
+  }, [currentSessionId, send]);
 
   const handleCancel = useCallback(() => {
-    if (currentId) cancel(currentId);
-  }, [currentId, cancel]);
+    if (currentSessionId) cancel(currentSessionId);
+  }, [currentSessionId, cancel]);
 
   useEffect(() => {
     registerHotkey('mod+k', () => setPaletteOpen(true));
@@ -178,10 +178,10 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
               <Route
                 path="/"
                 element={
-                  hasMessages && currentId ? (
+                  hasMessages && currentSessionId ? (
                     <ChatPage
-                      sessionId={currentId}
-                      messages={messages[currentId!] || []}
+                      sessionId={currentSessionId}
+                      messages={messages[currentSessionId!] || []}
                       isStreaming={isStreaming}
                       model={current || 'Opus 4.5'}
                       thinking={false}

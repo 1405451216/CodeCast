@@ -7,7 +7,7 @@ export interface MemorySlice {
   episodes: any[];
   recallResults: any[];
   stats: { totalEpisodes: number; sizeBytes: number };
-  loading: boolean;
+  memoryLoading: boolean;
   searchMemory: (q: string) => Promise<void>;
   refreshMemory: () => Promise<void>;
 }
@@ -16,28 +16,28 @@ export const createMemorySlice: StateCreator<MemorySlice, [], [], MemorySlice> =
   episodes: [],
   recallResults: [],
   stats: { totalEpisodes: 0, sizeBytes: 0 },
-  loading: false,
+  memoryLoading: false,
   searchMemory: async (_q) => {
-    set({ loading: true });
+    set({ memoryLoading: true });
     try {
       const snap: any = await Metrics.snapshot();
       set({
         recallResults: snap.episodes || [],
         stats: { totalEpisodes: snap.totalEpisodes || 0, sizeBytes: snap.memorySizeBytes || 0 },
-        loading: false,
+        memoryLoading: false,
       });
     } catch (e) {
-      set({ loading: false });
+      set({ memoryLoading: false });
       reportError('memory', e);
     }
   },
   refreshMemory: async () => {
-    set({ loading: true });
+    set({ memoryLoading: true });
     try {
       const snap: any = await Metrics.snapshot();
-      set({ stats: { totalEpisodes: snap.totalEpisodes || 0, sizeBytes: snap.memorySizeBytes || 0 }, loading: false });
+      set({ stats: { totalEpisodes: snap.totalEpisodes || 0, sizeBytes: snap.memorySizeBytes || 0 }, memoryLoading: false });
     } catch (e) {
-      set({ loading: false });
+      set({ memoryLoading: false });
       reportError('memory', e);
     }
   },

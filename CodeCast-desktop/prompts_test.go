@@ -5,25 +5,25 @@ import (
 	"testing"
 )
 
-// ==================== PromptBase 完整性测试 ====================
+// ==================== promptBase 完整性测试 ====================
 
 func TestPromptBaseNotEmpty(t *testing.T) {
 	t.Parallel()
-	if PromptBase == "" {
-		t.Fatal("PromptBase should not be empty")
+	if promptBase == "" {
+		t.Fatal("promptBase should not be empty")
 	}
-	if len(PromptBase) < 100 {
-		t.Errorf("PromptBase too short: %d chars", len(PromptBase))
+	if len(promptBase) < 100 {
+		t.Errorf("promptBase too short: %d chars", len(promptBase))
 	}
 }
 
 func TestPromptBaseVersion(t *testing.T) {
 	t.Parallel()
-	if !strings.Contains(PromptBase, "v3.0") {
-		t.Error("PromptBase should contain version v3.0")
+	if !strings.Contains(promptBase, "v3.0") {
+		t.Error("promptBase should contain version v3.0")
 	}
-	if !strings.Contains(PromptBase, "2026-05-24") {
-		t.Error("PromptBase should contain update date")
+	if !strings.Contains(promptBase, "2026-05-24") {
+		t.Error("promptBase should contain update date")
 	}
 }
 
@@ -44,36 +44,36 @@ func TestPromptBaseContainsCoreSections(t *testing.T) {
 	}
 
 	for _, section := range requiredSections {
-		if !strings.Contains(PromptBase, section) {
-			t.Errorf("PromptBase missing required section: %s", section)
+		if !strings.Contains(promptBase, section) {
+			t.Errorf("promptBase missing required section: %s", section)
 		}
 	}
 }
 
-// ==================== PromptCoding 完整性测试 ====================
+// ==================== promptCoding 完整性测试 ====================
 
 func TestPromptCodingNotEmpty(t *testing.T) {
 	t.Parallel()
-	if PromptCoding == "" {
-		t.Fatal("PromptCoding should not be empty")
+	if promptCoding == "" {
+		t.Fatal("promptCoding should not be empty")
 	}
-	if len(PromptCoding) < 500 {
-		t.Errorf("PromptCoding too short: %d chars", len(PromptCoding))
+	if len(promptCoding) < 500 {
+		t.Errorf("promptCoding too short: %d chars", len(promptCoding))
 	}
 }
 
 func TestPromptCodingContainsToolIndex(t *testing.T) {
 	t.Parallel()
-	if !strings.Contains(PromptCoding, "工具索引") {
-		t.Error("PromptCoding should have tool index (not full details)")
+	if !strings.Contains(promptCoding, "工具索引") {
+		t.Error("promptCoding should have tool index (not full details)")
 	}
-	if strings.Contains(PromptCoding, "--- ReadFile(path) ---") {
-		t.Error("PromptCoding should NOT contain detailed tool definitions (those are JIT)")
+	if strings.Contains(promptCoding, "--- ReadFile(path) ---") {
+		t.Error("promptCoding should NOT contain detailed tool definitions (those are JIT)")
 	}
 	requiredTools := []string{"ReadFile", "WriteFile", "ListFiles", "ExecuteCommand", "DispatchAgents"}
 	for _, tool := range requiredTools {
-		if !strings.Contains(PromptCoding, tool) {
-			t.Errorf("PromptCoding missing tool reference: %s", tool)
+		if !strings.Contains(promptCoding, tool) {
+			t.Errorf("promptCoding missing tool reference: %s", tool)
 		}
 	}
 }
@@ -100,8 +100,8 @@ func TestPromptCodingContainsKeyChapters(t *testing.T) {
 	}
 
 	for _, chapter := range chapters {
-		if !strings.Contains(PromptCoding, chapter) {
-			t.Errorf("PromptCoding missing chapter: %s", chapter)
+		if !strings.Contains(promptCoding, chapter) {
+			t.Errorf("promptCoding missing chapter: %s", chapter)
 		}
 	}
 }
@@ -122,7 +122,7 @@ func TestPromptCodingHasTestChapter(t *testing.T) {
 	}
 
 	for _, kw := range testKeywords {
-		if !strings.Contains(PromptCoding, kw) {
+		if !strings.Contains(promptCoding, kw) {
 			t.Errorf("Test chapter missing keyword: %s", kw)
 		}
 	}
@@ -138,21 +138,21 @@ func TestPromptCodingHasPerformanceSection(t *testing.T) {
 	}
 
 	for _, kw := range perfKeywords {
-		if !strings.Contains(PromptCoding, kw) {
+		if !strings.Contains(promptCoding, kw) {
 			t.Errorf("Performance section missing: %s", kw)
 		}
 	}
 }
 
-// ==================== PromptDaily 完整性测试 ====================
+// ==================== promptDaily 完整性测试 ====================
 
 func TestPromptDailyNotEmpty(t *testing.T) {
 	t.Parallel()
-	if PromptDaily == "" {
-		t.Fatal("PromptDaily should not be empty")
+	if promptDaily == "" {
+		t.Fatal("promptDaily should not be empty")
 	}
-	if len(PromptDaily) < 300 {
-		t.Errorf("PromptDaily too short: %d chars", len(PromptDaily))
+	if len(promptDaily) < 300 {
+		t.Errorf("promptDaily too short: %d chars", len(promptDaily))
 	}
 }
 
@@ -168,8 +168,8 @@ func TestPromptDailyContainsPersonality(t *testing.T) {
 	}
 
 	for _, p := range personality {
-		if !strings.Contains(PromptDaily, p) {
-			t.Errorf("PromptDaily missing personality trait: %s", p)
+		if !strings.Contains(promptDaily, p) {
+			t.Errorf("promptDaily missing personality trait: %s", p)
 		}
 	}
 }
@@ -193,87 +193,87 @@ func TestPromptDailyContainsScenarios(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		if !strings.Contains(PromptDaily, s) {
-			t.Errorf("PromptDaily missing scenario: %s", s)
+		if !strings.Contains(promptDaily, s) {
+			t.Errorf("promptDaily missing scenario: %s", s)
 		}
 	}
 }
 
 func TestPromptDailySlimmerThanV2(t *testing.T) {
 	t.Parallel()
-	dailyRunes := []rune(PromptDaily)
+	dailyRunes := []rune(promptDaily)
 	if len(dailyRunes) > 8000 {
-		t.Errorf("PromptDaily seems too long for v3 slimmed version: %d runes", len(dailyRunes))
+		t.Errorf("promptDaily seems too long for v3 slimmed version: %d runes", len(dailyRunes))
 	}
 }
 
-// ==================== ToolDetail 常量完整性 ====================
+// ==================== toolDetail 常量完整性 ====================
 
 func TestToolDetailReadFile(t *testing.T) {
 	t.Parallel()
-	if ToolDetailReadFile == "" {
-		t.Fatal("ToolDetailReadFile should not be empty")
+	if toolDetailReadFile == "" {
+		t.Fatal("toolDetailReadFile should not be empty")
 	}
 	required := []string{"ReadFile", "ListFiles", "GetWorkspaceFiles", "4MB"}
 	for _, r := range required {
-		if !strings.Contains(ToolDetailReadFile, r) {
-			t.Errorf("ToolDetailReadFile missing: %s", r)
+		if !strings.Contains(toolDetailReadFile, r) {
+			t.Errorf("toolDetailReadFile missing: %s", r)
 		}
 	}
 }
 
 func TestToolDetailWriteFile(t *testing.T) {
 	t.Parallel()
-	if ToolDetailWriteFile == "" {
-		t.Fatal("ToolDetailWriteFile should not be empty")
+	if toolDetailWriteFile == "" {
+		t.Fatal("toolDetailWriteFile should not be empty")
 	}
 	required := []string{"WriteFile", "10MB"}
 	for _, r := range required {
-		if !strings.Contains(ToolDetailWriteFile, r) {
-			t.Errorf("ToolDetailWriteFile missing: %s", r)
+		if !strings.Contains(toolDetailWriteFile, r) {
+			t.Errorf("toolDetailWriteFile missing: %s", r)
 		}
 	}
 }
 
 func TestToolDetailCommand(t *testing.T) {
 	t.Parallel()
-	if ToolDetailCommand == "" {
-		t.Fatal("ToolDetailCommand should not be empty")
+	if toolDetailCommand == "" {
+		t.Fatal("toolDetailCommand should not be empty")
 	}
 	required := []string{"ExecuteCommand", "30s", "安全直行", "禁止/授权"}
 	for _, r := range required {
-		if !strings.Contains(ToolDetailCommand, r) {
-			t.Errorf("ToolDetailCommand missing: %s", r)
+		if !strings.Contains(toolDetailCommand, r) {
+			t.Errorf("toolDetailCommand missing: %s", r)
 		}
 	}
 }
 
 func TestToolDetailAgents(t *testing.T) {
 	t.Parallel()
-	if ToolDetailAgents == "" {
-		t.Fatal("ToolDetailAgents should not be empty")
+	if toolDetailAgents == "" {
+		t.Fatal("toolDetailAgents should not be empty")
 	}
-	if !strings.Contains(ToolDetailAgents, "DispatchAgents") {
-		t.Error("ToolDetailAgents missing DispatchAgents")
+	if !strings.Contains(toolDetailAgents, "DispatchAgents") {
+		t.Error("toolDetailAgents missing DispatchAgents")
 	}
 }
 
 func TestPromptBasePlusCodingFormat(t *testing.T) {
 	t.Parallel()
-	combined := PromptBase + "\n\n" + PromptCoding
+	combined := promptBase + "\n\n" + promptCoding
 	if !strings.HasPrefix(combined, "# CodeCast System Prompt v3.0") {
-		t.Error("Combined prompt should start with PromptBase header")
+		t.Error("Combined prompt should start with promptBase header")
 	}
-	baseEndIdx := strings.Index(combined, "\n\n"+strings.TrimSpace(strings.Split(PromptCoding, "\n")[0]))
+	baseEndIdx := strings.Index(combined, "\n\n"+strings.TrimSpace(strings.Split(promptCoding, "\n")[0]))
 	if baseEndIdx < 0 {
-		t.Error("Should find PromptBase followed by PromptCoding")
+		t.Error("Should find promptBase followed by promptCoding")
 	}
 }
 
 func TestPromptBasePlusDailyFormat(t *testing.T) {
 	t.Parallel()
-	combined := PromptBase + "\n\n" + PromptDaily
+	combined := promptBase + "\n\n" + promptDaily
 	if !strings.HasPrefix(combined, "# CodeCast System Prompt v3.0") {
-		t.Error("Combined daily prompt should start with PromptBase header")
+		t.Error("Combined daily prompt should start with promptBase header")
 	}
 }

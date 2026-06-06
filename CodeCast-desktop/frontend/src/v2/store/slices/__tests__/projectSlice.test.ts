@@ -10,7 +10,7 @@ describe('projectSlice', () => {
     vi.mocked(App.SetCurrentProject).mockReset();
     vi.mocked(App.AddProject).mockReset();
     vi.mocked(App.SetNoProjectMode).mockReset();
-    useAppStore.setState({ projects: [], currentId: null, currentProject: null, noProjectMode: false, loading: false, errors: {} });
+    useAppStore.setState({ projects: [], currentProjectId: null, currentProject: null, noProjectMode: false, projectLoading: false, errors: {} });
   });
 
   it('loadProjects: fetches projects and current', async () => {
@@ -24,7 +24,7 @@ describe('projectSlice', () => {
 
     const state = useAppStore.getState();
     expect(state.projects).toHaveLength(2);
-    expect(state.currentId).toBe('p1');
+    expect(state.currentProjectId).toBe('p1');
     expect(state.currentProject?.id).toBe('p1');
   });
 
@@ -39,7 +39,7 @@ describe('projectSlice', () => {
   it('switchProject: calls SetCurrentProject and updates local state', () => {
     useAppStore.getState().switchProject('p2');
     expect(App.SetCurrentProject).toHaveBeenCalledWith('p2');
-    expect(useAppStore.getState().currentId).toBe('p2');
+    expect(useAppStore.getState().currentProjectId).toBe('p2');
   });
 
   it('addProject: calls AddProject and appends to list', async () => {

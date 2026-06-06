@@ -7,22 +7,22 @@ import { reportError } from '../../lib/reportError';
 
 export interface GitSlice {
   status: GitStatus | null;
-  loading: boolean;
+  gitLoading: boolean;
   refreshGit: () => Promise<void>;
   confirmCommit: (filePath: string) => Promise<void>;
 }
 
 export const createGitSlice: StateCreator<GitSlice, [], [], GitSlice> = (set) => ({
   status: null,
-  loading: false,
+  gitLoading: false,
 
   refreshGit: async () => {
-    set({ loading: true });
+    set({ gitLoading: true });
     try {
       const rawStatus = await Git.status();
-      set({ status: parseGitStatus(rawStatus), loading: false });
+      set({ status: parseGitStatus(rawStatus), gitLoading: false });
     } catch (e) {
-      set({ loading: false });
+      set({ gitLoading: false });
       reportError('git', e);
     }
   },

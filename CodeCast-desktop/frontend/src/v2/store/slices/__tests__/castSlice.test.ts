@@ -8,7 +8,7 @@ describe('castSlice', () => {
     vi.mocked(App.GetToolCatalog).mockReset();
     vi.mocked(App.GetToolHistory).mockReset();
     vi.mocked(App.InvokeCastTool).mockReset();
-    useAppStore.setState({ catalog: [], recent: [], byCategory: {}, loading: false, errors: {} });
+    useAppStore.setState({ catalog: [], recent: [], byCategory: {}, castLoading: false, errors: {} });
   });
 
   it('loadCatalog: fetches and groups by category', async () => {

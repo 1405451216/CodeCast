@@ -6,10 +6,10 @@ import type { Project } from '../../wails/types';
 
 export interface ProjectSlice {
   projects: Project[];
-  currentId: string | null;
+  currentProjectId: string | null;
   currentProject: Project | null;
   noProjectMode: boolean;
-  loading: boolean;
+  projectLoading: boolean;
   loadProjects: () => Promise<void>;
   switchProject: (id: string) => void;
   addProject: (path: string) => Promise<Project>;
@@ -17,20 +17,20 @@ export interface ProjectSlice {
 }
 
 export const createProjectSlice: StateCreator<ProjectSlice, [], [], ProjectSlice> = (set) => ({
-  projects: [], currentId: null, currentProject: null, noProjectMode: false, loading: false,
+  projects: [], currentProjectId: null, currentProject: null, noProjectMode: false, projectLoading: false,
 
   loadProjects: async () => {
-    set({ loading: true });
+    set({ projectLoading: true });
     try {
       const [projects, current] = await Promise.all([Projects.list(), Projects.current()]);
-      set({ projects, currentId: current?.id ?? projects[0]?.id ?? null, currentProject: current, loading: false });
-    } catch (e) { set({ loading: false }); reportError('project', e); }
+      set({ projects, currentProjectId: current?.id ?? projects[0]?.id ?? null, currentProject: current, projectLoading: false });
+    } catch (e) { set({ projectLoading: false }); reportError('project', e); }
   },
 
   // Go SetCurrentProject 无返回值，纯前端 + adapter 调用
   switchProject: (id) => {
     Projects.switch(id);
-    set({ currentId: id });
+    set({ currentProjectId: id });
   },
 
   addProject: async (path) => {

@@ -3,9 +3,9 @@ import { useError } from '../../lib/useError';
 
 export function GitPanel() {
   useError('git');
-  const { status, loading, refreshGit } = useAppStore();
+  const { status, gitLoading, refreshGit } = useAppStore();
 
-  if (loading) {
+  if (gitLoading) {
     return <div style={{ padding: 8, fontSize: 12, color: 'var(--c-textMute)' }}>Loading…</div>;
   }
 

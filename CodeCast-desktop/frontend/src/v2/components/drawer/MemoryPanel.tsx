@@ -4,7 +4,7 @@ import { useError } from '../../lib/useError';
 
 export function MemoryPanel() {
   useError('memory');
-  const { stats, loading, refreshMemory } = useAppStore();
+  const { stats, memoryLoading, refreshMemory } = useAppStore();
 
   useEffect(() => { refreshMemory(); }, [refreshMemory]);
 
@@ -17,7 +17,7 @@ export function MemoryPanel() {
   return (
     <div style={{ padding: 8, fontSize: 12, color: 'var(--c-textMute)' }}>
       <div style={{ marginBottom: 4, fontWeight: 500, color: 'var(--c-text)' }}>
-        Memory {loading && <span style={{ color: 'var(--c-textMute)', fontWeight: 400 }}>(loading…)</span>}
+        Memory {memoryLoading && <span style={{ color: 'var(--c-textMute)', fontWeight: 400 }}>(loading…)</span>}
       </div>
       <div>Episodes: {stats.totalEpisodes}</div>
       <div>Size: {sizeStr}</div>

@@ -5,8 +5,8 @@ import { reportError } from '../../lib/reportError';
 
 export interface SessionSlice {
   sessions: Session[];
-  currentId: string | null;
-  loading: boolean;
+  currentSessionId: string | null;
+  sessionLoading: boolean;
   loadSessions: () => Promise<void>;
   createSession: (name: string, skillID?: string, mode?: string) => Promise<Session>;
   switchSession: (id: string) => void;
@@ -17,16 +17,16 @@ export interface SessionSlice {
 
 export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice> = (set) => ({
   sessions: [],
-  currentId: null,
-  loading: false,
+  currentSessionId: null,
+  sessionLoading: false,
 
   loadSessions: async () => {
-    set({ loading: true });
+    set({ sessionLoading: true });
     try {
       const sessions = await Sessions.list();
-      set({ sessions, loading: false, currentId: sessions[0]?.id ?? null });
+      set({ sessions, sessionLoading: false, currentSessionId: sessions[0]?.id ?? null });
     } catch (e) {
-      set({ loading: false });
+      set({ sessionLoading: false });
       reportError('session', e);
     }
   },
@@ -34,7 +34,7 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
   createSession: async (name, skillID = '', mode = '') => {
     try {
       const session = await Sessions.create(name, skillID, mode);
-      set((s) => ({ sessions: [session, ...s.sessions], currentId: session.id }));
+      set((s) => ({ sessions: [session, ...s.sessions], currentSessionId: session.id }));
       return session;
     } catch (e) {
       reportError('session', e);
@@ -42,9 +42,9 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     }
   },
 
-  // Go 没有 SwitchSession 方法，前端自行管理 currentId
+  // Go 没有 SwitchSession 方法，前端自行管理 currentSessionId
   switchSession: (id) => {
-    set({ currentId: id });
+    set({ currentSessionId: id });
   },
 
   deleteSession: async (id) => {
@@ -52,8 +52,8 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
       await Sessions.delete(id);
       set((s) => {
         const sessions = s.sessions.filter((x) => x.id !== id);
-        const currentId = s.currentId === id ? (sessions[0]?.id ?? null) : s.currentId;
-        return { sessions, currentId };
+        const currentSessionId = s.currentSessionId === id ? (sessions[0]?.id ?? null) : s.currentSessionId;
+        return { sessions, currentSessionId };
       });
     } catch (e) {
       reportError('session', e);

@@ -8,7 +8,7 @@ describe('settingsSlice', () => {
   beforeEach(() => {
     vi.mocked(App.GetSettings).mockReset();
     vi.mocked(App.SaveSettings).mockReset();
-    useAppStore.setState({ settings: null, loading: false, errors: {} });
+    useAppStore.setState({ settings: null, settingsLoading: false, errors: {} });
   });
 
   it('load: success populates settings', async () => {

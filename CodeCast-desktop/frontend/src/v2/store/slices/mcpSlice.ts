@@ -6,7 +6,7 @@ import { reportError } from '../../lib/reportError';
 
 export interface MCPSlice {
   servers: MCPStatusEntry[];
-  loading: boolean;
+  mcpLoading: boolean;
   refreshMCP: () => Promise<void>;
   toggle: (id: string, enabled: boolean) => Promise<void>;
   add: (name: string, url: string) => Promise<void>;
@@ -15,14 +15,14 @@ export interface MCPSlice {
 
 export const createMCPSlice: StateCreator<MCPSlice, [], [], MCPSlice> = (set) => ({
   servers: [],
-  loading: false,
+  mcpLoading: false,
 
   refreshMCP: async () => {
-    set({ loading: true });
+    set({ mcpLoading: true });
     try {
-      set({ servers: await MCP.status(), loading: false });
+      set({ servers: await MCP.status(), mcpLoading: false });
     } catch (e) {
-      set({ loading: false });
+      set({ mcpLoading: false });
       reportError('mcp', e);
     }
   },

@@ -3,14 +3,14 @@ import { useError } from '../../lib/useError';
 
 export function MCPPanel() {
   useError('mcp');
-  const { servers, loading, refreshMCP, toggle } = useAppStore();
+  const { servers, mcpLoading, refreshMCP, toggle } = useAppStore();
 
   return (
     <div style={{ padding: 8, fontSize: 12 }}>
       <div style={{ marginBottom: 4, fontWeight: 500, color: 'var(--c-text)' }}>
-        MCP Servers {loading && <span style={{ color: 'var(--c-textMute)', fontWeight: 400 }}>(loading…)</span>}
+        MCP Servers {mcpLoading && <span style={{ color: 'var(--c-textMute)', fontWeight: 400 }}>(loading…)</span>}
       </div>
-      {servers.length === 0 && !loading ? (
+      {servers.length === 0 && !mcpLoading ? (
         <div style={{ color: 'var(--c-textMute)' }}>
           No servers detected
           <button

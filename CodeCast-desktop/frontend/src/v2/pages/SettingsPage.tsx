@@ -635,7 +635,6 @@ function CoworkSection() {
  * ==================================================================== */
 
 function DesktopGeneralSection() {
-  const { settings, updateKey } = useAppStore();
   const [runOnStartup, setRunOnStartup] = useState(false);
   const [systemTray, setSystemTray] = useState(true);
   const [keepAwake, setKeepAwake] = useState(false);

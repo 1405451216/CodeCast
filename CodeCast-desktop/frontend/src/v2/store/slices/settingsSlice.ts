@@ -6,19 +6,19 @@ import { reportError } from '../../lib/reportError';
 
 export interface SettingsSlice {
   settings: Settings | null;
-  loading: boolean;
+  settingsLoading: boolean;
   loadSettings: () => Promise<void>;
   save: (s: Settings) => Promise<void>;
   updateKey: (key: string, value: unknown) => Promise<void>;
 }
 
 export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSlice> = (set) => ({
-  settings: null, loading: false,
+  settings: null, settingsLoading: false,
 
   loadSettings: async () => {
-    set({ loading: true });
-    try { set({ settings: await SettingsAdapter.get(), loading: false }); }
-    catch (e) { set({ loading: false }); reportError('settings', e); }
+    set({ settingsLoading: true });
+    try { set({ settings: await SettingsAdapter.get(), settingsLoading: false }); }
+    catch (e) { set({ settingsLoading: false }); reportError('settings', e); }
   },
 
   save: async (s) => {

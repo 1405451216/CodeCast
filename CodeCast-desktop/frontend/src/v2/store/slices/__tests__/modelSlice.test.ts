@@ -9,7 +9,7 @@ describe('modelSlice', () => {
     vi.mocked(App.GetModelConfigs).mockReset();
     vi.mocked(App.GetSettings).mockReset();
     vi.mocked(App.UpdateSetting).mockReset();
-    useAppStore.setState({ providers: [], configs: [], current: '', loading: false, errors: {} });
+    useAppStore.setState({ providers: [], configs: [], current: '', modelLoading: false, errors: {} });
   });
 
   it('loadModels: fetches providers, configs, and current from settings', async () => {

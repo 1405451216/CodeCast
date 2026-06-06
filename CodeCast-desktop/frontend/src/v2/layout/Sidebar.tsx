@@ -88,7 +88,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
   const setMode = useAppStore((s) => s.setMode);
   const sessions = useAppStore((s) => s.sessions);
   const projects = useAppStore((s) => s.projects);
-  const currentId = useAppStore((s) => s.currentId);
+  const currentSessionId = useAppStore((s) => s.currentSessionId);
   const switchSession = useAppStore((s) => s.switchSession);
   const createSession = useAppStore((s) => s.createSession);
 
@@ -178,7 +178,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
                   id: s.id,
                   label: s.name || 'Untitled',
                   icon: I.chat,
-                  active: currentId === s.id,
+                  active: currentSessionId === s.id,
                   onClick: () => handleSessionSelect(s.id),
                 }))
               : [
@@ -216,7 +216,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
                   id: s.id,
                   label: s.name || 'Untitled',
                   icon: I.chat,
-                  active: currentId === s.id,
+                  active: currentSessionId === s.id,
                   onClick: () => handleSessionSelect(s.id),
                 }))
               : [

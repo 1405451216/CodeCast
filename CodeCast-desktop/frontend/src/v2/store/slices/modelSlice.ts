@@ -8,25 +8,25 @@ export interface ModelSlice {
   providers: ProviderPreset[];
   configs: ModelConfigItem[];
   current: string;
-  loading: boolean;
+  modelLoading: boolean;
   loadModels: () => Promise<void>;
   setCurrent: (model: string) => Promise<void>;
 }
 
 export const createModelSlice: StateCreator<ModelSlice, [], [], ModelSlice> = (set) => ({
-  providers: [], configs: [], current: '', loading: false,
+  providers: [], configs: [], current: '', modelLoading: false,
 
   loadModels: async () => {
-    set({ loading: true });
+    set({ modelLoading: true });
     try {
       const [providers, configs, settings] = await Promise.all([
         Models.providers(),
         Models.configs(),
         SettingsAdapter.get(),
       ]);
-      set({ providers, configs, current: settings?.llm_model ?? '', loading: false });
+      set({ providers, configs, current: settings?.llm_model ?? '', modelLoading: false });
     } catch (e) {
-      set({ loading: false });
+      set({ modelLoading: false });
       reportError('model', e);
     }
   },

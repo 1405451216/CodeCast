@@ -7,7 +7,7 @@ describe('gitSlice', () => {
   beforeEach(() => {
     vi.mocked(App.GetGitStatus).mockReset();
     vi.mocked(App.ConfirmGitCommit).mockReset();
-    useAppStore.setState({ status: null, loading: false, errors: {} });
+    useAppStore.setState({ status: null, gitLoading: false, errors: {} });
   });
 
   it('refreshGit: success parses status', async () => {
