@@ -89,7 +89,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
         useAppStore.setState({ agentStates: states } as Record<string, unknown>);
       }),
       onSummaryReady(({ sessionID, summary }) => {
-        toast.show(`摘要就绪: ${sessionID.slice(0, 8)}…`, 'info');
+        toast.show(`[${sessionID.slice(0, 8)}] ${summary.slice(0, 40)}…`, 'info');
       }),
       onGitCommitConfirm(({ file }) => {
         if (window.confirm(`Git 提交确认: ${file}?`)) {
