@@ -1,10 +1,9 @@
 // frontend/src/v2/store/slices/castSlice.ts
 import type { StateCreator } from 'zustand';
-import type { ToolCatalogItem } from '../../wails/types';
+import type { ToolCatalogItem, CastInvocation } from '../../wails/types';
 import { Cast } from '../../wails/adapter';
 import { reportError } from '../../lib/reportError';
 
-export interface CastInvocation { name: string; args: string; result?: string; at: number }
 export interface CastSlice {
   catalog: ToolCatalogItem[];
   recent: CastInvocation[];
@@ -12,10 +11,12 @@ export interface CastSlice {
   loading: boolean;
   loadCatalog: () => Promise<void>;
   loadHistory: (sessionId: string, limit?: number) => Promise<void>;
+  invokeTool: (name: string, argsJSON: string) => Promise<string>;
 }
 
 export const createCastSlice: StateCreator<CastSlice, [], [], CastSlice> = (set) => ({
   catalog: [], recent: [], byCategory: {}, loading: false,
+
   loadCatalog: async () => {
     set({ loading: true });
     try {
@@ -25,8 +26,18 @@ export const createCastSlice: StateCreator<CastSlice, [], [], CastSlice> = (set)
       set({ catalog, byCategory, loading: false });
     } catch (e) { set({ loading: false }); reportError('cast', e); }
   },
+
   loadHistory: async (sessionId, limit = 50) => {
     try { set({ recent: await Cast.history(sessionId, limit) }); }
     catch (e) { reportError('cast', e); }
+  },
+
+  invokeTool: async (name, argsJSON) => {
+    try {
+      return await Cast.invoke(name, argsJSON);
+    } catch (e) {
+      reportError('cast', e);
+      throw e;
+    }
   },
 });

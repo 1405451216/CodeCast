@@ -1,28 +1,133 @@
-export type Session = { id: string; title: string; projectId?: string; createdAt: number; updatedAt: number };
-export type ModelPreset = { id: string; name: string; apiUrl: string; defaultModel: string; models: string[] };
-export type ToolCatalogItem = { name: string; category: string; description: string };
-export type APMetricsSnapshot = { llmTotalCalls: number; llmTotalErrors: number; toolTotalCalls: number; toolTotalErrors: number; totalTurns: number; totalEpisodes: number; activeAgents: number; poolQueueLength: number; memorySizeBytes: number; tokenUsageByModel: Record<string, { prompt: number; completion: number; total: number }> };
-export type Message = { id: string; role: 'user' | 'assistant' | 'system'; content: string; reasoning?: string };
-export type ToolCall = { id: string; name: string; args: string; result?: string };
+// wails/types.ts — 与 Go 后端结构体 1:1 对齐的类型定义
 
-export interface MCPServerStatus {
+export type Session = {
+  id: string;
   name: string;
-  status: 'connected' | 'disconnected' | 'error';
-  tools: string[];
+  createdAt: number;
+  skillID: string;
+  mode: string;
+  messages: Message[];
+};
+
+export type Message = {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  reasoning?: string;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+};
+
+export type ToolCall = {
+  id: string;
+  name: string;
+  args: string;
+  result?: string;
+};
+
+export type ToolCatalogItem = {
+  name: string;
+  category: string;
+  description: string;
+};
+
+export type CastInvocation = {
+  id: string;
+  toolName: string;
+  category: string;
+  args: string;
+  result: string;
+  isError: boolean;
+  sessionId: string;
+  durationMs: number;
+};
+
+export type APMetricsSnapshot = {
+  llmTotalCalls: number;
+  llmTotalErrors: number;
+  toolTotalCalls: number;
+  toolTotalErrors: number;
+  totalTurns: number;
+  totalEpisodes: number;
+  activeAgents: number;
+  poolQueueLength: number;
+  memorySizeBytes: number;
+  llmLatencyP50: number;
+  llmLatencyP99: number;
+  toolLatencyP50: number;
+  toolLatencyP99: number;
+  tokenUsageByModel: Record<string, { promptTokens: number; completionTokens: number; totalTokens: number }>;
+};
+
+export type ProviderPreset = {
+  id: string;
+  name: string;
+  apiUrl: string;
+  defaultModel: string;
+  models: string[];
+};
+
+export type ModelConfigItem = {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  apiKey: string;
+  apiUrl: string;
+  enabled: boolean;
+  maxContext: number;
+  toolRounds: number;
+  multimodal: boolean;
+};
+
+export interface MCPStatusEntry {
+  id: string;
+  name: string;
+  connected: boolean;
   error?: string;
 }
 
-export interface GitStatus {
-  branch: string;
-  ahead: number;
-  behind: number;
-  dirty: number;
+export interface MCPConnectionResult {
+  success: boolean;
+  message?: string;
+  tools?: string[];
 }
 
-export interface GitCommit {
-  hash: string;
-  message: string;
-  at: number;
+export interface GitStatus {
+  enabled: boolean;
+  branch: string;
+  dirty: boolean;
+  ahead: number;
+  behind: number;
+}
+
+export type Skill = {
+  id: string;
+  name: string;
+  description: string;
+  prompt: string;
+};
+
+export type EnvVar = {
+  key: string;
+  value: string;
+};
+
+export type SlashCommand = {
+  id: string;
+  name: string;
+  description: string;
+  fillText: string;
+};
+
+export interface MCPServer {
+  id: string;
+  name: string;
+  url: string;
+  command?: string;
+  args?: string[];
+  type: string;
+  enabled: boolean;
+  builtin?: boolean;
 }
 
 export interface Settings {
@@ -42,7 +147,39 @@ export interface Settings {
   browser_plugin: string; selenium_installed: boolean; computer_control: boolean;
   telemetry_enabled: boolean; telemetry_endpoint: string;
   sanitizer_enabled: boolean; sanitizer_strategy: string; topic_constraints: string[];
-  mcp_servers: MCPServerStatus[]; model_configs: any[]; env_vars: any[]; slash_commands: any[];
+  mcp_servers: MCPServer[]; model_configs: ModelConfigItem[];
+  env_vars: EnvVar[]; slash_commands: SlashCommand[];
+  archived_sessions: string[];
 }
 
-export type Project = { id: string; name: string; path: string };
+export type Project = {
+  id: string;
+  path: string;
+  name: string;
+  createdAt: number;
+  lastAccessedAt: number;
+  customInstructions: string;
+};
+
+// ---- 通知事件 payload ----
+
+export interface NotificationPayload {
+  title: string;
+  body: string;
+  type: string;
+  persistent?: boolean;
+  actions?: { label: string; action: string }[];
+  session_id?: string;
+}
+
+export interface UpdateProgress {
+  phase: string;
+  percent: number;
+  message: string;
+  downloadURL?: string;
+}
+
+// ---- 向后兼容别名（v1 代码可能引用） ----
+
+/** @deprecated Use ProviderPreset */
+export type ModelPreset = ProviderPreset;

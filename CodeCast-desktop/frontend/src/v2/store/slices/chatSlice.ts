@@ -11,7 +11,7 @@ export interface ChatSlice {
   isStreaming: boolean;
   interrupted: boolean;
   abort: AbortController | null;
-  send: (sessionId: string, text: string, model?: string) => Promise<void>;
+  send: (sessionId: string, text: string, model?: string, thinking?: string) => Promise<void>;
   cancel: (sessionId: string) => void;
   resume: (sessionId: string) => Promise<void>;
 }
@@ -22,12 +22,12 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
   interrupted: false,
   abort: null,
 
-  send: async (sessionId, text, model) => {
+  send: async (sessionId, text, model = '', thinking = '') => {
     set({ isStreaming: true, interrupted: false });
     set((s) => ({
       messages: {
         ...s.messages,
-        [sessionId]: [...(s.messages[sessionId] || []), { id: `u-${Date.now()}`, role: 'user' as const, content: text }],
+        [sessionId]: [...(s.messages[sessionId] || []), { role: 'user' as const, content: text }],
       },
     }));
     const buf = createStreamBuffer({ flushSize: 1, flushIntervalMs: 200 });
@@ -35,6 +35,7 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
       timeoutMs: 60_000,
       onTimeout: () => { set({ isStreaming: false, interrupted: true }); buf.dispose(); guard.dispose(); },
     });
+    let reasoningBuf = '';
     buf.onFlush = (chunk) => {
       set((s) => {
         const list = s.messages[sessionId] || [];
@@ -42,23 +43,60 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
         if (last?.role === 'assistant') {
           return { messages: { ...s.messages, [sessionId]: [...list.slice(0, -1), { ...last, content: (last.content || '') + chunk }] } };
         }
-        return { messages: { ...s.messages, [sessionId]: [...list, { id: `a-${Date.now()}`, role: 'assistant' as const, content: chunk }] } };
+        return { messages: { ...s.messages, [sessionId]: [...list, { role: 'assistant' as const, content: chunk, reasoning: reasoningBuf || undefined }] } };
       });
       guard.reset();
     };
     guard.start();
     const unsubscribe = onStreamChunk(sessionId, (evt) => {
-      if (evt.type === 'content' && evt.content) buf.push(evt.content);
-      if (evt.type === 'done')  { buf.dispose(); guard.dispose(); unsubscribe(); set({ isStreaming: false }); }
-      if (evt.type === 'error') { buf.dispose(); guard.dispose(); unsubscribe(); set({ isStreaming: false, interrupted: true }); }
+      switch (evt.type) {
+        case 'content':
+          if (evt.content) buf.push(evt.content);
+          break;
+        case 'reasoning':
+          reasoningBuf += evt.content ?? '';
+          break;
+        case 'tool_call':
+          set((s) => ({
+            messages: {
+              ...s.messages,
+              [sessionId]: [...(s.messages[sessionId] || []), {
+                role: 'assistant' as const,
+                content: '',
+                tool_calls: [{ id: `tc-${Date.now()}`, name: evt.toolName ?? '', args: evt.args ?? '', result: undefined }],
+              }],
+            },
+          }));
+          break;
+        case 'tool_result':
+          set((s) => {
+            const list = s.messages[sessionId] || [];
+            const last = list[list.length - 1];
+            if (last?.tool_calls?.length) {
+              const tc = [...last.tool_calls];
+              tc[tc.length - 1] = { ...tc[tc.length - 1], result: evt.result ?? evt.content ?? '' };
+              return { messages: { ...s.messages, [sessionId]: [...list.slice(0, -1), { ...last, tool_calls: tc }] } };
+            }
+            return s;
+          });
+          break;
+        case 'done':
+          buf.dispose(); guard.dispose(); unsubscribe();
+          set({ isStreaming: false });
+          break;
+        case 'error':
+          buf.dispose(); guard.dispose(); unsubscribe();
+          set({ isStreaming: false, interrupted: true });
+          if (evt.error) reportError('chat', evt.error);
+          break;
+      }
     });
     try {
-      await Chat.send(sessionId, text, model);
+      await Chat.send(sessionId, text, model, thinking);
     } catch (e) {
       buf.dispose(); guard.dispose(); unsubscribe();
       set({ isStreaming: false, interrupted: true });
       reportError('chat', e);
-      // 不 throw — 由 UI 决定呈现
     }
   },
 
