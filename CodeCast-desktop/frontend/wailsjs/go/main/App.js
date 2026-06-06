@@ -95,3 +95,84 @@ export function GetCheckpoints() { return Promise.resolve([]); }
 export function LoadCheckpoint() { return Promise.resolve(); }
 export function DeleteCheckpoint() { return Promise.resolve(); }
 export function ResolveCheckpoint() {}
+// Browser
+export function IsDomainBlocked() { return Promise.resolve(false); }
+export function GetDomainRules() { return Promise.resolve({}); }
+export function AddBlockedDomain() { return Promise.resolve(); }
+export function RemoveBlockedDomain() { return Promise.resolve(); }
+export function AddAllowedDomain() { return Promise.resolve(); }
+export function RemoveAllowedDomain() { return Promise.resolve(); }
+export function ClearBrowserData() { return Promise.resolve(); }
+export function CheckSeleniumInstalled() { return Promise.resolve({}); }
+// Plugin
+export function ListPlugins() { return Promise.resolve([]); }
+export function LoadPlugin() { return Promise.resolve({}); }
+export function UnloadPlugin() { return Promise.resolve(); }
+export function GetPluginStatus() { return Promise.resolve({}); }
+export function SendPluginMessage() { return Promise.resolve(); }
+export function BroadcastMessage() { return Promise.resolve(); }
+// Workflow
+export function RunWorkflow() { return Promise.resolve(''); }
+export function PauseWorkflow() { return Promise.resolve(); }
+export function ResumeWorkflow() { return Promise.resolve(); }
+export function CancelWorkflow() { return Promise.resolve(); }
+export function GetWorkflowRun() { return Promise.resolve(null); }
+export function ListWorkflowExecutions() { return Promise.resolve([]); }
+export function ExportWorkflow() { return Promise.resolve(''); }
+// Orchestration
+export function RunCodeReviewWorkflow() { return Promise.resolve({}); }
+export function RunRefactoringWorkflow() { return Promise.resolve({}); }
+export function RunTestPipelineWorkflow() { return Promise.resolve({}); }
+export function RunHandoffWorkflow() { return Promise.resolve(''); }
+export function RunParallelAnalysis() { return Promise.resolve({}); }
+export function GetWorkflowStatus() { return Promise.resolve(null); }
+export function ListWorkflowRuns() { return Promise.resolve([]); }
+export function CancelWorkflowRun() { return Promise.resolve(); }
+// Updater
+export function GetCurrentVersion() { return Promise.resolve('0.0.0'); }
+export function CheckForUpdate() { return Promise.resolve(null); }
+export function DownloadUpdate() { return Promise.resolve(''); }
+export function OpenDownloadedFile() { return Promise.resolve(); }
+export function OpenReleasePage() {}
+export function GetChangelog() { return Promise.resolve({}); }
+export function GetUpdateHistory() { return Promise.resolve([]); }
+export function SaveUpdateRecord() { return Promise.resolve(); }
+export function GetAllReleases() { return Promise.resolve([]); }
+export function SilentDownload() {}
+// Cost
+export function GetCostSummary() { return Promise.resolve({}); }
+export function ResetCostTracker() {}
+export function CheckBudgetExceeded() { return Promise.resolve(false); }
+export function GetBudgetConfig() { return Promise.resolve({}); }
+export function SetBudgetConfig() {}
+export function SetBudgetLimit() {}
+// Security
+export function GetSecurityStatus() { return Promise.resolve({}); }
+export function RotateEncryptionKey() { return Promise.resolve(); }
+export function GetKeyRotationInfo() { return Promise.resolve({}); }
+export function CheckAntivirusCompatibility() { return Promise.resolve({}); }
+// Telemetry
+export function GetTelemetryStatus() { return Promise.resolve({}); }
+export function ToggleTelemetry() { return Promise.resolve(); }
+export function SetTelemetryEndpoint() { return Promise.resolve(); }
+// Document
+export function IngestDirectory() { return Promise.resolve({}); }
+export function GetIngestionStatus() { return Promise.resolve({}); }
+// Environment
+export function CheckEnvironment() { return Promise.resolve({}); }
+export function FixEnvironmentIssue() { return Promise.resolve(''); }
+// Multimodal
+export function GetMultimodalCapabilities() { return Promise.resolve({}); }
+export function AnalyzeImage() { return Promise.resolve({}); }
+// Window
+export function WindowMinimise() {}
+export function WindowMaximise() {}
+export function WindowClose() {}
+export function GetPlatform() { return Promise.resolve('windows'); }
+export function GetAvailableEditors() { return Promise.resolve([]); }
+export function GetPreferredEditor() { return Promise.resolve(''); }
+export function SetPreferredEditor() { return Promise.resolve(); }
+export function OpenInEditor() { return Promise.resolve(); }
+export function PopoutWindow() { return Promise.resolve(); }
+export function GetPopoutState() { return Promise.resolve({}); }
+export function WindowSetAlwaysOnTop() {}

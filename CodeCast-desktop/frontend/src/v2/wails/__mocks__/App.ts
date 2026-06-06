@@ -98,3 +98,84 @@ export const GetCheckpoints       = vi.fn(async () => []);
 export const LoadCheckpoint       = vi.fn(async () => undefined);
 export const DeleteCheckpoint     = vi.fn(async () => undefined);
 export const ResolveCheckpoint    = vi.fn(() => undefined);
+// Browser
+export const IsDomainBlocked      = vi.fn(async () => false);
+export const GetDomainRules       = vi.fn(async () => ({}));
+export const AddBlockedDomain     = vi.fn(async () => undefined);
+export const RemoveBlockedDomain  = vi.fn(async () => undefined);
+export const AddAllowedDomain     = vi.fn(async () => undefined);
+export const RemoveAllowedDomain  = vi.fn(async () => undefined);
+export const ClearBrowserData     = vi.fn(async () => undefined);
+export const CheckSeleniumInstalled = vi.fn(async () => false);
+// Plugin
+export const ListPlugins          = vi.fn(async () => []);
+export const LoadPlugin           = vi.fn(async () => undefined);
+export const UnloadPlugin         = vi.fn(async () => undefined);
+export const GetPluginStatus      = vi.fn(async () => null);
+export const SendPluginMessage    = vi.fn(async () => undefined);
+export const BroadcastMessage     = vi.fn(async () => undefined);
+// Workflow
+export const RunWorkflow          = vi.fn(async () => '');
+export const PauseWorkflow        = vi.fn(async () => undefined);
+export const ResumeWorkflow       = vi.fn(async () => undefined);
+export const CancelWorkflow        = vi.fn(async () => undefined);
+export const GetWorkflowRun       = vi.fn(async () => null);
+export const ListWorkflowExecutions = vi.fn(async () => []);
+export const ExportWorkflow       = vi.fn(async () => '');
+// Orchestration
+export const RunCodeReviewWorkflow  = vi.fn(async () => null);
+export const RunRefactoringWorkflow = vi.fn(async () => null);
+export const RunTestPipelineWorkflow = vi.fn(async () => null);
+export const RunHandoffWorkflow     = vi.fn(async () => null);
+export const RunParallelAnalysis    = vi.fn(async () => null);
+export const GetWorkflowStatus      = vi.fn(async () => null);
+export const ListWorkflowRuns       = vi.fn(async () => []);
+export const CancelWorkflowRun      = vi.fn(async () => undefined);
+// Updater
+export const GetCurrentVersion    = vi.fn(async () => '0.0.0');
+export const CheckForUpdate       = vi.fn(async () => null);
+export const DownloadUpdate       = vi.fn(async () => undefined);
+export const OpenDownloadedFile   = vi.fn(async () => undefined);
+export const OpenReleasePage      = vi.fn(() => undefined);
+export const GetChangelog         = vi.fn(async () => null);
+export const GetUpdateHistory     = vi.fn(async () => []);
+export const SaveUpdateRecord     = vi.fn(async () => undefined);
+export const GetAllReleases       = vi.fn(async () => []);
+export const SilentDownload       = vi.fn(async () => '');
+// Cost
+export const GetCostSummary       = vi.fn(async () => null);
+export const ResetCostTracker     = vi.fn(async () => undefined);
+export const CheckBudgetExceeded  = vi.fn(async () => false);
+export const GetBudgetConfig      = vi.fn(async () => null);
+export const SetBudgetConfig      = vi.fn(async () => undefined);
+export const SetBudgetLimit       = vi.fn(() => undefined);
+// Security
+export const GetSecurityStatus    = vi.fn(async () => null);
+export const RotateEncryptionKey  = vi.fn(async () => undefined);
+export const GetKeyRotationInfo   = vi.fn(async () => null);
+export const CheckAntivirusCompatibility = vi.fn(async () => null);
+// Telemetry
+export const GetTelemetryStatus   = vi.fn(async () => null);
+export const ToggleTelemetry      = vi.fn(async () => undefined);
+export const SetTelemetryEndpoint = vi.fn(async () => undefined);
+// Document
+export const IngestDirectory      = vi.fn(async () => null);
+export const GetIngestionStatus   = vi.fn(async () => null);
+// Environment
+export const CheckEnvironment     = vi.fn(async () => null);
+export const FixEnvironmentIssue  = vi.fn(async () => undefined);
+// Multimodal
+export const GetMultimodalCapabilities = vi.fn(async () => null);
+export const AnalyzeImage         = vi.fn(async () => null);
+// Window
+export const WindowMinimise       = vi.fn(() => undefined);
+export const WindowMaximise       = vi.fn(() => undefined);
+export const WindowClose          = vi.fn(() => undefined);
+export const GetPlatform          = vi.fn(async () => '');
+export const GetAvailableEditors  = vi.fn(async () => []);
+export const GetPreferredEditor   = vi.fn(async () => '');
+export const SetPreferredEditor   = vi.fn(async () => undefined);
+export const OpenInEditor         = vi.fn(async () => undefined);
+export const PopoutWindow         = vi.fn(async () => undefined);
+export const GetPopoutState       = vi.fn(async () => null);
+export const WindowSetAlwaysOnTop = vi.fn(() => undefined);

@@ -310,6 +310,198 @@ export interface CheckpointInfo {
   CreatedAt: string;
 }
 
+// ---- Plugin subsystem ----
+
+export interface PluginInfoData {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  loaded: boolean;
+  path: string;
+}
+
+export interface PluginStatusData {
+  loadedPlugins: number;
+  totalPlugins: number;
+  httpTransportRunning: boolean;
+}
+
+// ---- Workflow subsystem ----
+
+export interface WorkflowRunData {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  error?: string;
+  output?: string;
+  duration?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ---- Orchestration subsystem ----
+
+export interface OrchestrationRun {
+  runId: string;
+  type: string;
+  sessionId: string;
+  status: string;
+  error?: string;
+  result?: unknown;
+  createdAt: string;
+}
+
+export interface CodeReviewResult {
+  issues: Array<{ severity: string; line: number; message: string; suggestion?: string }>;
+  summary: string;
+  score: number;
+}
+
+export interface RefactoringResult {
+  refactoredCode: string;
+  changes: Array<{ description: string; line: number }>;
+  summary: string;
+}
+
+export interface TestPipelineResult {
+  testsGenerated: number;
+  testsPassed: number;
+  testsFailed: number;
+  coverage: number;
+  output: string;
+}
+
+export interface ParallelAnalysisResult {
+  analyses: Array<{ type: string; result: string }>;
+  summary: string;
+}
+
+// ---- Updater subsystem ----
+
+export interface UpdateInfo {
+  version: string;
+  title: string;
+  releaseNotes: string;
+  publishedAt: string;
+  downloadURL: string;
+  platform: string;
+  size: number;
+}
+
+export interface UpdateRecord {
+  fromVersion: string;
+  toVersion: string;
+  success: boolean;
+  notes: string;
+  updatedAt: string;
+}
+
+export interface Changelog {
+  version: string;
+  notes: string;
+  publishedAt: string;
+  htmlContent: string;
+}
+
+// ---- Cost subsystem ----
+
+export interface CostSummaryData {
+  totalCostUSD: number;
+  sessionCostUSD: number;
+  tokenUsage: Record<string, number>;
+  budgetExceeded: boolean;
+}
+
+export interface BudgetConfig {
+  maxCostUSD: number;
+  alertThreshold: number;
+  enforcementEnabled: boolean;
+}
+
+// ---- Security subsystem ----
+
+export interface SecurityStatus {
+  encryptionEnabled: boolean;
+  keyRotationDue: boolean;
+  lastKeyRotation: string;
+  sandboxEnabled: boolean;
+  aclEntries: number;
+}
+
+export interface KeyRotationInfo {
+  lastRotation: string;
+  nextDue: string;
+  rotationInterval: string;
+}
+
+// ---- Telemetry subsystem ----
+
+export interface TelemetryStatus {
+  enabled: boolean;
+  endpoint: string;
+  eventsSent: number;
+  lastSentAt: string;
+}
+
+// ---- Document pipeline subsystem ----
+
+export interface IngestionResult {
+  filesProcessed: number;
+  filesSkipped: number;
+  totalSizeBytes: number;
+  durationMs: number;
+  errors: string[];
+}
+
+export interface IngestionStatus {
+  running: boolean;
+  filesProcessed: number;
+  currentFile: string;
+}
+
+// ---- Environment check subsystem ----
+
+export interface EnvCheckReportData {
+  Timestamp: string;
+  Checks: EnvCheckResultData[];
+  OverallStatus: string;
+  Summary: string;
+}
+
+export interface EnvCheckResultData {
+  Name: string;
+  Status: string;
+  Message: string;
+  Severity: string;
+}
+
+// ---- Multimodal subsystem ----
+
+export interface ImageAnalysisResult {
+  description: string;
+  objects: string[];
+  text: string;
+  confidence: number;
+}
+
+export interface MultimodalCapabilities {
+  imageAnalysis: boolean;
+  supportedFormats: string[];
+  maxImageSizeMB: number;
+}
+
+// ---- Window subsystem ----
+
+export interface EditorInfo {
+  id: string;
+  name: string;
+  path: string;
+  installed: boolean;
+}
+
 // ---- 向后兼容别名（v1 代码可能引用） ----
 
 /** @deprecated Use ProviderPreset */

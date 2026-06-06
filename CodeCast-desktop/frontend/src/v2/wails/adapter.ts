@@ -6,6 +6,17 @@ import type {
   MCPStatusEntry, MCPConnectionResult, GitStatus,
   Settings as SettingsType, APMetricsSnapshot,
   AgentInfo, CheckpointInfo,
+  PluginInfoData, PluginStatusData,
+  WorkflowRunData,
+  OrchestrationRun, CodeReviewResult, RefactoringResult, TestPipelineResult, ParallelAnalysisResult,
+  UpdateInfo, UpdateRecord, Changelog,
+  CostSummaryData, BudgetConfig,
+  SecurityStatus,
+  TelemetryStatus,
+  IngestionResult, IngestionStatus,
+  EnvCheckReportData,
+  ImageAnalysisResult, MultimodalCapabilities,
+  EditorInfo,
 } from './types';
 
 // ---- Session ----
@@ -154,4 +165,132 @@ export const Checkpoint = {
   load:    (checkpointID: string) => App.LoadCheckpoint(checkpointID),
   remove:  (checkpointID: string) => App.DeleteCheckpoint(checkpointID),
   resolve: (checkpointID: string, approved: boolean) => App.ResolveCheckpoint(checkpointID, approved),
+};
+
+// ---- Browser ----
+export const Browser = {
+  isDomainBlocked:    (url: string): Promise<boolean> => App.IsDomainBlocked(url),
+  getDomainRules:     (): Promise<Record<string, unknown>> => App.GetDomainRules() as Promise<Record<string, unknown>>,
+  addBlockedDomain:  (domain: string) => App.AddBlockedDomain(domain),
+  removeBlockedDomain: (domain: string) => App.RemoveBlockedDomain(domain),
+  addAllowedDomain:  (domain: string) => App.AddAllowedDomain(domain),
+  removeAllowedDomain: (domain: string) => App.RemoveAllowedDomain(domain),
+  clearBrowserData:  () => App.ClearBrowserData(),
+  checkSelenium:     (): Promise<Record<string, unknown>> => App.CheckSeleniumInstalled() as Promise<Record<string, unknown>>,
+};
+
+// ---- Plugin ----
+export const Plugin = {
+  list:    (): Promise<PluginInfoData[]> => App.ListPlugins() as Promise<PluginInfoData[]>,
+  load:    (path: string): Promise<PluginInfoData> => App.LoadPlugin(path) as Promise<PluginInfoData>,
+  unload:  (id: string) => App.UnloadPlugin(id),
+  status:  (): Promise<PluginStatusData> => App.GetPluginStatus() as Promise<PluginStatusData>,
+  sendMessage: (agentID: string, content: string) => App.SendPluginMessage(agentID, content),
+  broadcast: (content: string) => App.BroadcastMessage(content),
+};
+
+// ---- Workflow ----
+export const Workflow = {
+  run:    (json: string): Promise<string> => App.RunWorkflow(json),
+  pause:  (runID: string) => App.PauseWorkflow(runID),
+  resume: (runID: string) => App.ResumeWorkflow(runID),
+  cancel: (runID: string) => App.CancelWorkflow(runID),
+  getRun: (runID: string): Promise<WorkflowRunData | null> => App.GetWorkflowRun(runID) as Promise<WorkflowRunData | null>,
+  list:   (): Promise<WorkflowRunData[]> => App.ListWorkflowExecutions() as Promise<WorkflowRunData[]>,
+  export: (runID: string): Promise<string> => App.ExportWorkflow(runID),
+};
+
+// ---- Orchestration ----
+export const Orchestration = {
+  codeReview:       (sessionID: string, code: string): Promise<CodeReviewResult> =>
+                      App.RunCodeReviewWorkflow(sessionID, code) as Promise<CodeReviewResult>,
+  refactoring:      (sessionID: string, code: string): Promise<RefactoringResult> =>
+                      App.RunRefactoringWorkflow(sessionID, code) as Promise<RefactoringResult>,
+  testPipeline:     (sessionID: string, code: string): Promise<TestPipelineResult> =>
+                      App.RunTestPipelineWorkflow(sessionID, code) as Promise<TestPipelineResult>,
+  handoff:          (sessionID: string, message: string): Promise<string> =>
+                      App.RunHandoffWorkflow(sessionID, message),
+  parallelAnalysis: (sessionID: string, input: string): Promise<ParallelAnalysisResult> =>
+                      App.RunParallelAnalysis(sessionID, input) as Promise<ParallelAnalysisResult>,
+  getStatus:        (runID: string): Promise<OrchestrationRun | null> =>
+                      App.GetWorkflowStatus(runID) as Promise<OrchestrationRun | null>,
+  listRuns:         (): Promise<OrchestrationRun[]> =>
+                      App.ListWorkflowRuns() as Promise<OrchestrationRun[]>,
+  cancelRun:        (runID: string) => App.CancelWorkflowRun(runID),
+};
+
+// ---- Updater ----
+export const Updater = {
+  currentVersion:  (): Promise<string> => App.GetCurrentVersion(),
+  check:           (): Promise<UpdateInfo | null> => App.CheckForUpdate() as Promise<UpdateInfo | null>,
+  download:        (url: string): Promise<string> => App.DownloadUpdate(url),
+  openDownloaded:  (path: string) => App.OpenDownloadedFile(path),
+  openReleasePage: () => { App.OpenReleasePage(); },
+  changelog:       (notes: string, version: string, publishedAt: string): Promise<Changelog> =>
+                     App.GetChangelog(notes, version, publishedAt) as Promise<Changelog>,
+  history:         (): Promise<UpdateRecord[]> => App.GetUpdateHistory() as Promise<UpdateRecord[]>,
+  saveRecord:      (from: string, to: string, success: boolean, notes: string) =>
+                     App.SaveUpdateRecord(from, to, success, notes),
+  allReleases:     (limit: number): Promise<UpdateInfo[]> => App.GetAllReleases(limit) as Promise<UpdateInfo[]>,
+  silentDownload:  (url: string) => { App.SilentDownload(url); },
+};
+
+// ---- Cost ----
+export const Cost = {
+  summary:        (): Promise<CostSummaryData> => App.GetCostSummary() as Promise<CostSummaryData>,
+  reset:          () => { App.ResetCostTracker(); },
+  budgetExceeded: (): Promise<boolean> => App.CheckBudgetExceeded(),
+  getBudget:      (): Promise<BudgetConfig> => App.GetBudgetConfig() as Promise<BudgetConfig>,
+  setBudget:      (config: BudgetConfig) => { App.SetBudgetConfig(config); },
+  setLimit:       (maxUSD: number) => { App.SetBudgetLimit(maxUSD); },
+};
+
+// ---- Security ----
+export const Security = {
+  status:       (): Promise<SecurityStatus> => App.GetSecurityStatus() as Promise<SecurityStatus>,
+  rotateKey:    () => App.RotateEncryptionKey(),
+  keyInfo:      (): Promise<Record<string, unknown>> => App.GetKeyRotationInfo() as Promise<Record<string, unknown>>,
+  checkAntivirus: (): Promise<Record<string, unknown>> => App.CheckAntivirusCompatibility() as Promise<Record<string, unknown>>,
+};
+
+// ---- Telemetry ----
+export const Telemetry = {
+  status:        (): Promise<TelemetryStatus> => App.GetTelemetryStatus() as Promise<TelemetryStatus>,
+  toggle:        (enabled: boolean) => App.ToggleTelemetry(enabled),
+  setEndpoint:   (endpoint: string) => App.SetTelemetryEndpoint(endpoint),
+};
+
+// ---- Document ----
+export const Document = {
+  ingest:        (dirPath: string, config: Record<string, unknown>): Promise<IngestionResult> =>
+                   App.IngestDirectory(dirPath, config) as Promise<IngestionResult>,
+  status:        (): Promise<IngestionStatus> => App.GetIngestionStatus() as Promise<IngestionStatus>,
+};
+
+// ---- Environment ----
+export const Environment = {
+  check:    (): Promise<EnvCheckReportData> => App.CheckEnvironment() as Promise<EnvCheckReportData>,
+  fixIssue: (name: string): Promise<string> => App.FixEnvironmentIssue(name),
+};
+
+// ---- Multimodal ----
+export const Multimodal = {
+  capabilities: (): Promise<MultimodalCapabilities> => App.GetMultimodalCapabilities() as Promise<MultimodalCapabilities>,
+  analyzeImage: (imagePath: string, prompt: string): Promise<ImageAnalysisResult> =>
+                  App.AnalyzeImage(imagePath, prompt) as Promise<ImageAnalysisResult>,
+};
+
+// ---- Window ----
+export const Window = {
+  minimise:     () => { App.WindowMinimise(); },
+  maximise:     () => { App.WindowMaximise(); },
+  close:        () => { App.WindowClose(); },
+  platform:     (): Promise<string> => App.GetPlatform(),
+  editors:      (): Promise<EditorInfo[]> => App.GetAvailableEditors() as Promise<EditorInfo[]>,
+  preferredEditor: (): Promise<string> => App.GetPreferredEditor(),
+  setEditor:    (editorID: string) => App.SetPreferredEditor(editorID),
+  openInEditor: (dirPath: string) => App.OpenInEditor(dirPath),
+  popout:       () => App.PopoutWindow(),
+  popoutState:  (): Promise<Record<string, unknown>> => App.GetPopoutState() as Promise<Record<string, unknown>>,
+  setAlwaysOnTop: (onTop: boolean) => { App.WindowSetAlwaysOnTop(onTop); },
 };
