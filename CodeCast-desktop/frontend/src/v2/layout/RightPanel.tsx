@@ -1,0 +1,307 @@
+import { useState } from 'react';
+import { useAppStore } from '../store';
+import type { APMetricsSnapshot } from '../wails/types';
+
+const I = {
+  chevron: (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="m4 3 2 3-2 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  check: (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="m2.5 6.5 2 2 5-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  progress: (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M8 4v4l2.5 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  ),
+  folder: (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <path d="M2 4.5C2 3.67 2.67 3 3.5 3h2.59c.46 0 .9.18 1.22.5L8 4.18c.32.32.76.5 1.22.5h3.28c.83 0 1.5.67 1.5 1.5v6.32c0 .83-.67 1.5-1.5 1.5h-10c-.83 0-1.5-.67-1.5-1.5V4.5Z" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  ),
+  context: (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M2 6h12M5 9h6M5 11h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  ),
+  collapse: (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="m4 3-2 3 2 3M8 3l2 3-2 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
+interface Step {
+  id: string;
+  label: string;
+  done: boolean;
+  active?: boolean;
+}
+
+const sampleSteps: Step[] = [
+  { id: '1', label: '读取 repository 结构', done: true },
+  { id: '2', label: '分析现有 agents', done: true },
+  { id: '3', label: '识别可优化模式', done: true },
+  { id: '4', label: '生成优化建议报告', done: true, active: true },
+  { id: '5', label: '应用变更', done: false },
+  { id: '6', label: '验证回归', done: false },
+];
+
+/**
+ * Claude Code 风格右侧浮动面板
+ *  - 默认折叠（仅显示切换按钮）
+ *  - 展开后：进度 / 工作文件夹 / 上下文
+ */
+export function RightPanel() {
+  const [open, setOpen] = useState(false);
+  const currentProject = useAppStore((s) => s.currentProject);
+  // metricsSnap is set via onMetricsSnapshot event in App.tsx
+  const metricsSnap = useAppStore((s) => (s as unknown as Record<string, unknown>).metricsSnap as APMetricsSnapshot | undefined);
+
+  // Compute total tokens from metrics snapshot
+  const totalTokens = metricsSnap
+    ? Object.values(metricsSnap.tokenUsageByModel || {}).reduce((sum, m) => sum + m.totalTokens, 0)
+    : 0;
+  const tokenDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : String(totalTokens);
+  const workDir = currentProject?.path ?? '~/';
+
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        title="打开进度 / 工作文件夹 / 上下文"
+        style={{
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          width: 32,
+          height: 32,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--c-surface)',
+          border: '1px solid var(--c-border)',
+          borderRadius: 'var(--r-md)',
+          color: 'var(--c-textSub)',
+          cursor: 'pointer',
+          boxShadow: 'var(--shadow-sm)',
+          zIndex: 5,
+          transition: 'all var(--dur-fast) var(--ease)',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--c-surface-hover)'; e.currentTarget.style.color = 'var(--c-text)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--c-surface)'; e.currentTarget.style.color = 'var(--c-textSub)'; }}
+      >
+        {I.collapse}
+      </button>
+    );
+  }
+
+  return (
+    <aside
+      style={{
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        bottom: 12,
+        width: 'var(--right-panel-w)',
+        maxWidth: 'calc(100% - 24px)',
+        background: 'var(--c-surface)',
+        border: '1px solid var(--c-border)',
+        borderRadius: 'var(--r-lg)',
+        boxShadow: 'var(--shadow-pop)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        zIndex: 5,
+        animation: 'slideInRight var(--dur-base) var(--ease)',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '10px 12px',
+          borderBottom: '1px solid var(--c-divider)',
+          fontSize: 12,
+          fontWeight: 500,
+          color: 'var(--c-textSub)',
+        }}
+      >
+        <span style={{ fontFamily: 'var(--font-mono)' }}>context/</span>
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setOpen(false)}
+          aria-label="折叠面板"
+          style={{
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent',
+            border: 'none',
+            borderRadius: 'var(--r-sm)',
+            color: 'var(--c-textMute)',
+            cursor: 'pointer',
+            transform: 'rotate(180deg)',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--c-surface-hover)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
+          {I.collapse}
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        <Section icon={I.progress} title="进度" defaultOpen>
+          <ol style={{ listStyle: 'none', margin: 0, padding: 0, fontSize: 12 }}>
+            {sampleSteps.map((s) => (
+              <li
+                key={s.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '5px 0',
+                  color: s.done ? 'var(--c-textSub)' : 'var(--c-textMute)',
+                  textDecoration: s.done ? 'line-through' : 'none',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    width: 14,
+                    height: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    background: s.done ? 'var(--c-success)' : 'transparent',
+                    color: '#fff',
+                    border: s.done ? 'none' : '1px solid var(--c-borderStrong)',
+                  }}
+                >
+                  {s.done && I.check}
+                </span>
+                <span style={{ flex: 1 }}>{s.label}</span>
+                {s.active && (
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: 'var(--c-accent)',
+                      animation: 'pulse 1.2s ease-in-out infinite',
+                    }}
+                  />
+                )}
+              </li>
+            ))}
+          </ol>
+        </Section>
+
+        <Section icon={I.folder} title="工作文件夹">
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              color: 'var(--c-textSub)',
+              padding: 4,
+              background: 'var(--c-bgSub)',
+              borderRadius: 'var(--r-sm)',
+              wordBreak: 'break-all',
+            }}
+          >
+            {workDir}
+          </div>
+        </Section>
+
+        <Section icon={I.context} title="上下文">
+          <div style={{ fontSize: 12, color: 'var(--c-textSub)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+              <span>已用 token</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{totalTokens > 0 ? `~ ${tokenDisplay}` : '—'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+              <span>窗口</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>200k</span>
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                height: 4,
+                background: 'var(--c-bgSub)',
+                borderRadius: 'var(--r-pill)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ width: `${Math.min(100, (totalTokens / 200_000) * 100).toFixed(1)}%`, height: '100%', background: 'var(--c-accent)' }} />
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <style>{`
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(8px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 1; }
+        }
+      `}</style>
+    </aside>
+  );
+}
+
+function Section({
+  icon, title, children, defaultOpen = true,
+}: {
+  icon: React.ReactNode; title: string; children: React.ReactNode; defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ borderBottom: '1px solid var(--c-divider)' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          width: '100%',
+          padding: '10px 12px',
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--c-text)',
+          fontSize: 12,
+          fontWeight: 500,
+          textAlign: 'left',
+          cursor: 'pointer',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-flex',
+            color: 'var(--c-textSub)',
+            transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+            transition: 'transform var(--dur-fast) var(--ease)',
+          }}
+        >
+          {I.chevron}
+        </span>
+        <span style={{ display: 'inline-flex', color: 'var(--c-textSub)' }}>{icon}</span>
+        <span>{title}</span>
+      </button>
+      {open && <div style={{ padding: '0 12px 12px 30px' }}>{children}</div>}
+    </div>
+  );
+}

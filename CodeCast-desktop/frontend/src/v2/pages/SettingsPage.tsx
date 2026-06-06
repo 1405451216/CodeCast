@@ -141,13 +141,9 @@ export function SettingsPage() {
  * ==================================================================== */
 
 function GeneralSection() {
-  const { theme, setTheme } = useAppStore();
+  const { theme, setTheme, settings, updateKey } = useAppStore();
   const [fullName, setFullName] = useState('Cowork 3P');
   const [callYou, setCallYou] = useState('Cowork 3P');
-  const [workDesc, setWorkDesc] = useState('');
-  const [castInstr, setCastInstr] = useState('');
-  const [chatFont, setChatFont] = useState('Anthropic Serif');
-  const [respondNotif, setRespondNotif] = useState(true);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -167,8 +163,8 @@ function GeneralSection() {
           <Row label="以下哪项最能描述你的工作?" htmlFor="workdesc">
             <Select
               id="workdesc"
-              value={workDesc}
-              onChange={setWorkDesc}
+              value={settings?.personality ?? ''}
+              onChange={(v: string) => updateKey('personality', v)}
               placeholder="选择"
               options={[
                 { value: 'engineering', label: '工程 / 软件开发' },
@@ -189,8 +185,8 @@ function GeneralSection() {
           >
             <TextArea
               id="castInstr"
-              value={castInstr}
-              onChange={setCastInstr}
+              value={settings?.custom_instructions ?? ''}
+              onChange={(v: string) => updateKey('custom_instructions', v)}
               placeholder="例如我主要使用 Python 编写代码（不是编码初学者）"
               rows={4}
             />
@@ -216,8 +212,8 @@ function GeneralSection() {
           <Row label="聊天字体" htmlFor="chatfont">
             <Select
               id="chatfont"
-              value={chatFont}
-              onChange={setChatFont}
+              value={settings?.font_size ?? 'Anthropic Serif'}
+              onChange={(v: string) => updateKey('font_size', v)}
               options={[
                 { value: 'Anthropic Serif', label: 'Anthropic Serif' },
                 { value: 'IBM Plex Serif', label: 'IBM Plex Serif' },
@@ -235,7 +231,7 @@ function GeneralSection() {
         <SectionTitle>通知</SectionTitle>
         <Card>
           <Row label="响应完成" desc="CodeCast 完成回复时通知你。适合长时间运行的任务。">
-            <Toggle checked={respondNotif} onChange={setRespondNotif} />
+            <Toggle checked={settings?.notify_complete === 'true'} onChange={(v) => updateKey('notify_complete', v ? 'true' : 'false')} />
           </Row>
         </Card>
       </section>
@@ -395,14 +391,12 @@ function ConnectorsSection() {
  * ==================================================================== */
 
 function CodeCastSection() {
+  const { settings, updateKey } = useAppStore();
   const [codeLight, setCodeLight] = useState('CodeCast 浅色');
   const [codeDark, setCodeDark] = useState('CodeCast 深色');
   const [codeFont, setCodeFont] = useState('');
-  const [highContrast, setHighContrast] = useState(false);
   const [uiFont, setUiFont] = useState<'sans' | 'system'>('sans');
   const [transcriptSize, setTranscriptSize] = useState<'sm' | 'md' | 'lg'>('md');
-  const [bypassPerms, setBypassPerms] = useState(true);
-  const [remoteControl, setRemoteControl] = useState(false);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -446,7 +440,7 @@ function CodeCastSection() {
         <SectionTitle>外观</SectionTitle>
         <Card>
           <Row label="高对比度深色主题" desc="开启深色模式时使用更暗、接近黑色的背景。">
-            <Toggle checked={highContrast} onChange={setHighContrast} />
+            <Toggle checked={settings?.theme === 'high-contrast'} onChange={(v) => updateKey('theme', v ? 'high-contrast' : settings?.theme === 'high-contrast' ? 'dark' : (settings?.theme ?? 'dark'))} />
           </Row>
           <Row
             label="界面字体"
@@ -490,10 +484,10 @@ function CodeCastSection() {
               </span>
             }
           >
-            <Toggle checked={bypassPerms} onChange={setBypassPerms} />
+            <Toggle checked={settings?.full_access ?? false} onChange={(v) => updateKey('full_access', v)} />
           </Row>
           <Row label="默认启用远程控制">
-            <Toggle checked={remoteControl} onChange={setRemoteControl} />
+            <Toggle checked={settings?.computer_control ?? false} onChange={(v) => updateKey('computer_control', v)} />
           </Row>
         </Card>
       </section>
@@ -594,7 +588,7 @@ function CodeThemeCard({
  * ==================================================================== */
 
 function CoworkSection() {
-  const [memoryOn, setMemoryOn] = useState(true);
+  const { settings, updateKey } = useAppStore();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Cowork 文件 */}
@@ -626,7 +620,7 @@ function CoworkSection() {
             label="在会话中使用记忆"
             desc="CodeCast 将在 Cowork 会话期间阅读并更新这些记忆。"
           >
-            <Toggle checked={memoryOn} onChange={setMemoryOn} />
+            <Toggle checked={settings?.auto_memory ?? false} onChange={(v) => updateKey('auto_memory', v)} />
           </Row>
           <Row desc="CodeCast 会保存在 Cowork 会话期间了解的有关你和你的工作的信息。这些文件存储在该设备上。" />
           <Row desc="还没有记忆。当你们一起工作时，CodeCast 将在此处添加条目。" />
@@ -641,6 +635,7 @@ function CoworkSection() {
  * ==================================================================== */
 
 function DesktopGeneralSection() {
+  const { settings, updateKey } = useAppStore();
   const [runOnStartup, setRunOnStartup] = useState(false);
   const [systemTray, setSystemTray] = useState(true);
   const [keepAwake, setKeepAwake] = useState(false);
