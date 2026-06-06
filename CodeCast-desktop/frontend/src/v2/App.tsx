@@ -37,7 +37,7 @@ initSentry();
 
 function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: boolean; setPaletteOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
-  const { theme, togglePlanMode, mode, currentId, messages } = useAppStore();
+  const { theme, togglePlanMode, mode, currentId, messages, send, cancel, current } = useAppStore();
   const toast = useToast();
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -46,6 +46,26 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
   const hasMessages = !!currentId && (messages[currentId]?.length ?? 0) > 0;
 
   useEffect(() => { applyTheme(theme); }, [theme]);
+
+  // ---- Bootstrap: load data from Go backend on startup ----
+  useEffect(() => {
+    const s = useAppStore.getState();
+    s.loadSessions();
+    s.loadModels();
+    s.loadProjects();
+    s.loadSettings();
+    s.loadCatalog();
+    s.refreshGit();
+  }, []);
+
+  // ---- Message send / cancel wired to real store dispatches ----
+  const handleSend = useCallback((text: string) => {
+    if (currentId) send(currentId, text);
+  }, [currentId, send]);
+
+  const handleCancel = useCallback(() => {
+    if (currentId) cancel(currentId);
+  }, [currentId, cancel]);
 
   useEffect(() => {
     registerHotkey('mod+k', () => setPaletteOpen(true));
@@ -159,17 +179,17 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
                 element={
                   mode === 'cast' ? (
                     <CastEmptyState
-                      onSend={() => {}}
+                      onSend={handleSend}
                       onNavigate={navigate}
-                      model="Opus 4.5"
+                      model={current || 'Opus 4.5'}
                       thinking={false}
-                      onCancel={() => {}}
+                      onCancel={handleCancel}
                     />
                   ) : (
                     <CodeEmptyState
-                      onSend={() => {}}
-                      onCancel={() => {}}
-                      model="MiniMax-M3"
+                      onSend={handleSend}
+                      onCancel={handleCancel}
+                      model={current || 'MiniMax-M3'}
                       sessionName="SD session"
                       projectName="AgentPrimordia"
                       thinking={false}

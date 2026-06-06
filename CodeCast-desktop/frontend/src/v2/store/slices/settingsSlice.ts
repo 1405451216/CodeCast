@@ -7,7 +7,7 @@ import { reportError } from '../../lib/reportError';
 export interface SettingsSlice {
   settings: Settings | null;
   loading: boolean;
-  load: () => Promise<void>;
+  loadSettings: () => Promise<void>;
   save: (s: Settings) => Promise<void>;
   updateKey: (key: string, value: unknown) => Promise<void>;
 }
@@ -15,7 +15,7 @@ export interface SettingsSlice {
 export const createSettingsSlice: StateCreator<SettingsSlice, [], [], SettingsSlice> = (set) => ({
   settings: null, loading: false,
 
-  load: async () => {
+  loadSettings: async () => {
     set({ loading: true });
     try { set({ settings: await SettingsAdapter.get(), loading: false }); }
     catch (e) { set({ loading: false }); reportError('settings', e); }

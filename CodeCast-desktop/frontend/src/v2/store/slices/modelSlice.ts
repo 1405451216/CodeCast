@@ -9,14 +9,14 @@ export interface ModelSlice {
   configs: ModelConfigItem[];
   current: string;
   loading: boolean;
-  load: () => Promise<void>;
+  loadModels: () => Promise<void>;
   setCurrent: (model: string) => Promise<void>;
 }
 
 export const createModelSlice: StateCreator<ModelSlice, [], [], ModelSlice> = (set) => ({
   providers: [], configs: [], current: '', loading: false,
 
-  load: async () => {
+  loadModels: async () => {
     set({ loading: true });
     try {
       const [providers, configs, settings] = await Promise.all([

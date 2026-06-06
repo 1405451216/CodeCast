@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAppStore, type AppMode } from '../store';
 import { useError } from '../lib/useError';
 
@@ -86,6 +86,20 @@ export function Sidebar({ activeId, onSelect }: Props) {
   const navigate = useNavigate();
   const mode = useAppStore((s) => s.mode);
   const setMode = useAppStore((s) => s.setMode);
+  const sessions = useAppStore((s) => s.sessions);
+  const projects = useAppStore((s) => s.projects);
+  const currentId = useAppStore((s) => s.currentId);
+  const switchSession = useAppStore((s) => s.switchSession);
+  const createSession = useAppStore((s) => s.createSession);
+
+  const handleSessionSelect = useCallback((id: string) => {
+    switchSession(id);
+    onSelect?.(id);
+  }, [switchSession, onSelect]);
+
+  const handleCreateSession = useCallback(() => {
+    createSession('New Session');
+  }, [createSession]);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     projects: true,
@@ -102,18 +116,24 @@ export function Sidebar({ activeId, onSelect }: Props) {
           {
             id: 'new',
             label: '',
-            items: [{ id: 'new', label: '新建任务', icon: I.plus }],
+            items: [{ id: 'new', label: '新建任务', icon: I.plus, onClick: handleCreateSession }],
           },
           {
             id: 'projects',
             label: '项目',
             collapsible: true,
             defaultOpen: true,
-            items: [
-              { id: 'p-codecast', label: 'CodeCast', icon: I.folder, active: activeId === 'p-codecast' },
-              { id: 'p-blog', label: 'blog-site', icon: I.folder, active: activeId === 'p-blog' },
-              { id: 'p-iot', label: 'iot-fleet', icon: I.folder, active: activeId === 'p-iot' },
-            ],
+            items: projects.length > 0
+              ? projects.map((p) => ({
+                  id: p.id,
+                  label: p.name || p.path.split('/').pop() || p.path,
+                  icon: I.folder,
+                  active: activeId === p.id,
+                }))
+              : [
+                  { id: 'p-codecast', label: 'CodeCast', icon: I.folder, active: activeId === 'p-codecast' },
+                  { id: 'p-blog', label: 'blog-site', icon: I.folder, active: activeId === 'p-blog' },
+                ],
           },
           {
             id: 'scheduled',
@@ -153,18 +173,26 @@ export function Sidebar({ activeId, onSelect }: Props) {
             label: '最近使用',
             collapsible: true,
             defaultOpen: true,
-            items: [
-              { id: 'r-1', label: '修复 Vite 启动问题', icon: I.recent },
-              { id: 'r-2', label: '重构 WorkspaceFrame', icon: I.recent },
-              { id: 'r-3', label: '添加 Cast 工作流', icon: I.recent },
-            ],
+            items: sessions.length > 0
+              ? sessions.slice(0, 8).map((s) => ({
+                  id: s.id,
+                  label: s.name || 'Untitled',
+                  icon: I.chat,
+                  active: currentId === s.id,
+                  onClick: () => handleSessionSelect(s.id),
+                }))
+              : [
+                  { id: 'r-1', label: '修复 Vite 启动问题', icon: I.recent },
+                  { id: 'r-2', label: '重构 WorkspaceFrame', icon: I.recent },
+                  { id: 'r-3', label: '添加 Cast 工作流', icon: I.recent },
+                ],
           },
         ]
       : [
           {
             id: 'new',
             label: '',
-            items: [{ id: 'new-session', label: '新会话', icon: I.plus }],
+            items: [{ id: 'new-session', label: '新会话', icon: I.plus, onClick: handleCreateSession }],
           },
           {
             id: 'custom',
@@ -183,11 +211,19 @@ export function Sidebar({ activeId, onSelect }: Props) {
             label: '最近使用',
             collapsible: true,
             defaultOpen: true,
-            items: [
-              { id: 'r-1', label: 'SD session', icon: I.recent, active: activeId === 'r-1' },
-              { id: 'r-2', label: 'Auth module', icon: I.recent },
-              { id: 'r-3', label: 'Wails 绑定', icon: I.recent },
-            ],
+            items: sessions.length > 0
+              ? sessions.slice(0, 8).map((s) => ({
+                  id: s.id,
+                  label: s.name || 'Untitled',
+                  icon: I.chat,
+                  active: currentId === s.id,
+                  onClick: () => handleSessionSelect(s.id),
+                }))
+              : [
+                  { id: 'r-1', label: 'SD session', icon: I.recent, active: activeId === 'r-1' },
+                  { id: 'r-2', label: 'Auth module', icon: I.recent },
+                  { id: 'r-3', label: 'Wails 绑定', icon: I.recent },
+                ],
           },
         ];
 

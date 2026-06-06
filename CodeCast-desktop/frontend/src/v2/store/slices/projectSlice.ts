@@ -10,7 +10,7 @@ export interface ProjectSlice {
   currentProject: Project | null;
   noProjectMode: boolean;
   loading: boolean;
-  load: () => Promise<void>;
+  loadProjects: () => Promise<void>;
   switchProject: (id: string) => void;
   addProject: (path: string) => Promise<Project>;
   setNoProject: (b: boolean) => Promise<void>;
@@ -19,7 +19,7 @@ export interface ProjectSlice {
 export const createProjectSlice: StateCreator<ProjectSlice, [], [], ProjectSlice> = (set) => ({
   projects: [], currentId: null, currentProject: null, noProjectMode: false, loading: false,
 
-  load: async () => {
+  loadProjects: async () => {
     set({ loading: true });
     try {
       const [projects, current] = await Promise.all([Projects.list(), Projects.current()]);

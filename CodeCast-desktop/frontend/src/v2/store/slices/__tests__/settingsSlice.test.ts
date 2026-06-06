@@ -14,13 +14,13 @@ describe('settingsSlice', () => {
   it('load: success populates settings', async () => {
     const s = { work_mode: 'code' } as any as Settings;
     vi.mocked(App.GetSettings).mockResolvedValueOnce(s);
-    await useAppStore.getState().load();
+    await useAppStore.getState().loadSettings();
     expect(useAppStore.getState().settings).toBe(s);
   });
 
   it('load: failure sets settings error', async () => {
     vi.mocked(App.GetSettings).mockRejectedValueOnce(new Error('cfg'));
-    await useAppStore.getState().load();
+    await useAppStore.getState().loadSettings();
     expect(useAppStore.getState().errors.settings).toBe('cfg');
   });
 
