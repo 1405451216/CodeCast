@@ -5,6 +5,7 @@ import type {
   ToolCatalogItem, CastInvocation, Project, Skill,
   MCPStatusEntry, MCPConnectionResult, GitStatus,
   Settings as SettingsType, APMetricsSnapshot,
+  AgentInfo, CheckpointInfo,
 } from './types';
 
 // ---- Session ----
@@ -135,4 +136,22 @@ export const SlashCommands = {
   add:    (name: string, description: string, fillText: string) => App.AddSlashCommand(name, description, fillText),
   update: (id: string, name: string, description: string, fillText: string) => App.UpdateSlashCommand(id, name, description, fillText),
   remove: (id: string) => App.RemoveSlashCommand(id),
+};
+
+// ---- Agent ----
+export const Agent = {
+  list:             (sessionID: string): Promise<AgentInfo[]> => App.GetAgents(sessionID) as Promise<AgentInfo[]>,
+  detail:           (agentID: string): Promise<AgentInfo | null> => App.GetAgentDetail(agentID) as Promise<AgentInfo | null>,
+  cancel:           (agentID: string) => App.CancelAgent(agentID),
+  cancelSession:    (sessionID: string) => App.CancelSessionAgents(sessionID),
+  dispatch:         (tasksJSON: string): Promise<string[]> => App.DispatchAgents(tasksJSON) as Promise<string[]>,
+};
+
+// ---- Checkpoint ----
+export const Checkpoint = {
+  list:    (sessionID: string, limit: number): Promise<CheckpointInfo[]> =>
+             App.GetCheckpoints(sessionID, limit) as Promise<CheckpointInfo[]>,
+  load:    (checkpointID: string) => App.LoadCheckpoint(checkpointID),
+  remove:  (checkpointID: string) => App.DeleteCheckpoint(checkpointID),
+  resolve: (checkpointID: string, approved: boolean) => App.ResolveCheckpoint(checkpointID, approved),
 };

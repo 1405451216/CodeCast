@@ -179,6 +179,33 @@ export interface UpdateProgress {
   downloadURL?: string;
 }
 
+// ---- Agent subsystem ----
+
+export interface AgentInfo {
+  id: string;
+  sessionId: string;
+  title: string;
+  status: string;
+  turn: number;
+  maxTurns: number;
+  result?: string;
+  error?: string;
+  lastToolName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ---- Checkpoint subsystem ----
+
+export interface CheckpointInfo {
+  ID: string;
+  SessionID: string;
+  Turn: number;
+  Status: string;
+  ToolName: string;
+  CreatedAt: string;
+}
+
 // ---- 向后兼容别名（v1 代码可能引用） ----
 
 /** @deprecated Use ProviderPreset */
