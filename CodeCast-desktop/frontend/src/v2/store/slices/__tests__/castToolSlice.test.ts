@@ -1,0 +1,55 @@
+// frontend/src/v2/store/slices/__tests__/castToolSlice.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import * as App from '@wailsjs/go/main/App';
+import { useAppStore } from '../../index';
+
+describe('castToolSlice', () => {
+  beforeEach(() => {
+    vi.mocked(App.GetToolCatalog).mockReset();
+    vi.mocked(App.GetToolHistory).mockReset();
+    vi.mocked(App.InvokeCastTool).mockReset();
+    vi.mocked(App.ExtractStructured).mockReset();
+    useAppStore.setState({
+      castTools: [], castToolHistory: [], castToolResult: null,
+      castToolInvoking: false, castToolLoading: false, errors: {},
+    });
+  });
+
+  it('loadCastTools: fetches tool catalog', async () => {
+    vi.mocked(App.GetToolCatalog).mockResolvedValueOnce([
+      { name: 'search', category: 'web', description: 'Search' },
+    ] as any);
+    await useAppStore.getState().loadCastTools();
+    expect(useAppStore.getState().castTools).toHaveLength(1);
+    expect(useAppStore.getState().castTools[0].name).toBe('search');
+  });
+
+  it('loadCastTools: failure sets castTool error', async () => {
+    vi.mocked(App.GetToolCatalog).mockRejectedValueOnce(new Error('catalog-fail'));
+    await useAppStore.getState().loadCastTools();
+    expect(useAppStore.getState().errors.castTool).toBe('catalog-fail');
+  });
+
+  it('invokeCastTool: calls backend and stores result', async () => {
+    vi.mocked(App.InvokeCastTool).mockResolvedValueOnce('{"ok":true}');
+    const result = await useAppStore.getState().invokeCastTool('search', '{"q":"test"}');
+    expect(App.InvokeCastTool).toHaveBeenCalledWith('search', '{"q":"test"}');
+    expect(result).toBe('{"ok":true}');
+    expect(useAppStore.getState().castToolResult).toBe('{"ok":true}');
+  });
+
+  it('refreshCastToolHistory: fetches history for session', async () => {
+    vi.mocked(App.GetToolHistory).mockResolvedValueOnce([
+      { id: 'h1', toolName: 'search', args: '{}', result: 'ok', isError: false },
+    ] as any);
+    await useAppStore.getState().refreshCastToolHistory('sess-1');
+    expect(useAppStore.getState().castToolHistory).toHaveLength(1);
+  });
+
+  it('extractStructured: calls backend extract', async () => {
+    vi.mocked(App.ExtractStructured).mockResolvedValueOnce('{"name":"John"}');
+    const result = await useAppStore.getState().extractStructured('John is 30', 'person');
+    expect(App.ExtractStructured).toHaveBeenCalledWith('John is 30', 'person');
+    expect(result).toBe('{"name":"John"}');
+  });
+});

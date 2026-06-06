@@ -1,9 +1,75 @@
-// TODO(v2 spec): cast tool sub-state (todos/schedules/knotes/emails) 由独立 spec 设计。
-// 当前 cast 工具调用走 castSlice.invoke。本 slice 暂为占位。
+// frontend/src/v2/store/slices/castToolSlice.ts
 import type { StateCreator } from 'zustand';
-export interface CastToolState { todos: any[]; schedules: any[]; knotes: any[]; emails: any[]; lastError: string | null }
-export interface CastToolSlice { state: CastToolState; setState: (partial: Partial<CastToolState>) => void; }
+import type { ToolCatalogItem, CastInvocation } from '../../wails/types';
+import { Cast } from '../../wails/adapter';
+import { reportError } from '../../lib/reportError';
+
+export interface CastToolSlice {
+  /** Available tools from backend catalog */
+  castTools: ToolCatalogItem[];
+  /** Recent tool invocation history */
+  castToolHistory: CastInvocation[];
+  /** Last invocation result (JSON string) */
+  castToolResult: string | null;
+  /** Whether a tool invocation is in progress */
+  castToolInvoking: boolean;
+  castToolLoading: boolean;
+  /** Load tool catalog from backend */
+  loadCastTools: () => Promise<void>;
+  /** Invoke a cast tool by name with JSON args */
+  invokeCastTool: (name: string, argsJSON: string) => Promise<string>;
+  /** Refresh tool invocation history for a session */
+  refreshCastToolHistory: (sessionId: string, limit?: number) => Promise<void>;
+  /** Extract structured data from text */
+  extractStructured: (text: string, schemaName: string) => Promise<string>;
+}
+
 export const createCastToolSlice: StateCreator<CastToolSlice, [], [], CastToolSlice> = (set) => ({
-  state: { todos: [], schedules: [], knotes: [], emails: [], lastError: null },
-  setState: (partial) => set(s => ({ state: { ...s.state, ...partial } })),
+  castTools: [],
+  castToolHistory: [],
+  castToolResult: null,
+  castToolInvoking: false,
+  castToolLoading: false,
+
+  loadCastTools: async () => {
+    set({ castToolLoading: true });
+    try {
+      const castTools = await Cast.catalog();
+      set({ castTools, castToolLoading: false });
+    } catch (e) {
+      set({ castToolLoading: false });
+      reportError('castTool', e);
+    }
+  },
+
+  invokeCastTool: async (name, argsJSON) => {
+    set({ castToolInvoking: true });
+    try {
+      const result = await Cast.invoke(name, argsJSON);
+      set({ castToolResult: result, castToolInvoking: false });
+      return result;
+    } catch (e) {
+      set({ castToolInvoking: false });
+      reportError('castTool', e);
+      throw e;
+    }
+  },
+
+  refreshCastToolHistory: async (sessionId, limit = 50) => {
+    try {
+      const castToolHistory = await Cast.history(sessionId, limit);
+      set({ castToolHistory });
+    } catch (e) {
+      reportError('castTool', e);
+    }
+  },
+
+  extractStructured: async (text, schemaName) => {
+    try {
+      return await Cast.extract(text, schemaName);
+    } catch (e) {
+      reportError('castTool', e);
+      throw e;
+    }
+  },
 });
