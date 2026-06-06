@@ -8,8 +8,8 @@ export interface MemorySlice {
   recallResults: any[];
   stats: { totalEpisodes: number; sizeBytes: number };
   loading: boolean;
-  search: (q: string) => Promise<void>;
-  refresh: () => Promise<void>;
+  searchMemory: (q: string) => Promise<void>;
+  refreshMemory: () => Promise<void>;
 }
 
 export const createMemorySlice: StateCreator<MemorySlice, [], [], MemorySlice> = (set) => ({
@@ -17,7 +17,7 @@ export const createMemorySlice: StateCreator<MemorySlice, [], [], MemorySlice> =
   recallResults: [],
   stats: { totalEpisodes: 0, sizeBytes: 0 },
   loading: false,
-  search: async (_q) => {
+  searchMemory: async (_q) => {
     set({ loading: true });
     try {
       const snap: any = await Metrics.snapshot();
@@ -31,7 +31,7 @@ export const createMemorySlice: StateCreator<MemorySlice, [], [], MemorySlice> =
       reportError('memory', e);
     }
   },
-  refresh: async () => {
+  refreshMemory: async () => {
     set({ loading: true });
     try {
       const snap: any = await Metrics.snapshot();

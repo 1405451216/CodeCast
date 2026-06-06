@@ -11,7 +11,7 @@ export interface GitSlice {
   commits: GitCommit[];
   diff: string;
   loading: boolean;
-  refresh: () => Promise<void>;
+  refreshGit: () => Promise<void>;
 }
 
 export const createGitSlice: StateCreator<GitSlice, [], [], GitSlice> = (set) => ({
@@ -20,7 +20,7 @@ export const createGitSlice: StateCreator<GitSlice, [], [], GitSlice> = (set) =>
   commits: [],
   diff: '',
   loading: false,
-  refresh: async () => {
+  refreshGit: async () => {
     set({ loading: true });
     try {
       const [rawStatus, branches] = await Promise.all([Git.status(), Git.branches()]);

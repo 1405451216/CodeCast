@@ -7,7 +7,7 @@ import { reportError } from '../../lib/reportError';
 export interface MCPSlice {
   servers: MCPServerStatus[];
   loading: boolean;
-  refresh: () => Promise<void>;
+  refreshMCP: () => Promise<void>;
   connect: (name: string) => Promise<void>;
   disconnect: (name: string) => Promise<void>;
 }
@@ -15,7 +15,7 @@ export interface MCPSlice {
 export const createMCPSlice: StateCreator<MCPSlice, [], [], MCPSlice> = (set) => ({
   servers: [],
   loading: false,
-  refresh: async () => {
+  refreshMCP: async () => {
     set({ loading: true });
     try { set({ servers: await MCP.list(), loading: false }); }
     catch (e) { set({ loading: false }); reportError('mcp', e); }
