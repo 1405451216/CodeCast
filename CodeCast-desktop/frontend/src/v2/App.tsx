@@ -32,6 +32,30 @@ import {
   onSummaryReady,
   onGitCommitConfirm,
   onUpdateProgress,
+  onCostSummary,
+  onCacheStats,
+  onAgentStart,
+  onAgentStop,
+  onAgentError,
+  onAgentTurn,
+  onAgentTurnEnd,
+  onAgentTool,
+  onAgentToolResult,
+  onLLMCall,
+  onLLMResponse,
+  onPoolDispatch,
+  onPoolComplete,
+  onEnvCheckReport,
+  onSilentDownloadProgress,
+  onSilentDownloadComplete,
+  onPopoutRequested,
+  onOrchestrationEvent,
+  onWorkflowStarted,
+  onWorkflowComplete,
+  onWorkflowPaused,
+  onWorkflowResumed,
+  onWorkflowCancelled,
+  onWorkflowNodeEvent,
 } from './wails/events';
 
 initSentry();
@@ -102,6 +126,114 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
           toast.show(`更新下载: ${p.percent}%`, 'info');
         }
       }),
+      // ---- Cost tracking ----
+      onCostSummary((cost) => {
+        useAppStore.setState({ costSummary: cost } as Record<string, unknown>);
+      }),
+      // ---- Cache stats ----
+      onCacheStats((stats) => {
+        useAppStore.setState({ cacheStats: stats } as Record<string, unknown>);
+      }),
+      // ---- Agent lifecycle ----
+      onAgentStart((p) => {
+        const s = useAppStore.getState() as unknown as Record<string, unknown>;
+        useAppStore.setState({
+          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:start', _ts: Date.now() }],
+        } as Record<string, unknown>);
+      }),
+      onAgentStop((p) => {
+        const s = useAppStore.getState() as unknown as Record<string, unknown>;
+        useAppStore.setState({
+          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:stop', _ts: Date.now() }],
+        } as Record<string, unknown>);
+        if (p.error) toast.show(`Agent 停止: ${p.error}`, 'danger');
+      }),
+      onAgentError((p) => {
+        const s = useAppStore.getState() as unknown as Record<string, unknown>;
+        useAppStore.setState({
+          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:error', _ts: Date.now() }],
+        } as Record<string, unknown>);
+        toast.show(`Agent 错误: ${p.error || '未知错误'}`, 'danger');
+      }),
+      onAgentTurn((p) => {
+        const s = useAppStore.getState() as unknown as Record<string, unknown>;
+        useAppStore.setState({
+          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:turn', _ts: Date.now() }],
+        } as Record<string, unknown>);
+      }),
+      onAgentTurnEnd((p) => {
+        const s = useAppStore.getState() as unknown as Record<string, unknown>;
+        useAppStore.setState({
+          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:turn_end', _ts: Date.now() }],
+        } as Record<string, unknown>);
+      }),
+      onAgentTool((p) => {
+        const s = useAppStore.getState() as unknown as Record<string, unknown>;
+        useAppStore.setState({
+          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:tool', _ts: Date.now() }],
+        } as Record<string, unknown>);
+      }),
+      onAgentToolResult((p) => {
+        const s = useAppStore.getState() as unknown as Record<string, unknown>;
+        useAppStore.setState({
+          agentEventLog: [...((s.agentEventLog as Array<unknown>) || []), { ...p, _type: 'agent:tool_result', _ts: Date.now() }],
+        } as Record<string, unknown>);
+      }),
+      // ---- LLM events (store only, no toast) ----
+      onLLMCall(() => { /* high-frequency, tracked via metricsSnap */ }),
+      onLLMResponse(() => { /* high-frequency, tracked via metricsSnap */ }),
+      // ---- Pool events ----
+      onPoolDispatch((p) => {
+        useAppStore.setState({ poolQueue: (p.queueLength ?? 0) } as Record<string, unknown>);
+      }),
+      onPoolComplete((p) => {
+        useAppStore.setState({ poolQueue: (p.queueLength ?? 0) } as Record<string, unknown>);
+      }),
+      // ---- Environment check ----
+      onEnvCheckReport((report) => {
+        useAppStore.setState({ envCheckReport: report } as Record<string, unknown>);
+        if (report.OverallStatus !== 'ok') {
+          toast.show(`环境问题: ${report.Summary}`, 'warn');
+        }
+      }),
+      // ---- Silent download (updater) ----
+      onSilentDownloadProgress((p) => {
+        if (p.percent % 25 === 0) {
+          toast.show(`后台下载: ${p.percent}%`, 'info');
+        }
+      }),
+      onSilentDownloadComplete((p) => {
+        if (p.success) {
+          toast.show('后台下载完成', 'success');
+        } else if (p.error) {
+          toast.show(`下载失败: ${p.error}`, 'danger');
+        }
+      }),
+      // ---- Popout / Window ----
+      onPopoutRequested(() => { /* handled by Wails window manager */ }),
+      // ---- Orchestration ----
+      onOrchestrationEvent('start', (p) => {
+        toast.show(`编排开始: ${p.type}`, 'info');
+      }),
+      onOrchestrationEvent('complete', (p) => {
+        if (p.error) toast.show(`编排完成 (有错误): ${p.type}`, 'warn');
+        else toast.show(`编排完成: ${p.type}`, 'success');
+      }),
+      onOrchestrationEvent('error', (p) => {
+        toast.show(`编排错误: ${p.error || p.type}`, 'danger');
+      }),
+      // ---- Workflow ----
+      onWorkflowStarted((p) => {
+        toast.show(`工作流启动: ${p.name || p.type}`, 'info');
+      }),
+      onWorkflowComplete((p) => {
+        if (p.error) toast.show(`工作流失败: ${p.error}`, 'danger');
+        else toast.show(`工作流完成: ${p.name || p.type}`, 'success');
+      }),
+      onWorkflowPaused(() => {}),
+      onWorkflowResumed(() => {}),
+      onWorkflowCancelled(() => {}),
+      onWorkflowNodeEvent(() => {}),
     ];
     return () => unsubs.forEach((fn) => fn());
   }, [toast]);

@@ -195,6 +195,110 @@ export interface AgentInfo {
   updatedAt: string;
 }
 
+export interface AgentEventPayload {
+  agentID?: string;
+  sessionID?: string;
+  turn?: number;
+  toolName?: string;
+  toolCallID?: string;
+  args?: string;
+  result?: string;
+  error?: string;
+  [key: string]: unknown;
+}
+
+export interface LLMEventPayload {
+  sessionID?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  latencyMs?: number;
+  error?: string;
+  [key: string]: unknown;
+}
+
+export interface PoolEventPayload {
+  agentID?: string;
+  sessionID?: string;
+  queueLength?: number;
+  [key: string]: unknown;
+}
+
+export interface CacheStatsPayload {
+  hits: number;
+  misses: number;
+  evictions: number;
+  size: number;
+  [key: string]: unknown;
+}
+
+export interface CostSummaryPayload {
+  totalCostUSD: number;
+  sessionCostUSD: number;
+  tokenUsage: Record<string, number>;
+  budgetExceeded: boolean;
+  [key: string]: unknown;
+}
+
+export interface EnvCheckReport {
+  Timestamp: string;
+  Checks: EnvCheckResult[];
+  OverallStatus: string;
+  Summary: string;
+}
+
+export interface EnvCheckResult {
+  Name: string;
+  Status: string;
+  Message: string;
+  Severity: string;
+}
+
+export interface OrchestrationPayload {
+  runId: string;
+  type: string;
+  sessionId?: string;
+  error?: string;
+  [key: string]: unknown;
+}
+
+export interface WorkflowEventPayload {
+  runId: string;
+  name?: string;
+  type?: string;
+  status?: string;
+  output?: string;
+  error?: string;
+  duration?: string;
+  [key: string]: unknown;
+}
+
+export interface WorkflowNodeEventPayload {
+  runId: string;
+  type: string;
+  nodeId: string;
+  data: unknown;
+  timestamp: string;
+}
+
+export interface PopoutPayload {
+  sessionId: string;
+  sessionName: string;
+  timestamp: number;
+}
+
+export interface DownloadProgressPayload {
+  percent: number;
+  downloaded: number;
+  total: number;
+}
+
+export interface DownloadCompletePayload {
+  success: boolean;
+  error: string;
+  path: string;
+}
+
 // ---- Checkpoint subsystem ----
 
 export interface CheckpointInfo {
