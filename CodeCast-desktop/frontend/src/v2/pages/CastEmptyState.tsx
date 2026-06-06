@@ -198,7 +198,7 @@ function EmptyComposer({
   return (
     <Composer
       sessionId="empty"
-      model={model || 'Opus 4.5'}
+      model={model || '—'}
       thinking={!!thinking}
       text={text}
       setText={setText}

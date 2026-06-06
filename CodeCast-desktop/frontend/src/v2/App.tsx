@@ -62,7 +62,7 @@ initSentry();
 
 function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: boolean; setPaletteOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
-  const { theme, togglePlanMode, mode, currentSessionId, messages, isStreaming, send, cancel, current } = useAppStore();
+  const { theme, togglePlanMode, mode, currentSessionId, messages, isStreaming, send, cancel, current, currentVersion } = useAppStore();
   const toast = useToast();
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -279,9 +279,9 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       case 'heap-snapshot': toast.show('Write Main Process Heap Snapshot'); break;
       case 'record-mem': toast.show('Record Memory Trace'); break;
       case 'open-docs': window.open('https://docs.anthropic.com/zh-CN/docs/claude-code', '_blank'); break;
-      case 'check-update': toast.show('检查更新… v2.0.0 已是最新'); break;
+      case 'check-update': toast.show(`检查更新… v${currentVersion || '…'} 已是最新`); break;
       case 'get-support': window.open('https://support.anthropic.com', '_blank'); break;
-      case 'about': toast.show('CodeCast v2.0.0 · Claude Code 风格前端'); break;
+      case 'about': toast.show(`CodeCast v${currentVersion || '…'} · Claude Code 风格前端`); break;
       case 'ext-installed': toast.show('已安装的扩展'); break;
       case 'ext-market': toast.show('扩展市场'); break;
       case 'ext-install-local': toast.show('从本地文件安装扩展'); break;
@@ -315,7 +315,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
                       sessionId={currentSessionId}
                       messages={messages[currentSessionId!] || []}
                       isStreaming={isStreaming}
-                      model={current || 'Opus 4.5'}
+                      model={current || '—'}
                       thinking={false}
                       onSend={handleSend}
                       onCancel={handleCancel}
@@ -324,7 +324,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
                     <CastEmptyState
                       onSend={handleSend}
                       onNavigate={navigate}
-                      model={current || 'Opus 4.5'}
+                      model={current || '—'}
                       thinking={false}
                       onCancel={handleCancel}
                     />
