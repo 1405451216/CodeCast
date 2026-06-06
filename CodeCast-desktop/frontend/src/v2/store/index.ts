@@ -12,8 +12,14 @@ import { createGitSlice, type GitSlice } from './slices/gitSlice';
 import { createSettingsSlice, type SettingsSlice } from './slices/settingsSlice';
 import { createErrorsSlice, type ErrorsSlice } from './slices/errorsSlice';
 import { createNotificationSlice, type NotificationSlice } from './slices/notificationSlice';
+import { createAgentSlice, type AgentSlice } from './slices/agentSlice';
+import { createCostSlice, type CostSlice } from './slices/costSlice';
+import { createWorkflowSlice, type WorkflowSlice } from './slices/workflowSlice';
+import { createPluginSlice, type PluginSlice } from './slices/pluginSlice';
+import { createUpdaterSlice, type UpdaterSlice } from './slices/updaterSlice';
+import { createOrchestrationSlice, type OrchestrationSlice } from './slices/orchestrationSlice';
 
-export type AppState = & UISlice & SessionSlice & ChatSlice & ModelSlice & ProjectSlice & CastSlice & CastToolSlice & MemorySlice & MCPSlice & GitSlice & SettingsSlice & ErrorsSlice & NotificationSlice;
+export type AppState = & UISlice & SessionSlice & ChatSlice & ModelSlice & ProjectSlice & CastSlice & CastToolSlice & MemorySlice & MCPSlice & GitSlice & SettingsSlice & ErrorsSlice & NotificationSlice & AgentSlice & CostSlice & WorkflowSlice & PluginSlice & UpdaterSlice & OrchestrationSlice;
 export type { AppMode };
 
 export const useAppStore = create<AppState>()((...a) => ({
@@ -30,4 +36,10 @@ export const useAppStore = create<AppState>()((...a) => ({
   ...createSettingsSlice(...a),
   ...createErrorsSlice(...a),
   ...createNotificationSlice(...a),
+  ...createAgentSlice(...a),
+  ...createCostSlice(...a),
+  ...createWorkflowSlice(...a),
+  ...createPluginSlice(...a),
+  ...createUpdaterSlice(...a),
+  ...createOrchestrationSlice(...a),
 }));

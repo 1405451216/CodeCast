@@ -4,7 +4,8 @@ import type { StateCreator } from 'zustand';
 export type SliceName =
   | 'session' | 'chat' | 'model' | 'project' | 'cast'
   | 'castTool' | 'memory' | 'mcp' | 'git' | 'settings'
-  | 'notification';
+  | 'notification' | 'workflow' | 'plugin'
+  | 'updater' | 'orchestration' | 'agent' | 'cost';
 
 export interface ErrorsSlice {
   errors: Partial<Record<SliceName, string>>;
