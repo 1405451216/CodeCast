@@ -22,6 +22,11 @@ export default defineConfig({
   plugins: plugins,
   root: '.',
   base: './',
+  resolve: {
+    alias: {
+      '@wailsjs': resolve(__dirname, 'wailsjs'),
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

@@ -18,7 +18,11 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@wailsjs/*": ["wailsjs/*"]
+    }
   },
   "include": ["src", "wailsjs"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/__tests__/**", "src/plugins/BuiltinPlugins/**", "src/test/setup.ts"]

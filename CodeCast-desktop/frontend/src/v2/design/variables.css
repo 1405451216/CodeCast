@@ -1,0 +1,113 @@
+/* frontend/src/v2/design/variables.css */
+:root {
+  /* Layout */
+  --sidebar-w: 240px;
+  --topbar-h: 44px;
+  --bottombar-h: 32px;
+  --chat-max: 760px;
+  --right-panel-w: 280px;
+
+  /* Surfaces */
+  --c-bg: #FAF9F5;
+  --c-bgSub: #F2F0E9;
+  --c-surface: #FFFFFF;
+  --c-surface-hover: #F7F5EF;
+  --c-dot-grid: rgba(31, 30, 27, 0.05);
+
+  /* Borders */
+  --c-border: #E5E3DD;
+  --c-borderStrong: #D6D3C9;
+  --c-divider: rgba(31, 30, 27, 0.08);
+
+  /* Text */
+  --c-text: #1F1E1B;
+  --c-textSub: #6B6862;
+  --c-textMute: #9A968D;
+
+  /* Accent */
+  --c-accent: #DA7756;
+  --c-accentBg: #F5E5DC;
+  --c-accentText: #8C3A1A;
+  --c-accentSoft: rgba(218, 119, 86, 0.08);
+
+  /* Status */
+  --c-success: #3A8266;
+  --c-warn: #C4923C;
+  --c-danger: #C4533C;
+
+  /* Message */
+  --c-bubble-user: #2563EB;
+  --c-bubble-userText: #FFFFFF;
+  --c-bubble-assistant: transparent;
+  --c-bubble-assistantText: var(--c-text);
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 20px;
+  --r-pill: 999px;
+  --r-input: 24px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(31, 30, 27, 0.04);
+  --shadow-md: 0 4px 12px rgba(31, 30, 27, 0.08);
+  --shadow-pop: 0 8px 24px rgba(31, 30, 27, 0.12);
+
+  /* Font */
+  --font-serif: "IBM Plex Serif", Georgia, serif;
+  --font-sans: "IBM Plex Sans", "PingFang SC", -apple-system, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+}
+
+[data-theme="dark"] {
+  --c-bg: #1B1A17;
+  --c-bgSub: #26241F;
+  --c-surface: #1F1E1B;
+  --c-surface-hover: #2A2823;
+  --c-dot-grid: rgba(240, 238, 229, 0.06);
+
+  --c-border: #2E2C27;
+  --c-borderStrong: #3A3832;
+  --c-divider: rgba(240, 238, 229, 0.08);
+
+  --c-text: #F0EEE5;
+  --c-textSub: #B5B0A4;
+  --c-textMute: #7A766C;
+
+  --c-accent: #E08766;
+  --c-accentBg: #3A2A22;
+  --c-accentText: #F0B097;
+  --c-accentSoft: rgba(224, 135, 102, 0.12);
+
+  --c-bubble-user: #3B82F6;
+  --c-bubble-userText: #FFFFFF;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-borderStrong); }
+::-webkit-scrollbar-track { background: transparent; }

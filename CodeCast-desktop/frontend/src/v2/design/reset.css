@@ -1,0 +1,5 @@
+/* frontend/src/v2/design/reset.css */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; }
