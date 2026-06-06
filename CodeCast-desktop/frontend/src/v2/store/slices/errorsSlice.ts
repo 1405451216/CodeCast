@@ -3,7 +3,8 @@ import type { StateCreator } from 'zustand';
 
 export type SliceName =
   | 'session' | 'chat' | 'model' | 'project' | 'cast'
-  | 'castTool' | 'memory' | 'mcp' | 'git' | 'settings';
+  | 'castTool' | 'memory' | 'mcp' | 'git' | 'settings'
+  | 'notification';
 
 export interface ErrorsSlice {
   errors: Partial<Record<SliceName, string>>;

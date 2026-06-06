@@ -24,6 +24,14 @@ import { CastSchedulePage } from './pages/CastSchedulePage';
 import { CastEmailPage } from './pages/CastEmailPage';
 import { CastToolsPage } from './pages/CastToolsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import {
+  onNotification,
+  onMetricsSnapshot,
+  onLifecycleStates,
+  onSummaryReady,
+  onGitCommitConfirm,
+  onUpdateProgress,
+} from './wails/events';
 
 initSentry();
 
@@ -46,6 +54,36 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
     registerHotkey('mod+shift+p', () => togglePlanMode());
     return () => unregisterAll();
   }, [togglePlanMode, setPaletteOpen]);
+
+  // ---- Go backend event subscriptions ----
+  useEffect(() => {
+    const unsubs = [
+      onNotification((n) => {
+        useAppStore.getState().pushNotification(n);
+        toast.show(n.body, n.type === 'error' ? 'danger' : 'info');
+      }),
+      onMetricsSnapshot((snap) => {
+        useAppStore.setState({ metricsSnap: snap } as Record<string, unknown>);
+      }),
+      onLifecycleStates((states) => {
+        useAppStore.setState({ agentStates: states } as Record<string, unknown>);
+      }),
+      onSummaryReady(({ sessionID, summary }) => {
+        toast.show(`摘要就绪: ${sessionID.slice(0, 8)}…`, 'info');
+      }),
+      onGitCommitConfirm(({ file }) => {
+        if (window.confirm(`Git 提交确认: ${file}?`)) {
+          useAppStore.getState().confirmCommit(file);
+        }
+      }),
+      onUpdateProgress((p) => {
+        if (p.phase === 'download') {
+          toast.show(`更新下载: ${p.percent}%`, 'info');
+        }
+      }),
+    ];
+    return () => unsubs.forEach((fn) => fn());
+  }, [toast]);
 
   const openMenu = useCallback(() => {
     const r = menuBtnRef.current?.getBoundingClientRect();

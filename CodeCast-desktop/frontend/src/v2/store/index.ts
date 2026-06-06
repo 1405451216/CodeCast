@@ -11,8 +11,9 @@ import { createMCPSlice, type MCPSlice } from './slices/mcpSlice';
 import { createGitSlice, type GitSlice } from './slices/gitSlice';
 import { createSettingsSlice, type SettingsSlice } from './slices/settingsSlice';
 import { createErrorsSlice, type ErrorsSlice } from './slices/errorsSlice';
+import { createNotificationSlice, type NotificationSlice } from './slices/notificationSlice';
 
-export type AppState = & UISlice & SessionSlice & ChatSlice & ModelSlice & ProjectSlice & CastSlice & CastToolSlice & MemorySlice & MCPSlice & GitSlice & SettingsSlice & ErrorsSlice;
+export type AppState = & UISlice & SessionSlice & ChatSlice & ModelSlice & ProjectSlice & CastSlice & CastToolSlice & MemorySlice & MCPSlice & GitSlice & SettingsSlice & ErrorsSlice & NotificationSlice;
 export type { AppMode };
 
 export const useAppStore = create<AppState>()((...a) => ({
@@ -28,4 +29,5 @@ export const useAppStore = create<AppState>()((...a) => ({
   ...createGitSlice(...a),
   ...createSettingsSlice(...a),
   ...createErrorsSlice(...a),
+  ...createNotificationSlice(...a),
 }));
