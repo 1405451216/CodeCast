@@ -2,6 +2,11 @@ import type { StateCreator } from 'zustand';
 import type { Session } from '../../wails/types';
 import { Sessions } from '../../wails/adapter';
 import { reportError } from '../../lib/reportError';
+import type { AppMode } from './uiSlice';
+
+interface SessionCrossSlice {
+  mode: AppMode;
+}
 
 export interface SessionSlice {
   sessions: Session[];
@@ -15,7 +20,7 @@ export interface SessionSlice {
   renameSession: (id: string, newName: string) => Promise<void>;
 }
 
-export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice> = (set) => ({
+export const createSessionSlice: StateCreator<SessionCrossSlice & SessionSlice, [], [], SessionSlice> = (set, get) => ({
   sessions: [],
   currentSessionId: null,
   sessionLoading: false,
@@ -24,7 +29,11 @@ export const createSessionSlice: StateCreator<SessionSlice, [], [], SessionSlice
     set({ sessionLoading: true });
     try {
       const sessions = await Sessions.list();
-      set({ sessions, sessionLoading: false, currentSessionId: sessions[0]?.id ?? null });
+      // 根据当前 mode 选择最近的对应会话
+      const mode = get().mode;
+      const modeMatch = mode === 'cast' ? 'daily' : 'coding';
+      const targetSession = sessions.find((s) => (s.mode || 'daily') === modeMatch);
+      set({ sessions, sessionLoading: false, currentSessionId: targetSession?.id ?? sessions[0]?.id ?? null });
     } catch (e) {
       set({ sessionLoading: false });
       reportError('session', e);

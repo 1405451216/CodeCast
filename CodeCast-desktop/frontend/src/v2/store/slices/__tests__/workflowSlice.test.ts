@@ -42,7 +42,7 @@ describe('workflowSlice', () => {
 
     const result = await useAppStore.getState().runWorkflow('{"nodes":[]}');
 
-    expect(App.RunWorkflow).toHaveBeenCalledWith('{"nodes":[]}');
+    expect(App.RunWorkflow).toHaveBeenCalledWith('{"nodes":[]}', undefined);
     expect(result).toBe('run-id-123');
   });
 

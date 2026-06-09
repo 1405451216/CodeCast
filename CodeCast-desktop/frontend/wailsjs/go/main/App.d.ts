@@ -1,178 +1,403 @@
-// Type declarations for wailsjs/go/main/App — 与 Go 后端方法签名 1:1 对齐
-// Session
-export function GetSessions(): Promise<any[]>;
-export function GetSession(id: string): Promise<any>;
-export function CreateSession(name: string, skillID: string, mode: string): Promise<any>;
-export function DeleteSession(id: string): Promise<void>;
-export function SearchSessions(keyword: string): Promise<any[]>;
-export function RenameSession(id: string, newName: string): Promise<void>;
-export function GetSessionsByMode(mode: string): Promise<any[]>;
-export function BatchDeleteSessions(ids: string[]): Promise<string[]>;
-export function GetArchivedSessions(): Promise<any[]>;
-export function ArchiveSession(id: string): Promise<void>;
-export function UnarchiveSession(id: string): Promise<void>;
-// Chat
-export function SendMessage(sessionID: string, input: string): Promise<any[]>;
-export function SendMessageEx(sessionID: string, input: string, model: string, thinking: string): Promise<any[]>;
-export function SendMessageWithAttachments(sessionID: string, input: string, attachmentsJSON: string): Promise<any[]>;
-export function CancelRequest(): void;
-export function CancelSessionRequest(sessionID: string): void;
-// Cast tools
-export function GetToolCatalog(): Promise<any[]>;
-export function GetToolHistory(sessionID: string, limit: number): Promise<any[]>;
-export function InvokeCastTool(name: string, argsJSON: string): Promise<string>;
-export function ExtractStructured(text: string, schemaName: string): Promise<string>;
-// Project
-export function GetProjects(): Promise<any[]>;
-export function AddProject(path: string): Promise<any>;
-export function RemoveProject(path: string): Promise<void>;
-export function SetCurrentProject(id: string): void;
-export function GetCurrentProject(): Promise<any>;
-export function UpdateProjectInstructions(id: string, instructions: string): Promise<void>;
-export function SetNoProjectMode(enabled: boolean): void;
-export function GetNoProjectMode(): Promise<boolean>;
-// Files
-export function ListFiles(path: string): Promise<string[]>;
-export function ReadFile(path: string): Promise<string>;
-export function WriteFile(path: string, content: string): Promise<void>;
-export function GetWorkspaceFiles(dirPath: string): Promise<string[]>;
-export function ReadFileContent(filePath: string): Promise<string>;
-export function SelectFile(): Promise<string>;
-export function SelectFolder(): Promise<string>;
-// Skills
-export function GetSkills(): Promise<any[]>;
-export function CreateSkill(name: string, description: string, prompt: string): Promise<any>;
-export function DeleteSkill(id: string): Promise<void>;
-export function UpdateSkill(id: string, name: string, description: string, prompt: string): Promise<void>;
-// Settings / Config
-export function GetSettings(): Promise<any>;
-export function SaveSettings(s: any): Promise<void>;
-export function UpdateSetting(key: string, value: any): Promise<void>;
-export function GetConfig(): Promise<any>;
-export function GetProviders(): Promise<any[]>;
-export function GetProviderModels(providerID: string): Promise<string[]>;
-export function GetModelConfigs(): Promise<any[]>;
-export function AddModelConfig(name: string, provider: string, model: string, apiKey: string, apiURL: string, maxContext: number, toolRounds: number, multimodal: boolean): Promise<any>;
-export function UpdateModelConfig(id: string, name: string, provider: string, model: string, apiKey: string, apiURL: string, maxContext: number, toolRounds: number, multimodal: boolean): Promise<void>;
-export function RemoveModelConfig(id: string): Promise<void>;
-export function ToggleModelConfig(id: string, enabled: boolean): Promise<void>;
-export function GetEnvVars(): Promise<any[]>;
-export function AddEnvVar(key: string, value: string): Promise<void>;
-export function RemoveEnvVar(key: string): Promise<void>;
-export function GetSlashCommands(): Promise<any[]>;
-export function AddSlashCommand(name: string, description: string, fillText: string): Promise<any>;
-export function UpdateSlashCommand(id: string, name: string, description: string, fillText: string): Promise<void>;
-export function RemoveSlashCommand(id: string): Promise<void>;
-// MCP
-export function GetMCPStatus(): Promise<any[]>;
-export function AddMCPServer(name: string, url: string): Promise<void>;
-export function AddMCPServerStdio(name: string, command: string, args: string[]): Promise<void>;
-export function RemoveMCPServer(id: string): Promise<void>;
-export function ToggleMCPServer(id: string, enabled: boolean): Promise<void>;
-export function TestMCPServerConnection(id: string): Promise<any>;
-export function GetMCPServerTools(id: string): Promise<string[]>;
-// Git
-export function GetGitStatus(): Promise<any>;
-export function ConfirmGitCommit(filePath: string): Promise<void>;
-// Metrics / Cache / Lifecycle
-export function GetAPMetricsSnapshot(): Promise<any>;
-export function ClearCache(): Promise<void>;
-export function GetLifecycleState(): Promise<string>;
-export function GetAgentLifecycleStates(): Promise<any>;
-export function GetCacheStats(): Promise<any>;
-export function SetCacheEnabled(enabled: boolean): void;
-export function GetSessionSummary(sessionID: string): Promise<any>;
-// Agent
-export function GetAgents(sessionID: string): Promise<any[]>;
-export function GetAgentDetail(agentID: string): Promise<any>;
-export function CancelAgent(agentID: string): Promise<void>;
-export function CancelSessionAgents(sessionID: string): Promise<void>;
-export function DispatchAgents(tasksJSON: string): Promise<string[]>;
-// Notification
-export function SendNotification(title: string, body: string, notifType: string): void;
-// Checkpoint
-export function GetCheckpoints(sessionID: string, limit: number): Promise<any[]>;
-export function LoadCheckpoint(checkpointID: string): Promise<void>;
-export function DeleteCheckpoint(checkpointID: string): Promise<void>;
-export function ResolveCheckpoint(checkpointID: string, approved: boolean): void;
-// Browser
-export function IsDomainBlocked(url: string): Promise<boolean>;
-export function GetDomainRules(): Promise<any>;
-export function AddBlockedDomain(domain: string): Promise<void>;
-export function RemoveBlockedDomain(domain: string): Promise<void>;
-export function AddAllowedDomain(domain: string): Promise<void>;
-export function RemoveAllowedDomain(domain: string): Promise<void>;
-export function ClearBrowserData(): Promise<void>;
-export function CheckSeleniumInstalled(): Promise<any>;
-// Plugin
-export function ListPlugins(): Promise<any[]>;
-export function LoadPlugin(path: string): Promise<any>;
-export function UnloadPlugin(id: string): Promise<void>;
-export function GetPluginStatus(): Promise<any>;
-export function SendPluginMessage(targetAgentID: string, content: string): Promise<void>;
-export function BroadcastMessage(content: string): Promise<void>;
-// Workflow
-export function RunWorkflow(workflowJSON: string): Promise<string>;
-export function PauseWorkflow(runID: string): Promise<void>;
-export function ResumeWorkflow(runID: string): Promise<void>;
-export function CancelWorkflow(runID: string): Promise<void>;
-export function GetWorkflowRun(runID: string): Promise<any>;
-export function ListWorkflowExecutions(): Promise<any[]>;
-export function ExportWorkflow(runID: string): Promise<string>;
-// Orchestration
-export function RunCodeReviewWorkflow(sessionID: string, code: string): Promise<any>;
-export function RunRefactoringWorkflow(sessionID: string, code: string): Promise<any>;
-export function RunTestPipelineWorkflow(sessionID: string, code: string): Promise<any>;
-export function RunHandoffWorkflow(sessionID: string, message: string): Promise<string>;
-export function RunParallelAnalysis(sessionID: string, input: string): Promise<any>;
-export function GetWorkflowStatus(runID: string): Promise<any>;
-export function ListWorkflowRuns(): Promise<any[]>;
-export function CancelWorkflowRun(runID: string): Promise<void>;
-// Updater
-export function GetCurrentVersion(): Promise<string>;
-export function CheckForUpdate(): Promise<any>;
-export function DownloadUpdate(downloadURL: string): Promise<string>;
-export function OpenDownloadedFile(filePath: string): Promise<void>;
-export function OpenReleasePage(): void;
-export function GetChangelog(releaseNotes: string, version: string, publishedAt: string): Promise<any>;
-export function GetUpdateHistory(): Promise<any[]>;
-export function SaveUpdateRecord(fromVersion: string, toVersion: string, success: boolean, notes: string): Promise<void>;
-export function GetAllReleases(limit: number): Promise<any[]>;
-export function SilentDownload(downloadURL: string): void;
-// Cost
-export function GetCostSummary(): Promise<any>;
-export function ResetCostTracker(): void;
-export function CheckBudgetExceeded(): Promise<boolean>;
-export function GetBudgetConfig(): Promise<any>;
-export function SetBudgetConfig(budget: any): void;
-export function SetBudgetLimit(maxCostUSD: number): void;
-// Security
-export function GetSecurityStatus(): Promise<any>;
-export function RotateEncryptionKey(): Promise<void>;
-export function GetKeyRotationInfo(): Promise<any>;
-export function CheckAntivirusCompatibility(): Promise<any>;
-// Telemetry
-export function GetTelemetryStatus(): Promise<any>;
-export function ToggleTelemetry(enabled: boolean): Promise<void>;
-export function SetTelemetryEndpoint(endpoint: string): Promise<void>;
-// Document
-export function IngestDirectory(dirPath: string, cfg: any): Promise<any>;
-export function GetIngestionStatus(): Promise<any>;
-// Environment
-export function CheckEnvironment(): Promise<any>;
-export function FixEnvironmentIssue(name: string): Promise<string>;
-// Multimodal
-export function GetMultimodalCapabilities(): Promise<any>;
-export function AnalyzeImage(imagePath: string, prompt: string): Promise<any>;
-// Window
-export function WindowMinimise(): void;
-export function WindowMaximise(): void;
-export function WindowClose(): void;
-export function GetPlatform(): Promise<string>;
-export function GetAvailableEditors(): Promise<any[]>;
-export function GetPreferredEditor(): Promise<string>;
-export function SetPreferredEditor(editorID: string): Promise<void>;
-export function OpenInEditor(dirPath: string): Promise<void>;
-export function PopoutWindow(): Promise<void>;
-export function GetPopoutState(): Promise<any>;
-export function WindowSetAlwaysOnTop(onTop: boolean): void;
+// Cynhyrchwyd y ffeil hon yn awtomatig. PEIDIWCH Â MODIWL
+// This file is automatically generated. DO NOT EDIT
+import {main} from '../models';
+import {llm} from '../models';
+import {agent} from '../models';
+import {memory} from '../models';
+import {time} from '../models';
+import {tools} from '../models';
+import {context} from '../models';
+
+export function AddAllowedDomain(arg1:string):Promise<void>;
+
+export function AddBlockedDomain(arg1:string):Promise<void>;
+
+export function AddEnvVar(arg1:string,arg2:string):Promise<void>;
+
+export function AddMCPServer(arg1:string,arg2:string):Promise<void>;
+
+export function AddMCPServerStdio(arg1:string,arg2:string,arg3:Array<string>):Promise<void>;
+
+export function AddModelConfig(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number,arg7:number,arg8:boolean):Promise<main.ModelConfigItem>;
+
+export function AddProject(arg1:string):Promise<main.Project>;
+
+export function AddSlashCommand(arg1:string,arg2:string,arg3:string):Promise<main.SlashCommand>;
+
+export function AnalyzeImage(arg1:string,arg2:string):Promise<main.ImageAnalysisResult>;
+
+export function ArchiveSession(arg1:string):Promise<void>;
+
+export function BatchDeleteSessions(arg1:Array<string>):Promise<Array<string>>;
+
+export function BroadcastMessage(arg1:string):Promise<void>;
+
+export function CallGitHubAPI(arg1:string,arg2:string):Promise<Array<number>>;
+
+export function CancelAgent(arg1:string):Promise<void>;
+
+export function CancelRequest():Promise<void>;
+
+export function CancelSessionAgents(arg1:string):Promise<void>;
+
+export function CancelSessionRequest(arg1:string):Promise<void>;
+
+export function CancelWorkflow(arg1:string):Promise<void>;
+
+export function CancelWorkflowRun(arg1:string):Promise<void>;
+
+export function CheckAntivirusCompatibility():Promise<Record<string, any>>;
+
+export function CheckBudgetExceeded():Promise<boolean>;
+
+export function CheckEnvironment():Promise<main.EnvCheckReport>;
+
+export function CheckForUpdate():Promise<main.UpdateInfo>;
+
+export function CheckSeleniumInstalled():Promise<Record<string, any>>;
+
+export function ClearBrowserData():Promise<void>;
+
+export function ClearCache():Promise<void>;
+
+export function ConfirmGitCommit(arg1:string):Promise<void>;
+
+export function CreateNote(arg1:string,arg2:string,arg3:Array<string>):Promise<main.Note>;
+
+export function CreateSession(arg1:string,arg2:string,arg3:string):Promise<main.Session>;
+
+export function CreateSkill(arg1:string,arg2:string,arg3:string):Promise<main.Skill>;
+
+export function DeleteCheckpoint(arg1:string):Promise<void>;
+
+export function DeleteNote(arg1:string):Promise<void>;
+
+export function DeleteSession(arg1:string):Promise<void>;
+
+export function DeleteSkill(arg1:string):Promise<void>;
+
+export function DispatchAgents(arg1:string):Promise<Array<string>>;
+
+export function DownloadUpdate(arg1:string):Promise<string>;
+
+export function ExecuteCommand(arg1:string,arg2:number):Promise<string>;
+
+export function ExportSession(arg1:string,arg2:string):Promise<string>;
+
+export function ExportWorkflow(arg1:string):Promise<Array<number>>;
+
+export function ExtractStructured(arg1:string,arg2:string):Promise<string>;
+
+export function ExtractStructuredCustom(arg1:string,arg2:string):Promise<string>;
+
+export function FixEnvironmentIssue(arg1:string):Promise<string>;
+
+export function GetAPMetricsSnapshot():Promise<main.APMetricsSnapshotData>;
+
+export function GetAgentDetail(arg1:string):Promise<main.AgentInfo>;
+
+export function GetAgentLifecycleStates():Promise<Record<string, string>>;
+
+export function GetAgents(arg1:string):Promise<Array<main.AgentInfo>>;
+
+export function GetAllReleases(arg1:number):Promise<Array<main.UpdateInfo>>;
+
+export function GetArchivedSessions():Promise<Array<main.Session>>;
+
+export function GetAvailableEditors():Promise<Array<main.EditorInfo>>;
+
+export function GetBudgetConfig():Promise<main.BudgetConfigDTO>;
+
+export function GetCacheStats():Promise<llm.CacheStats>;
+
+export function GetChangelog(arg1:string,arg2:string,arg3:string):Promise<main.Changelog>;
+
+export function GetCheckpoints(arg1:string,arg2:number):Promise<Array<main.CheckpointInfo>>;
+
+export function GetCodeCompletions(arg1:main.CompletionRequest):Promise<main.CompletionResult>;
+
+export function GetConfig():Promise<Record<string, any>>;
+
+export function GetContextWindowConfig():Promise<Record<string, any>>;
+
+export function GetCostSummary():Promise<agent.CostSummary>;
+
+export function GetCurrentProject():Promise<main.Project>;
+
+export function GetCurrentVersion():Promise<string>;
+
+export function GetDomainRules():Promise<Record<string, any>>;
+
+export function GetEnvVars():Promise<Array<main.EnvVar>>;
+
+export function GetGitHubUser():Promise<main.GitHubUser>;
+
+export function GetGitStatus():Promise<Record<string, any>>;
+
+export function GetGuardrailStatus():Promise<main.GuardrailStatusData>;
+
+export function GetInferenceConfig():Promise<main.InferenceConfig>;
+
+export function GetIngestionStatus():Promise<main.IngestionStatus>;
+
+export function GetKeyRotationInfo():Promise<Record<string, any>>;
+
+export function GetLifecycleState():Promise<string>;
+
+export function GetMCPServerTools(arg1:string):Promise<Array<string>>;
+
+export function GetMCPStatus():Promise<Array<main.MCPStatusEntry>>;
+
+export function GetMetricsExportPrometheus():Promise<string>;
+
+export function GetModelConfigs():Promise<Array<main.ModelConfigItem>>;
+
+export function GetMultimodalCapabilities():Promise<main.MultimodalCapabilities>;
+
+export function GetNoProjectMode():Promise<boolean>;
+
+export function GetNotes():Promise<Array<main.Note>>;
+
+export function GetPlatform():Promise<string>;
+
+export function GetPluginStatus():Promise<main.PluginStatusData>;
+
+export function GetPopoutState():Promise<Record<string, any>>;
+
+export function GetPreferredEditor():Promise<string>;
+
+export function GetProjects():Promise<Array<main.Project>>;
+
+export function GetProviderModels(arg1:string):Promise<Array<string>>;
+
+export function GetProviders():Promise<Array<main.ProviderPreset>>;
+
+export function GetSecurityStatus():Promise<main.SecurityStatus>;
+
+export function GetSession(arg1:string):Promise<main.Session>;
+
+export function GetSessionSummary(arg1:string):Promise<memory.SummaryResult>;
+
+export function GetSessions():Promise<Array<main.Session>>;
+
+export function GetSessionsByMode(arg1:string):Promise<Array<main.Session>>;
+
+export function GetSettings():Promise<main.Settings>;
+
+export function GetSkills():Promise<Array<main.Skill>>;
+
+export function GetSlashCommands():Promise<Array<main.SlashCommand>>;
+
+export function GetTelemetryStatus():Promise<main.TelemetryStatus>;
+
+export function GetToolCatalog():Promise<Array<main.ToolCatalogItem>>;
+
+export function GetToolHistory(arg1:string,arg2:number):Promise<Array<main.CastToolInvocation>>;
+
+export function GetTopicConstraints():Promise<Array<string>>;
+
+export function GetUpdateHistory():Promise<Array<main.UpdateRecord>>;
+
+export function GetWorkflowRun(arg1:string):Promise<main.WorkflowRunData>;
+
+export function GetWorkflowStatus(arg1:string):Promise<main.OrchestrationRun>;
+
+export function GetWorkspaceFiles(arg1:string):Promise<Array<string>>;
+
+export function ImportSkill(arg1:string):Promise<main.Skill>;
+
+export function IngestDirectory(arg1:string,arg2:main.DocumentPipelineConfig):Promise<main.IngestionResult>;
+
+export function InvalidateCacheKey(arg1:string):Promise<void>;
+
+export function InvokeCastTool(arg1:string,arg2:string):Promise<string>;
+
+export function IsDomainBlocked(arg1:string):Promise<boolean>;
+
+export function IsGitHubLoggedIn():Promise<boolean>;
+
+export function ListFiles(arg1:string):Promise<Array<string>>;
+
+export function ListPlugins():Promise<Array<main.PluginInfoData>>;
+
+export function ListWorkflowExecutions():Promise<Array<main.WorkflowRunData>>;
+
+export function ListWorkflowRuns():Promise<Array<main.OrchestrationRun>>;
+
+export function LoadCheckpoint(arg1:string):Promise<void>;
+
+export function LoadInferenceConfig():Promise<main.InferenceConfig>;
+
+export function LoadPlugin(arg1:string):Promise<main.PluginInfoData>;
+
+export function LogoutGitHub():Promise<string>;
+
+export function NotifyAIQuestion(arg1:string):Promise<void>;
+
+export function NotifyEnvironmentIssue(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function NotifyLongRunning(arg1:string,arg2:time.Duration):Promise<void>;
+
+export function NotifyMemoryFull(arg1:string,arg2:number):Promise<void>;
+
+export function NotifyPermissionNeeded(arg1:string):Promise<void>;
+
+export function NotifySecurityAlert(arg1:string,arg2:string):Promise<void>;
+
+export function NotifySessionComplete(arg1:string):Promise<void>;
+
+export function NotifyTaskCompleted(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function NotifyUpdateAvailable(arg1:string):Promise<void>;
+
+export function OpenDownloadedFile(arg1:string):Promise<void>;
+
+export function OpenInEditor(arg1:string):Promise<void>;
+
+export function OpenReleasePage():Promise<void>;
+
+export function PauseWorkflow(arg1:string):Promise<void>;
+
+export function PopoutWindow():Promise<void>;
+
+export function ReadFile(arg1:string):Promise<string>;
+
+export function ReadFileContent(arg1:string):Promise<string>;
+
+export function RegisterCastTools(arg1:tools.Registry):Promise<void>;
+
+export function RegisterPluginHandler(arg1:string,arg2:agent.BusMessageHandler):Promise<void>;
+
+export function RemoveAllowedDomain(arg1:string):Promise<void>;
+
+export function RemoveBlockedDomain(arg1:string):Promise<void>;
+
+export function RemoveEnvVar(arg1:string):Promise<void>;
+
+export function RemoveMCPServer(arg1:string):Promise<void>;
+
+export function RemoveModelConfig(arg1:string):Promise<void>;
+
+export function RemoveProject(arg1:string):Promise<void>;
+
+export function RemoveSlashCommand(arg1:string):Promise<void>;
+
+export function RenameSession(arg1:string,arg2:string):Promise<void>;
+
+export function ResetCostTracker():Promise<void>;
+
+export function ResetInferenceConfig():Promise<void>;
+
+export function ResolveCheckpoint(arg1:string,arg2:boolean):Promise<void>;
+
+export function ResumeFromCheckpoint(arg1:string,arg2:string):Promise<void>;
+
+export function ResumeWorkflow(arg1:string):Promise<void>;
+
+export function RotateEncryptionKey():Promise<void>;
+
+export function RunCodeReviewWorkflow(arg1:string,arg2:string):Promise<main.CodeReviewResult>;
+
+export function RunHandoffWorkflow(arg1:string,arg2:string):Promise<string>;
+
+export function RunParallelAnalysis(arg1:string,arg2:string):Promise<main.ParallelAnalysisResult>;
+
+export function RunRefactoringWorkflow(arg1:string,arg2:string):Promise<main.RefactoringResult>;
+
+export function RunTestPipelineWorkflow(arg1:string,arg2:string):Promise<main.TestPipelineResult>;
+
+export function RunWorkflow(arg1:string,arg2:context.Context):Promise<string>;
+
+export function SaveInferenceConfig(arg1:main.InferenceConfig):Promise<void>;
+
+export function SaveSettings(arg1:main.Settings):Promise<void>;
+
+export function SaveUpdateRecord(arg1:string,arg2:string,arg3:boolean,arg4:string):Promise<void>;
+
+export function SearchNotes(arg1:string):Promise<Array<main.Note>>;
+
+export function SearchSessions(arg1:string):Promise<Array<main.Session>>;
+
+export function SelectFile():Promise<string>;
+
+export function SelectFolder():Promise<string>;
+
+export function SelectMultipleFiles():Promise<Array<string>>;
+
+export function SendMessage(arg1:string,arg2:string):Promise<Array<main.Message>>;
+
+export function SendMessageEx(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Array<main.Message>>;
+
+export function SendMessageWithAttachments(arg1:string,arg2:string,arg3:string):Promise<Array<main.Message>>;
+
+export function SendNotification(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function SendPluginMessage(arg1:string,arg2:string):Promise<void>;
+
+export function SetAPIKey(arg1:string):Promise<string>;
+
+export function SetBudgetConfig(arg1:main.BudgetConfigDTO):Promise<void>;
+
+export function SetBudgetLimit(arg1:number):Promise<void>;
+
+export function SetCacheEnabled(arg1:boolean):Promise<void>;
+
+export function SetContextWindowKeepLast(arg1:number):Promise<void>;
+
+export function SetCurrentProject(arg1:string):Promise<void>;
+
+export function SetNoProjectMode(arg1:boolean):Promise<void>;
+
+export function SetPreferredEditor(arg1:string):Promise<void>;
+
+export function SetSanitizerStrategy(arg1:string):Promise<void>;
+
+export function SetTelemetryEndpoint(arg1:string):Promise<void>;
+
+export function SilentDownload(arg1:string):Promise<void>;
+
+export function StartGitHubLogin():Promise<string>;
+
+export function StartHTTPTransport(arg1:string):Promise<void>;
+
+export function StopHTTPTransport():Promise<void>;
+
+export function TestMCPServerConnection(arg1:string):Promise<main.MCPConnectionResult>;
+
+export function ToggleMCPServer(arg1:string,arg2:boolean):Promise<void>;
+
+export function ToggleModelConfig(arg1:string,arg2:boolean):Promise<void>;
+
+export function ToggleSanitizer(arg1:boolean):Promise<void>;
+
+export function ToggleTelemetry(arg1:boolean):Promise<void>;
+
+export function UnarchiveSession(arg1:string):Promise<void>;
+
+export function UnloadPlugin(arg1:string):Promise<void>;
+
+export function UpdateInferenceConfig(arg1:main.InferenceConfig):Promise<void>;
+
+export function UpdateModelConfig(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number,arg8:number,arg9:boolean):Promise<void>;
+
+export function UpdateNote(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<void>;
+
+export function UpdateProjectInstructions(arg1:string,arg2:string):Promise<void>;
+
+export function UpdateSetting(arg1:string,arg2:any):Promise<void>;
+
+export function UpdateSkill(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function UpdateSlashCommand(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function UpdateTopicConstraints(arg1:Array<string>):Promise<void>;
+
+export function WindowClose():Promise<void>;
+
+export function WindowMaximise():Promise<void>;
+
+export function WindowMinimise():Promise<void>;
+
+export function WindowSetAlwaysOnTop(arg1:boolean):Promise<void>;
+
+export function WriteFile(arg1:string,arg2:string):Promise<void>;

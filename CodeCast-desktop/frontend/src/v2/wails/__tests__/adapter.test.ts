@@ -1,7 +1,7 @@
 // frontend/src/v2/wails/__tests__/adapter.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as App from '@wailsjs/go/main/App';
-import { MCP, Git, Settings as SettingsAdapter, Sessions, Browser, Plugin, Workflow, Orchestration, Updater, Cost, Security, Telemetry, Environment, Multimodal, Window, Document } from '../adapter';
+import { MCP, Git, Settings as SettingsAdapter, Sessions, Browser, Plugin, Workflow, Orchestration, Updater, Cost, Security, Telemetry, Environment, Multimodal, Window, Document, Chat, Agent, Notification, Files } from '../adapter';
 
 describe('adapter namespace', () => {
   beforeEach(() => {
@@ -109,7 +109,7 @@ describe('adapter namespace', () => {
   it('Workflow.run → App.RunWorkflow', async () => {
     vi.mocked(App.RunWorkflow).mockResolvedValueOnce('run-123');
     const result = await Workflow.run('{"name":"test"}');
-    expect(App.RunWorkflow).toHaveBeenCalledWith('{"name":"test"}');
+    expect(App.RunWorkflow).toHaveBeenCalledWith('{"name":"test"}', undefined);
     expect(result).toBe('run-123');
   });
 
@@ -203,5 +203,177 @@ describe('adapter namespace', () => {
     vi.mocked(App.GetIngestionStatus).mockResolvedValueOnce({ running: false } as any);
     const result = await Document.status();
     expect(result.running).toBe(false);
+  });
+
+  // ---- Newly added adapters (P1.1) ----
+
+  it('Sessions.listByMode → App.GetSessionsByMode', async () => {
+    vi.mocked(App.GetSessionsByMode).mockResolvedValueOnce([{ id: 's1' }] as any);
+    const result = await Sessions.listByMode('code');
+    expect(App.GetSessionsByMode).toHaveBeenCalledWith('code');
+    expect(result).toHaveLength(1);
+  });
+
+  it('Sessions.batchDelete → App.BatchDeleteSessions (returns failed IDs)', async () => {
+    vi.mocked(App.BatchDeleteSessions).mockResolvedValueOnce([]);
+    const result = await Sessions.batchDelete(['a', 'b']);
+    expect(App.BatchDeleteSessions).toHaveBeenCalledWith(['a', 'b']);
+    expect(result).toEqual([]);
+  });
+
+  it('Chat.sendRaw → App.SendMessage (low-level wrapper)', async () => {
+    vi.mocked(App.SendMessage).mockResolvedValueOnce([{ role: 'assistant', content: 'hi' }] as any);
+    const result = await Chat.sendRaw('s1', 'hello');
+    expect(App.SendMessage).toHaveBeenCalledWith('s1', 'hello');
+    expect(result[0].content).toBe('hi');
+  });
+
+  it('Agent.lifecycleStates → App.GetAgentLifecycleStates', async () => {
+    vi.mocked(App.GetAgentLifecycleStates).mockResolvedValueOnce({ a1: 'running' } as any);
+    const result = await Agent.lifecycleStates();
+    expect(result).toEqual({ a1: 'running' });
+  });
+
+  it('Agent.lifecycleState → App.GetLifecycleState() (no arg)', async () => {
+    vi.mocked(App.GetLifecycleState).mockResolvedValueOnce('completed');
+    const result = await Agent.lifecycleState();
+    expect(App.GetLifecycleState).toHaveBeenCalledWith();
+    expect(result).toBe('completed');
+  });
+
+  it('Notification.send → App.SendNotification(title, body, type)', () => {
+    Notification.send('title', 'body', 'info');
+    expect(App.SendNotification).toHaveBeenCalledWith('title', 'body', 'info');
+  });
+
+  // ---- Additional adapter tests (P2.5.1) ----
+
+  it('Sessions.archive → App.ArchiveSession', async () => {
+    await Sessions.archive('s1');
+    expect(App.ArchiveSession).toHaveBeenCalledWith('s1');
+  });
+
+  it('Sessions.unarchive → App.UnarchiveSession', async () => {
+    await Sessions.unarchive('s1');
+    expect(App.UnarchiveSession).toHaveBeenCalledWith('s1');
+  });
+
+  it('Sessions.listArchived → App.GetArchivedSessions', async () => {
+    vi.mocked(App.GetArchivedSessions).mockResolvedValueOnce([{ id: 's1' }] as any);
+    const result = await Sessions.listArchived();
+    expect(App.GetArchivedSessions).toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+  });
+
+  it('Chat.sendWithAttachments → App.SendMessageWithAttachments', async () => {
+    vi.mocked(App.SendMessageWithAttachments).mockResolvedValueOnce([{ role: 'assistant', content: 'ok' }] as any);
+    const result = await Chat.sendWithAttachments('s1', 'text', '[]');
+    expect(App.SendMessageWithAttachments).toHaveBeenCalledWith('s1', 'text', '[]');
+    expect(result).toHaveLength(1);
+  });
+
+  it('Chat.cancelAll → App.CancelRequest', async () => {
+    await Chat.cancelAll();
+    expect(App.CancelRequest).toHaveBeenCalled();
+  });
+
+  it('Files.read → App.ReadFile', async () => {
+    vi.mocked(App.ReadFile).mockResolvedValueOnce('file content');
+    const result = await Files.read('/path/to/file');
+    expect(App.ReadFile).toHaveBeenCalledWith('/path/to/file');
+    expect(result).toBe('file content');
+  });
+
+  it('Files.write → App.WriteFile', async () => {
+    await Files.write('/path/to/file', 'new content');
+    expect(App.WriteFile).toHaveBeenCalledWith('/path/to/file', 'new content');
+  });
+
+  it('Files.workspace → App.GetWorkspaceFiles', async () => {
+    vi.mocked(App.GetWorkspaceFiles).mockResolvedValueOnce(['file1.ts', 'file2.ts']);
+    const result = await Files.workspace('/project');
+    expect(App.GetWorkspaceFiles).toHaveBeenCalledWith('/project');
+    expect(result).toHaveLength(2);
+  });
+
+  it('Workflow.list → App.ListWorkflowExecutions', async () => {
+    vi.mocked(App.ListWorkflowExecutions).mockResolvedValueOnce([]);
+    await Workflow.list();
+    expect(App.ListWorkflowExecutions).toHaveBeenCalled();
+  });
+
+  it('Workflow.getRun → App.GetWorkflowRun', async () => {
+    vi.mocked(App.GetWorkflowRun).mockResolvedValueOnce(null);
+    const result = await Workflow.getRun('run-1');
+    expect(App.GetWorkflowRun).toHaveBeenCalledWith('run-1');
+    expect(result).toBeNull();
+  });
+
+  it('Workflow.pause → App.PauseWorkflow', async () => {
+    await Workflow.pause('run-1');
+    expect(App.PauseWorkflow).toHaveBeenCalledWith('run-1');
+  });
+
+  it('Workflow.resume → App.ResumeWorkflow', async () => {
+    await Workflow.resume('run-1');
+    expect(App.ResumeWorkflow).toHaveBeenCalledWith('run-1');
+  });
+
+  it('Workflow.export → App.ExportWorkflow', async () => {
+    // Workflow.export decodes byte array via TextDecoder, so mock must return Uint8Array-compatible data.
+    const encoded = new TextEncoder().encode('{"data":1}');
+    vi.mocked(App.ExportWorkflow).mockResolvedValueOnce(Array.from(encoded) as any);
+    const result = await Workflow.export('run-1');
+    expect(App.ExportWorkflow).toHaveBeenCalledWith('run-1');
+    expect(result).toBe('{"data":1}');
+  });
+
+  it('Updater.download → App.DownloadUpdate', async () => {
+    vi.mocked(App.DownloadUpdate).mockResolvedValueOnce('/path/to/download');
+    const result = await Updater.download('http://example.com/update');
+    expect(App.DownloadUpdate).toHaveBeenCalledWith('http://example.com/update');
+    expect(result).toBe('/path/to/download');
+  });
+
+  it('Updater.openDownloaded → App.OpenDownloadedFile', () => {
+    Updater.openDownloaded('/path/to/file');
+    expect(App.OpenDownloadedFile).toHaveBeenCalledWith('/path/to/file');
+  });
+
+  it('Updater.history → App.GetUpdateHistory', async () => {
+    vi.mocked(App.GetUpdateHistory).mockResolvedValueOnce([]);
+    await Updater.history();
+    expect(App.GetUpdateHistory).toHaveBeenCalled();
+  });
+
+  it('Multimodal.capabilities → App.GetMultimodalCapabilities', async () => {
+    vi.mocked(App.GetMultimodalCapabilities).mockResolvedValueOnce({ vision: true } as any);
+    const result = await Multimodal.capabilities();
+    expect(App.GetMultimodalCapabilities).toHaveBeenCalled();
+    expect(result.vision).toBe(true);
+  });
+
+  it('Security.rotateKey → App.RotateEncryptionKey', async () => {
+    await Security.rotateKey();
+    expect(App.RotateEncryptionKey).toHaveBeenCalled();
+  });
+
+  it('Security.checkAntivirus → App.CheckAntivirusCompatibility', async () => {
+    vi.mocked(App.CheckAntivirusCompatibility).mockResolvedValueOnce({ compatible: true } as any);
+    const result = await Security.checkAntivirus();
+    expect(App.CheckAntivirusCompatibility).toHaveBeenCalled();
+    expect(result.compatible).toBe(true);
+  });
+
+  it('Telemetry.status → App.GetTelemetryStatus', async () => {
+    vi.mocked(App.GetTelemetryStatus).mockResolvedValueOnce({ enabled: true, endpoint: 'http://example.com' } as any);
+    const result = await Telemetry.status();
+    expect(App.GetTelemetryStatus).toHaveBeenCalled();
+    expect(result.enabled).toBe(true);
+  });
+
+  it('Telemetry.setEndpoint → App.SetTelemetryEndpoint', async () => {
+    await Telemetry.setEndpoint('http://new-endpoint.com');
+    expect(App.SetTelemetryEndpoint).toHaveBeenCalledWith('http://new-endpoint.com');
   });
 });

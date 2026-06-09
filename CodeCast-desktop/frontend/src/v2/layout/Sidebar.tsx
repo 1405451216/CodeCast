@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAppStore, type AppMode } from '../store';
 import { useError } from '../lib/useError';
 
@@ -9,6 +9,7 @@ interface NavItem {
   icon: React.ReactNode;
   badge?: string;
   onClick?: () => void;
+  onContext?: (e: React.MouseEvent) => void;
   active?: boolean;
 }
 
@@ -29,6 +30,12 @@ const I = {
   sparkle: (
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
       <path d="M8 1.5 9.4 6l4.6 1.4-4.6 1.4L8 13.4 6.6 8.8 2 7.4 6.6 6 8 1.5Z" fill="currentColor" />
+    </svg>
+  ),
+  cost: (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M8 4.5v1M8 10.5v1M5.5 8h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   ),
   code: (
@@ -69,6 +76,44 @@ const I = {
       <path d="M2 4.5C2 3.67 2.67 3 3.5 3h9c.83 0 1.5.67 1.5 1.5v6c0 .83-.67 1.5-1.5 1.5H6.5L3.5 14v-2H3.5C2.67 12 2 11.33 2 10.5v-6Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
     </svg>
   ),
+  pen: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M11 2l3 3-9 9H2v-3l9-9Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+    </svg>
+  ),
+  globe: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2"/>
+      <path d="M2 8h12M8 2c2 2 3 4 3 6s-1 4-3 6M8 2c-2 2-3 4-3 6s1 4 3 6" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  ),
+  book: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M2 3h4.5c.83 0 1.5.67 1.5 1.5V13L6.5 12H2V3ZM14 3H9.5C8.67 3 8 3.67 8 4.5V13l1.5-1H14V3Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+    </svg>
+  ),
+  calendar: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+      <path d="M2 6h12M5 1.5v3M11 1.5v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  ),
+  envelope: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+      <path d="M2 5.5l6 4 6-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  wrench: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M10.5 2.5a3.5 3.5 0 0 0-4.95 4.95l-5 5a2 2 0 1 0 2.83 2.83l5-5A3.5 3.5 0 0 0 10.5 2.5Z" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  ),
+  puzzle: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M4 2h3v2h2V2h3v3h2v3h-2v2h2v3H2V2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+    </svg>
+  ),
   chevron: (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
       <path d="m3 4 2 2 2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -91,24 +136,81 @@ export function Sidebar({ activeId, onSelect }: Props) {
   const currentSessionId = useAppStore((s) => s.currentSessionId);
   const switchSession = useAppStore((s) => s.switchSession);
   const createSession = useAppStore((s) => s.createSession);
+  const deleteSession = useAppStore((s) => s.deleteSession);
+  const renameSession = useAppStore((s) => s.renameSession);
+
+  const handleRenameSession = useCallback((id: string, currentName: string) => {
+    const newName = window.prompt('重命名会话:', currentName);
+    if (newName && newName.trim() && newName !== currentName) {
+      renameSession(id, newName.trim());
+    }
+  }, [renameSession]);
+
+  const handleDeleteSession = useCallback((id: string, name: string) => {
+    if (window.confirm(`确定要删除会话「${name}」吗？此操作不可撤销。`)) {
+      deleteSession(id);
+      // If deleting current session, navigate home
+      if (id === useAppStore.getState().currentSessionId) {
+        navigate('/');
+      }
+    }
+  }, [deleteSession, navigate]);
+
+  const handleSessionContext = useCallback((e: React.MouseEvent, id: string, name: string) => {
+    e.preventDefault();
+    const action = window.prompt(`会话「${name}」\n输入: 1=重命名, 2=删除`, '1');
+    if (action === '1') handleRenameSession(id, name);
+    else if (action === '2') handleDeleteSession(id, name);
+  }, [handleRenameSession, handleDeleteSession]);
 
   const handleSessionSelect = useCallback((id: string) => {
+    // Check for unsent text in composer
+    const ta = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息输入"]');
+    if (ta && ta.value.trim()) {
+      // Auto-save draft for current session
+      const currentId = useAppStore.getState().currentSessionId;
+      if (currentId) {
+        try { sessionStorage.setItem(`codecast-composer-draft:${currentId}`, ta.value); } catch { /* ignore */ }
+      }
+    }
     switchSession(id);
+    navigate('/');
     onSelect?.(id);
-  }, [switchSession, onSelect]);
+  }, [switchSession, navigate, onSelect]);
 
-  const handleCreateSession = useCallback(() => {
-    createSession('New Session');
-  }, [createSession]);
+  const handleCreateSession = useCallback(async () => {
+    await createSession('New Session', '', mode === 'cast' ? 'daily' : 'coding');
+    navigate('/');
+  }, [createSession, mode, navigate]);
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    projects: true,
-    scheduled: true,
-    artifacts: false,
-    custom: true,
-    recent: true,
-    sessions: true,
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('codecast-sidebar-groups');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return {
+      projects: true,
+      scheduled: true,
+      artifacts: false,
+      custom: true,
+      recent: true,
+      sessions: true,
+    };
   });
+
+  // Persist group state on change
+  useEffect(() => {
+    try { localStorage.setItem('codecast-sidebar-groups', JSON.stringify(openGroups)); } catch { /* ignore */ }
+  }, [openGroups]);
+
+  const modeMatch = mode === 'cast' ? 'daily' : 'coding';
+  const [showAllSessions, setShowAllSessions] = useState(false);
+  const allMatchingSessions = sessions.filter((s) => {
+    const sMode = s.mode || 'daily';
+    return sMode === modeMatch && s.messages && s.messages.length > 0;
+  });
+  const recentSessions = showAllSessions ? allMatchingSessions : allMatchingSessions.slice(0, 8);
+  const hiddenCount = allMatchingSessions.length - 8;
 
   const groups: NavGroup[] =
     mode === 'cast'
@@ -149,12 +251,14 @@ export function Sidebar({ activeId, onSelect }: Props) {
             collapsible: true,
             defaultOpen: true,
             items: [
-              { id: 'c-writing', label: '写作助手', icon: I.custom, onClick: () => navigate('/cast/writing') },
-              { id: 'c-translation', label: '中英互译', icon: I.custom, onClick: () => navigate('/cast/translation') },
-              { id: 'c-knowledge', label: '知识库', icon: I.custom, onClick: () => navigate('/cast/knowledge') },
-              { id: 'c-schedule', label: '日程', icon: I.custom, onClick: () => navigate('/cast/schedule') },
-              { id: 'c-email', label: '邮件草稿', icon: I.custom, onClick: () => navigate('/cast/email') },
-              { id: 'c-tools', label: '工具箱', icon: I.custom, onClick: () => navigate('/cast/tools') },
+              { id: 'c-writing', label: '写作助手', icon: I.pen, onClick: () => navigate('/cast/writing') },
+              { id: 'c-translation', label: '中英互译', icon: I.globe, onClick: () => navigate('/cast/translation') },
+              { id: 'c-knowledge', label: '知识库', icon: I.book, onClick: () => navigate('/cast/knowledge') },
+              { id: 'c-schedule', label: '日程', icon: I.calendar, onClick: () => navigate('/cast/schedule') },
+              { id: 'c-email', label: '邮件草稿', icon: I.envelope, onClick: () => navigate('/cast/email') },
+              { id: 'c-tools', label: '工具箱', icon: I.wrench, onClick: () => navigate('/cast/tools') },
+              { id: 'c-cost', label: '成本', icon: I.cost, onClick: () => navigate('/cost') },
+              { id: 'c-plugins', label: '插件', icon: I.puzzle, onClick: () => navigate('/plugins') },
             ],
           },
           {
@@ -162,13 +266,22 @@ export function Sidebar({ activeId, onSelect }: Props) {
             label: '最近使用',
             collapsible: true,
             defaultOpen: true,
-            items: sessions.slice(0, 8).map((s) => ({
-              id: s.id,
-              label: s.name || 'Untitled',
-              icon: I.chat,
-              active: currentSessionId === s.id,
-              onClick: () => handleSessionSelect(s.id),
-            })),
+            items: [
+              ...recentSessions.map((s) => ({
+                id: s.id,
+                label: s.name || 'Untitled',
+                icon: I.chat,
+                active: currentSessionId === s.id,
+                onClick: () => handleSessionSelect(s.id),
+                onContext: (e: React.MouseEvent) => handleSessionContext(e, s.id, s.name || 'Untitled'),
+              })),
+              ...(hiddenCount > 0 && !showAllSessions ? [{
+                id: 'show-all',
+                label: `查看全部 ${allMatchingSessions.length} 个会话`,
+                icon: I.recent,
+                onClick: () => setShowAllSessions(true),
+              }] : []),
+            ],
           },
         ]
       : [
@@ -183,10 +296,22 @@ export function Sidebar({ activeId, onSelect }: Props) {
             collapsible: true,
             defaultOpen: true,
             items: [
-              { id: 'c-review', label: '代码审查', icon: I.custom },
-              { id: 'c-test', label: '生成测试', icon: I.custom },
-              { id: 'c-refactor', label: '智能重构', icon: I.custom },
-              { id: 'c-commit', label: '提交信息', icon: I.custom },
+              {
+                id: 'c-review', label: '代码审查', icon: I.custom,
+                onClick: () => { navigate('/cast/tools?mode=review'); },
+              },
+              {
+                id: 'c-test', label: '生成测试', icon: I.custom,
+                onClick: () => { navigate('/cast/tools?mode=test'); },
+              },
+              {
+                id: 'c-refactor', label: '智能重构', icon: I.custom,
+                onClick: () => { navigate('/cast/tools?mode=refactor'); },
+              },
+              {
+                id: 'c-commit', label: '提交信息', icon: I.custom,
+                onClick: () => { navigate('/cast/tools?mode=commit'); },
+              },
             ],
           },
           {
@@ -194,13 +319,22 @@ export function Sidebar({ activeId, onSelect }: Props) {
             label: '最近使用',
             collapsible: true,
             defaultOpen: true,
-            items: sessions.slice(0, 8).map((s) => ({
-              id: s.id,
-              label: s.name || 'Untitled',
-              icon: I.chat,
-              active: currentSessionId === s.id,
-              onClick: () => handleSessionSelect(s.id),
-            })),
+            items: [
+              ...recentSessions.map((s) => ({
+                id: s.id,
+                label: s.name || 'Untitled',
+                icon: I.chat,
+                active: currentSessionId === s.id,
+                onClick: () => handleSessionSelect(s.id),
+                onContext: (e: React.MouseEvent) => handleSessionContext(e, s.id, s.name || 'Untitled'),
+              })),
+              ...(hiddenCount > 0 && !showAllSessions ? [{
+                id: 'show-all',
+                label: `查看全部 ${allMatchingSessions.length} 个会话`,
+                icon: I.recent,
+                onClick: () => setShowAllSessions(true),
+              }] : []),
+            ],
           },
         ];
 
@@ -216,8 +350,8 @@ export function Sidebar({ activeId, onSelect }: Props) {
         overflow: 'auto',
       }}
     >
-      <ModeSwitcher mode={mode} onChange={setMode} />
-      {groups.map((g) => (
+      <ModeSwitcher mode={mode} onChange={(m) => { setMode(m); navigate('/'); }} />
+      {groups.filter(g => g.items.length > 0 || g.id === 'new').map((g) => (
         <SidebarGroup
           key={g.id}
           group={g}
@@ -310,8 +444,8 @@ function ModeChip({
       onClick={onClick}
       title={label}
       style={{
-        width: 28,
-        height: 28,
+        width: 32,
+        height: 32,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -389,6 +523,7 @@ function SidebarGroup({
             <li key={item.id}>
               <button
                 onClick={() => onItem(item)}
+                onContextMenu={item.onContext}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

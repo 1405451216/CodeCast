@@ -35,7 +35,6 @@ type App struct {
 	projects      []Project
 	currentProjectID string
 	noProjectMode bool
-	activeSessionID string
 	// memoryCleanupStop removed — was never consumed (dead code)
 	taskSchedulerStop  chan struct{}
 	updateStop        chan struct{}
@@ -76,6 +75,9 @@ type App struct {
 	// AP CostTracker
 	costTracker  *ap.CostTracker
 	budgetConfig *ap.BudgetConfig
+	// Application-level budget settings (not in AP BudgetConfig)
+	budgetAlertThreshold     float64
+	budgetEnforcementEnabled bool
 
 	// AP CacheManager
 	cacheManager *ap.CacheManager
@@ -108,8 +110,7 @@ type App struct {
 	llmConfig   LLMProviderConfig  // KEEP: syncSettingsToConfig() 依赖
 	cachedProvider ap.Provider // cached for castLLM to avoid re-creating per call
 	cachedProviderConfigHash string // detects when provider config changes
-	// completor 字段已删除（代码补全迁到 ap.CachedProvider）
-	// notes 字段已删除（笔记功能迁到 cast_kb_* + ap.memory）
+	notes        []Note // Notes system for user-created notes
 }
 
 // APMetricsSnapshotData is the frontend-facing metrics snapshot struct.
@@ -258,6 +259,11 @@ func (a *App) startup(ctx context.Context) {
 	// 0. Initialize cast tool persistent stores (todos, schedules, plugins, etc.)
 	a.initCastStores()
 
+	// 0b. GitHub OAuth Auth
+	if err := a.initGitHubAuth(); err != nil {
+		slog.Warn("GitHub Auth 初始化失败", "error", err)
+	}
+
 	// 1. AP Memory (SQLite + FTS5)
 	memoryPath := filepath.Join(filepath.Dir(a.settingsPath), "memory.db")
 	apMemory, err := ap.NewSQLiteStore(memoryPath)
@@ -293,23 +299,18 @@ func (a *App) startup(ctx context.Context) {
 	slog.Info("AP FileLockManager 已启动")
 
 	// 4b. AP Security (ACL + Sandbox) — replaces hand-rolled security in shell.go
-	projectPath := ""
 	allProjectPaths := make([]string, 0, len(a.projects))
 	a.mu.RLock()
 	for _, p := range a.projects {
 		allProjectPaths = append(allProjectPaths, p.Path)
 	}
-	if cp := a.getCurrentProjectLocked(); cp != nil {
-		projectPath = cp.Path
-	}
 	a.mu.RUnlock()
 	a.acl = setupSecurityACL(allProjectPaths)
 	a.sandbox = setupSecuritySandbox(a.acl)
-	a.setGlobalValidateCommand()
 	slog.Info("AP Security (ACL+Sandbox) 已启动")
 
 	// 5. AP Toolkit — DefaultToolkit(cfg ToolkitConfig) (*Registry, error)
-	projectPath = ""
+	projectPath := ""
 	a.mu.RLock()
 	if cp := a.getCurrentProjectLocked(); cp != nil {
 		projectPath = cp.Path
@@ -522,6 +523,9 @@ func (a *App) startup(ctx context.Context) {
 
 	// 从磁盘恢复持久化的 sessions
 	a.loadPersistedSessions()
+
+	// 从磁盘恢复持久化的 notes
+	a.loadNotes()
 
 	// 后台自动检查更新
 	go a.autoCheckUpdate(a.updateStop)

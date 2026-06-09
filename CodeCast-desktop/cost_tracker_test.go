@@ -53,8 +53,8 @@ func TestGetBudgetConfig(t *testing.T) {
 		costTracker: ap.NewCostTracker(nil, nil),
 	}
 	config := app.GetBudgetConfig()
-	if config.MaxTotalCostUSD != 0 {
-		t.Errorf("expected 0 MaxTotalCostUSD, got %f", config.MaxTotalCostUSD)
+	if config.MaxCostUSD != 0 {
+		t.Errorf("expected 0 MaxCostUSD, got %f", config.MaxCostUSD)
 	}
 }
 
@@ -64,12 +64,9 @@ func TestSetBudgetConfig(t *testing.T) {
 		ctx:         context.Background(),
 		costTracker: ap.NewCostTracker(nil, nil),
 	}
-	newBudget := &ap.BudgetConfig{
-		MaxTotalCostUSD: 10.0,
-	}
-	app.SetBudgetConfig(newBudget)
+	app.SetBudgetConfig(BudgetConfigDTO{MaxCostUSD: 10.0})
 	config := app.GetBudgetConfig()
-	if config.MaxTotalCostUSD != 10.0 {
-		t.Errorf("expected 10.0 MaxTotalCostUSD, got %f", config.MaxTotalCostUSD)
+	if config.MaxCostUSD != 10.0 {
+		t.Errorf("expected 10.0 MaxCostUSD, got %f", config.MaxCostUSD)
 	}
 }

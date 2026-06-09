@@ -29,18 +29,6 @@ const (
 	MessageHistoryLimit = 20 // 保留的消息历史条数（平衡上下文质量和 token 消耗）
 )
 
-func formatFileSize(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGT"[exp])
-}
 
 // ==================== Config (legacy) ====================
 
@@ -230,6 +218,10 @@ type Settings struct {
 	SlashCommands []SlashCommand `json:"slash_commands"`
 
 	ArchivedSessions []string `json:"archived_sessions"`
+
+	// GitHub OAuth 凭据（加密存储，无需用户设置环境变量）
+	GithubClientID     string `json:"github_client_id"`
+	GithubClientSecret string `json:"github_client_secret"`
 }
 
 type MCPServer struct {
@@ -265,6 +257,8 @@ func defaultShell() string {
 	}
 	return "powershell"
 }
+
+const DefaultCheckpointTimeout = 5 * time.Minute
 
 var DefaultSettings = Settings{
 	WorkMode:         "daily",

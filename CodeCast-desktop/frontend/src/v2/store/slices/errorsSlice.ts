@@ -2,10 +2,11 @@
 import type { StateCreator } from 'zustand';
 
 export type SliceName =
-  | 'session' | 'chat' | 'model' | 'project' | 'cast'
+  | 'session' | 'chat' | 'model' | 'project'
   | 'castTool' | 'memory' | 'mcp' | 'git' | 'settings'
   | 'notification' | 'workflow' | 'plugin'
-  | 'updater' | 'orchestration' | 'agent' | 'cost';
+  | 'updater' | 'orchestration' | 'agent' | 'cost' | 'checkpoint'
+  | 'security' | 'telemetry';
 
 export interface ErrorsSlice {
   errors: Partial<Record<SliceName, string>>;

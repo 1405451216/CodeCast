@@ -102,7 +102,6 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 
 	// 通过 ap.builtin.Shell.Execute 转发（保留 workDir + env + 超时）
 	customEnvVars := a.getCustomEnvVars()
-	_ = customEnvVars // env 通过 ap.Shell.WithScope 或在 execute 内部处理
 
 	fmt.Printf("[Shell][%s] ▶️  通过 ap.builtin.Shell 执行...\n", requestID)
 	execStartTime := time.Now()
@@ -111,6 +110,10 @@ func (a *App) ExecuteCommand(command string, timeoutSeconds int) (string, error)
 		"command":    command,
 		"timeout":    timeoutSeconds,
 		"workingDir": workDir,
+	}
+	if len(customEnvVars) > 0 {
+		shellArgs["env"] = customEnvVars
+		fmt.Printf("[Shell][%s] 🌍 自定义环境变量: %d 个\n", requestID, len(customEnvVars))
 	}
 	shellArgsJSON, _ := json.Marshal(shellArgs)
 	res, err := globalAPShell.Execute(ctx, shellArgsJSON)
@@ -188,6 +191,8 @@ func maskSensitiveValue(envVar string) string {
 
 // redactSensitiveOutput masks patterns that commonly contain secrets in command output.
 // M9 fix: prevents API keys, tokens, and passwords from leaking via stdout/logs.
+// H16 fix: add defensive bounds checks to prevent slice-out-of-bounds when output
+// is modified mid-loop.
 func redactSensitiveOutput(output string) string {
 	// Redact key=value patterns for sensitive keys
 	sensitivePatterns := []string{
@@ -202,7 +207,7 @@ func redactSensitiveOutput(output string) string {
 		for _, sep := range []string{"=", ": "} {
 			prefix := key + sep
 			searchFrom := 0
-			for {
+			for searchFrom < len(output) {
 				idx := strings.Index(output[searchFrom:], prefix)
 				if idx < 0 {
 					break
@@ -210,6 +215,10 @@ func redactSensitiveOutput(output string) string {
 				idx += searchFrom
 				// Find end of value (next whitespace or end of string)
 				valStart := idx + len(prefix)
+				if valStart >= len(output) {
+					searchFrom = idx + 1
+					continue
+				}
 				valEnd := valStart
 				for valEnd < len(output) && output[valEnd] != ' ' && output[valEnd] != '\n' && output[valEnd] != '\r' && output[valEnd] != '"' {
 					valEnd++
@@ -227,7 +236,7 @@ func redactSensitiveOutput(output string) string {
 	keyPrefixes := []string{"sk-", "ghp_", "gho_", "glpat-", "AKIA"}
 	for _, prefix := range keyPrefixes {
 		searchFrom := 0
-		for {
+		for searchFrom < len(output) {
 			idx := strings.Index(output[searchFrom:], prefix)
 			if idx < 0 {
 				break
@@ -242,34 +251,6 @@ func redactSensitiveOutput(output string) string {
 		}
 	}
 	return output
-}
-
-// validateCommand delegates to the AP Sandbox bridge (security_bridge.go).
-// Retained as a package-level function for compatibility with sub-agent tool calls.
-func validateCommand(agentID, agentMode, rawCmd string) error {
-	// Use the global app instance if available, otherwise no security check.
-	// The canonical path is via App.validateCommandBridge which uses the sandbox.
-	return globalValidateCommand(agentID, agentMode, rawCmd)
-}
-
-// globalValidateCommand holds a reference to the active App's validateCommandBridge.
-// This is set during startup so the package-level validateCommand can delegate.
-var globalValidateCommand = defaultValidateCommand
-
-func defaultValidateCommand(agentID, agentMode, rawCmd string) error {
-	// Fail-closed: before App.startup wires the sandbox-backed validator,
-	// refuse all commands to prevent an early-race security bypass.
-	return &CommandDeniedError{
-		Reason:    "安全沙箱尚未初始化，拒绝执行命令。请等待应用启动完成。",
-		Command:   extractCommandName(rawCmd),
-		Dangerous: true,
-	}
-}
-
-// setGlobalValidateCommand wires the package-level validateCommand to use the sandbox.
-// Called once during App.startup after the sandbox is initialized.
-func (a *App) setGlobalValidateCommand() {
-	globalValidateCommand = a.validateCommandBridge
 }
 
 func extractCommandName(cmd string) string {

@@ -15,6 +15,7 @@ interface Props {
   backLabel?: string;
   menuButtonRef?: RefObject<HTMLButtonElement>;
   menuOpen?: boolean;
+  sessionName?: string;
 }
 
 /**
@@ -29,6 +30,7 @@ export function TopBar({
   onMinimize, onMaximize, onClose,
   onBack, backLabel,
   menuButtonRef, menuOpen,
+  sessionName,
 }: Props) {
   useError('model');
   if (onBack) {
@@ -63,16 +65,17 @@ export function TopBar({
         gap: 2,
         fontSize: 13,
         color: 'var(--c-text)',
-      }}
+        '--wails-draggable': 'drag',
+      } as React.CSSProperties}
     >
       {/* 左侧按钮组 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <TopIconBtn ref={menuButtonRef} aria-label="主菜单" title="主菜单" onClick={onOpenMenu} active={menuOpen}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </TopIconBtn>
-        <TopIconBtn aria-label="分屏" title="分屏视图" onClick={onToggleSplit}>
+        <TopIconBtn aria-label="分屏" title="分屏视图 (即将推出)" onClick={onToggleSplit} style={{ opacity: 0.4, cursor: 'default' }}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <rect x="2" y="3" width="5" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" />
             <rect x="9" y="3" width="5" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" />
@@ -96,10 +99,27 @@ export function TopBar({
         </TopIconBtn>
       </div>
 
-      <div style={{ flex: 1 }} />
+      <div style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', '--wails-draggable': 'drag' } as React.CSSProperties}>
+        {sessionName && (
+          <span
+            style={{
+              fontSize: 12,
+              color: 'var(--c-textMute)',
+              fontFamily: 'var(--font-mono)',
+              maxWidth: 240,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={sessionName}
+          >
+            {sessionName}
+          </span>
+        )}
+      </div>
 
       {/* 右侧：主题切换 + 窗口控件 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <ThemeToggle />
         <div style={{ width: 1, height: 18, background: 'var(--c-border)', margin: '0 4px' }} />
         <TopIconBtn aria-label="最小化" title="最小化" onClick={onMinimize}>

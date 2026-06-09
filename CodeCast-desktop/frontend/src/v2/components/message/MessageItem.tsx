@@ -1,5 +1,6 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { Popover } from '../primitives/Popover';
+import { copyToClipboard } from '../../lib/clipboard';
 
 export interface Message {
   id?: string;
@@ -16,6 +17,9 @@ export interface Message {
 
 interface Props {
   message: Message;
+  onCopy?: () => void;
+  onEdit?: () => void;
+  onRegenerate?: () => void;
   onPreview?: () => void;
   onDiff?: () => void;
   onTerminal?: () => void;
@@ -28,6 +32,17 @@ const I = {
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
       <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
       <path d="M8 7v4M8 5v.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  ),
+  copyIcon: (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+      <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  ),
+  check: (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
   preview: (
@@ -67,8 +82,10 @@ const I = {
  *  - 助手消息：左对齐，无头像，"✱ Ns · thinking..." 状态
  *  - 助手消息右上 ⓘ Popover 菜单
  */
-export function MessageItem({ message, onPreview, onDiff, onTerminal, onBackground, onPlan }: Props) {
+export function MessageItem({ message, onCopy, onEdit, onRegenerate, onPreview, onDiff, onTerminal, onBackground, onPlan }: Props) {
   const [now, setNow] = useState(() => Date.now());
+  const [hovered, setHovered] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!message.isStreaming) return;
@@ -76,9 +93,71 @@ export function MessageItem({ message, onPreview, onDiff, onTerminal, onBackgrou
     return () => clearInterval(t);
   }, [message.isStreaming]);
 
+  const handleCopy = useCallback(async () => {
+    const ok = await copyToClipboard(message.content);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+    onCopy?.();
+  }, [message.content, onCopy]);
+
   if (message.role === 'user') {
     return (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 0' }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 0', position: 'relative', alignItems: 'center', gap: 8 }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {hovered && (
+          <button
+            onClick={handleCopy}
+            aria-label="复制消息"
+            title="复制"
+            style={{
+              width: 28,
+              height: 28,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              borderRadius: 'var(--r-sm)',
+              color: copied ? 'var(--c-success)' : 'var(--c-textMute)',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'color var(--dur-fast) var(--ease)',
+            }}
+          >
+            {copied ? (
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" strokeWidth="1.2"/></svg>
+            )}
+          </button>
+        )}
+        {hovered && onEdit && (
+          <button
+            onClick={onEdit}
+            aria-label="编辑消息"
+            title="编辑"
+            style={{
+              width: 28,
+              height: 28,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              borderRadius: 'var(--r-sm)',
+              color: 'var(--c-textMute)',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M11 2l3 3-9 9H2v-3l9-9Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+          </button>
+        )}
         <div
           style={{
             maxWidth: '70%',
@@ -142,6 +221,8 @@ export function MessageItem({ message, onPreview, onDiff, onTerminal, onBackgrou
           }
         >
           <div style={{ fontSize: 13, padding: '4px', minWidth: 180 }}>
+            <MenuItem icon={copied ? I.check : I.copyIcon} label={copied ? '已复制' : '复制'} onClick={handleCopy} />
+            <div style={{ height: 1, background: 'var(--c-border)', margin: '4px 0' }} />
             <MenuItem icon={I.preview} label="预览" onClick={onPreview} />
             <MenuItem icon={I.diff} label="差异" onClick={onDiff} />
             <MenuItem icon={I.term} label="终端" onClick={onTerminal} />
@@ -165,6 +246,11 @@ export function MessageItem({ message, onPreview, onDiff, onTerminal, onBackgrou
       >
         <span style={{ color: 'var(--c-accent)' }}>✱</span>
         <span>{message.isStreaming ? `${thinkingSec}s · thinking…` : `${thinkingSec}s`}</span>
+        {message.createdAt && (
+          <span style={{ fontSize: 11, opacity: 0.6 }}>
+            · {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
         {message.isStreaming && (
           <span
             style={{
@@ -192,17 +278,6 @@ export function MessageItem({ message, onPreview, onDiff, onTerminal, onBackgrou
         {message.content}
         {message.isStreaming && <Caret />}
       </div>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 1; }
-        }
-        @keyframes caret {
-          0%, 49% { opacity: 1; }
-          50%, 100% { opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }

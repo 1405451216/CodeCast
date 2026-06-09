@@ -34,33 +34,6 @@ func runGitCommand(dir string, args ...string) (string, error) {
 	return string(output), err
 }
 
-func (a *App) gitAutoCommit(modifiedFilePath string) {
-	defer func() {
-		if r := recover(); r != nil {
-			slog.Error("[Git] 自动提交异常恢复", "panic", r)
-		}
-	}()
-
-	gitRoot := findGitRoot(modifiedFilePath)
-	if gitRoot == "" {
-		return
-	}
-
-	a.mu.Lock()
-	confirmBefore := a.settings.ConfirmBeforeCommit
-	a.mu.Unlock()
-
-	if confirmBefore {
-		relPath, _ := filepath.Rel(gitRoot, modifiedFilePath)
-		wailsRuntime.EventsEmit(a.ctx, "git-commit-confirm", map[string]interface{}{
-			"file":      relPath,
-			"directory": gitRoot,
-		})
-		return
-	}
-
-	a.executeGitCommit(gitRoot, modifiedFilePath)
-}
 
 func (a *App) executeGitCommit(gitRoot, filePath string) {
 	relPath, _ := filepath.Rel(gitRoot, filePath)

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { useToast } from '../components/primitives/Toast';
-import type { APMetricsSnapshot } from '../wails/types';
+import { GitHub } from '../wails/adapter';
 
 interface GatewayItem {
   id: string;
@@ -75,11 +75,16 @@ const I = {
       <path d="M4 8l4-4M4.5 4H8v3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  github: (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.001 8.001 0 0 0 16 8c0-4.42-3.58-8-8-8z" fill="currentColor" />
+    </svg>
+  ),
 };
 
 /**
- * CodeCast 风格底栏 —— "网关" 面板
- * - 默认折叠：模型 / 上下文 / 网关按钮
+ * CodeCast 风格底栏 —— "设置" 面板
+ * - 默认折叠：模型 / 上下文 / 设置按钮
  * - 展开后：设置 / 语言 / 推理配置 / 查看更新日志 / 了解更多（嵌套子菜单）/ 注销
  */
 export function BottomBar() {
@@ -87,16 +92,75 @@ export function BottomBar() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const closeTimer = useRef<number | null>(null);
   const navigate = useNavigate();
+
+  // Escape to close settings panel
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
   const model = useAppStore((s) => s.current);
   const thinking = useAppStore((s) => s.planMode);
+  const togglePlanMode = useAppStore((s) => s.togglePlanMode);
   const configs = useAppStore((s) => s.configs);
   const currentVersion = useAppStore((s) => s.currentVersion);
+  const connected = configs && configs.length > 0;
   const refreshVersion = useAppStore((s) => s.refreshVersion);
   const metricsSnap = useAppStore((s) => s.metricsSnap);
   const updateKey = useAppStore((s) => s.updateKey);
   const checkUpdate = useAppStore((s) => s.checkUpdate);
   const settings = useAppStore((s) => s.settings);
   const toast = useToast();
+  const githubUser = useAppStore((s) => s.githubUser);
+  const setGitHubUser = useAppStore((s) => s.setGitHubUser);
+  const setGitHubLoading = useAppStore((s) => s.setGitHubLoading);
+  const clearGitHubAuth = useAppStore((s) => s.clearGitHubAuth);
+
+  // 加载 GitHub 登录状态
+  useEffect(() => {
+    GitHub.isLoggedIn().then((loggedIn) => {
+      if (loggedIn) {
+        GitHub.getUser().then((user) => {
+          if (user) setGitHubUser(user);
+        });
+      }
+    });
+  }, [setGitHubUser]);
+
+  // GitHub 登录
+  const handleGitHubLogin = async () => {
+    setGitHubLoading(true);
+    try {
+      const msg = await GitHub.login();
+      toast.show(msg, 'info');
+      // 轮询等待回调完成（最多 120 秒）
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const user = await GitHub.getUser();
+        if (user) {
+          setGitHubUser(user);
+          return;
+        }
+      }
+      toast.show('登录超时，请重试', 'warn');
+    } catch (err: any) {
+      toast.show(`登录失败: ${err?.message || err}`, 'danger');
+    } finally {
+      setGitHubLoading(false);
+    }
+  };
+
+  // GitHub 注销
+  const handleGitHubLogout = async () => {
+    try {
+      await GitHub.logout();
+      clearGitHubAuth();
+      toast.show('已注销 GitHub', 'success');
+    } catch (err: any) {
+      toast.show(`注销失败: ${err?.message || err}`, 'danger');
+    }
+  };
 
   // Derive context window from active model config
   const activeConfig = configs?.find((c) => c.model === model);
@@ -122,16 +186,6 @@ export function BottomBar() {
   const currentLang = (settings as Record<string, unknown> | null)?.language as string | undefined;
   const currentLangLabel = currentLang === 'en-US' ? 'English' : '中文';
 
-  const learnChildren = [
-    { id: 'about', label: '关于 Anthropic', external: true },
-    { id: 'tutorial', label: '教程', external: true },
-    { id: 'course', label: '课程', external: true },
-    { id: 'usage', label: '使用政策', external: true },
-    { id: 'privacy', label: '隐私政策', external: true },
-    { id: 'your-privacy', label: '你的隐私选择', external: true },
-    { id: 'shortcuts', label: '键盘快捷键' },
-  ];
-
   const langChildren = [
     { id: 'zh-CN', label: '简体中文', onClick: () => { updateKey('language', 'zh-CN'); toast.show('语言已切换为简体中文', 'success'); } },
     { id: 'en-US', label: 'English (United States)', onClick: () => { updateKey('language', 'en-US'); toast.show('Language switched to English', 'success'); } },
@@ -140,12 +194,13 @@ export function BottomBar() {
   const items: GatewayItem[] = [
     { id: 'settings', label: '设置', desc: '主题、快捷键、API Key', icon: I.settings, onClick: () => { setOpen(false); navigate('/settings'); } },
     {
-      id: 'lang', label: '语言', icon: I.lang, onClick: () => { setOpen(false); },
+      id: 'lang', label: '语言', icon: I.lang,
+      // 有子菜单的项：点击不关闭面板，由 hover 触发子菜单
+      onClick: () => {},
       right: <span style={{ color: 'var(--c-textMute)', display: 'inline-flex', fontSize: 11, gap: 4 }}>{currentLangLabel}{I.chevronRight}</span>,
       children: langChildren,
     },
-    {
-      id: 'reasoning', label: '推理配置', icon: I.brain, onClick: () => { setOpen(false); },
+    { id: 'reasoning', label: '推理配置', icon: I.brain, onClick: () => { setOpen(false); navigate('/inference'); },
       right: <span style={{ fontSize: 11, color: 'var(--c-textMute)' }}>{thinking ? 'On' : 'Off'}</span>,
     },
     { id: 'changelog', label: '查看更新日志', icon: I.history, onClick: () => {
@@ -160,11 +215,20 @@ export function BottomBar() {
       });
     } },
     {
-      id: 'learn', label: '了解更多', icon: I.info, onClick: () => { setOpen(false); },
-      right: <span style={{ color: 'var(--c-textMute)', display: 'inline-flex' }}>{I.chevronRight}</span>,
-      children: learnChildren,
+      id: 'about', label: '关于 CodeCast', icon: I.info, onClick: () => { setOpen(false); window.open('https://codecast.cloud', '_blank'); },
     },
-    { id: 'logout', label: '注销', desc: '清除本地凭据', icon: I.logout, onClick: () => { setOpen(false); }, danger: true },
+    {
+      id: 'github',
+      label: githubUser ? githubUser.login : '使用 GitHub 登录',
+      desc: githubUser ? `已连接为 ${githubUser.name || githubUser.login}` : '使用 GitHub 账号登录',
+      icon: githubUser
+        ? (
+          <img src={githubUser.avatar_url} alt={githubUser.login} style={{ width: 18, height: 18, borderRadius: '50%' }} />
+        )
+        : I.github,
+      onClick: () => { setOpen(false); githubUser ? handleGitHubLogout() : handleGitHubLogin(); },
+      danger: false,
+    },
   ];
 
   useEffect(() => () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); }, []);
@@ -201,13 +265,24 @@ export function BottomBar() {
           gap: 12,
         }}
       >
+        {/* Connection status indicator */}
+        <span
+          title={connected ? '已连接到后端' : '未连接到后端'}
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: connected ? 'var(--c-success, #4caf50)' : 'var(--c-danger, #e74c3c)',
+            flexShrink: 0,
+          }}
+        />
         <button
           onClick={() => setOpen((v) => !v)}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            padding: '3px 8px',
+            padding: '5px 10px',
             background: open ? 'var(--c-accentSoft)' : 'transparent',
             border: '1px solid var(--c-border)',
             borderRadius: 'var(--r-md)',
@@ -220,7 +295,7 @@ export function BottomBar() {
           onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'transparent'; }}
         >
           {I.gateway}
-          <span>网关</span>
+          <span>设置</span>
           <span style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform var(--dur-fast) var(--ease)', display: 'inline-flex' }}>
             {I.chevron}
           </span>
@@ -230,7 +305,31 @@ export function BottomBar() {
         <span style={{ color: 'var(--c-textMute)' }}>·</span>
         <span>context {totalTokens > 0 ? tokenStr : '0'}/{maxContextDisplay}</span>
         <div style={{ flex: 1 }} />
-        <span>Plan</span>
+        {githubUser && (
+          <img
+            src={githubUser.avatar_url}
+            alt={githubUser.login}
+            title={`GitHub: ${githubUser.name || githubUser.login}`}
+            style={{ width: 20, height: 20, borderRadius: '50%', cursor: 'pointer' }}
+            onClick={() => setOpen((v) => !v)}
+          />
+        )}
+        <button
+          onClick={togglePlanMode}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            fontSize: 'inherit',
+            fontFamily: 'inherit',
+            color: thinking ? 'var(--c-accent)' : 'var(--c-text)',
+            transition: 'color var(--dur-fast) var(--ease)',
+          }}
+          title={thinking ? 'Plan 模式: 开启 (⌘⇧P 关闭)' : 'Plan 模式: 关闭 (⌘⇧P 开启)'}
+        >
+          Plan: {thinking ? 'On' : 'Off'}
+        </button>
         <span style={{ color: 'var(--c-textMute)' }}>·</span>
         <span style={{ fontFamily: 'var(--font-mono)' }}>v{currentVersion || '…'}</span>
       </div>
@@ -258,7 +357,7 @@ export function BottomBar() {
             }}
           >
             <div style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--c-textMute)', padding: '6px 10px 4px' }}>
-              网关
+              设置
             </div>
             {items.map((it) => {
               const hasChildren = !!it.children?.length;
@@ -353,13 +452,6 @@ export function BottomBar() {
           </div>
         </>
       )}
-
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

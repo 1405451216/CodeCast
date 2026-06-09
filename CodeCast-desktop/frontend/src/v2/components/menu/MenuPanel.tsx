@@ -53,7 +53,9 @@ export function MenuPanel({
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      // 检查点击是否在任意菜单面板内（包括子菜单），避免误关闭
+      const inAnyPanel = document.querySelector('.cc-menu-panel')?.contains(e.target as Node);
+      if (!inAnyPanel) onClose();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); onClose(); }
@@ -130,6 +132,7 @@ export function MenuPanel({
     <>
       <div
         ref={ref}
+        className="cc-menu-panel"
         role="menu"
         style={{
           position: 'fixed',
@@ -211,12 +214,6 @@ export function MenuPanel({
             </button>
           );
         })}
-        <style>{`
-          @keyframes menuIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
       </div>
       {submenuFor && (
         <MenuPanel

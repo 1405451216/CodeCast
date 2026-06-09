@@ -1,12 +1,72 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../../store';
 import { Files } from '../../wails/adapter';
+import { FilePreviewModal } from './FilePreviewModal';
+
+function isLikelyDir(name: string): boolean {
+  if (!name.includes('.')) return true;
+  if (name.startsWith('.')) return true;
+  if (/\.\w{1,5}$/.test(name)) return false;
+  return true;
+}
+
+interface TreeNodeProps {
+  name: string;
+  path: string;
+  depth: number;
+  expanded: Set<string>;
+  children: Record<string, string[]>;
+  onToggle: (path: string) => void;
+  onPreview: (path: string) => void;
+}
+
+function TreeNode({ name, path, depth, expanded, children, onToggle, onPreview }: TreeNodeProps) {
+  const isDir = isLikelyDir(name);
+  const isExpanded = expanded.has(path);
+  const subItems = children[path] || [];
+
+  return (
+    <div>
+      <div
+        onClick={() => isDir ? onToggle(path) : onPreview(path)}
+        style={{
+          padding: '2px 4px',
+          paddingLeft: 4 + depth * 16,
+          cursor: 'pointer',
+          borderRadius: 'var(--r-sm)',
+          color: depth === 0 ? 'var(--c-text)' : 'var(--c-textSub)',
+          fontSize: 12,
+          lineHeight: '20px',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--c-surface-hover)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+      >
+        {isDir ? (isExpanded ? '📂' : '📁') : '📄'} {name}
+      </div>
+      {isDir && isExpanded && subItems.length > 0 && (
+        subItems.map((sub) => (
+          <TreeNode
+            key={sub}
+            name={sub}
+            path={path + '/' + sub}
+            depth={depth + 1}
+            expanded={expanded}
+            children={children}
+            onToggle={onToggle}
+            onPreview={onPreview}
+          />
+        ))
+      )}
+    </div>
+  );
+}
 
 export function FileTree() {
   const currentProject = useAppStore((s) => s.currentProject);
   const [tree, setTree] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [children, setChildren] = useState<Record<string, string[]>>({});
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
 
   const rootPath = currentProject?.path;
 
@@ -45,37 +105,22 @@ export function FileTree() {
         <div style={{ color: 'var(--c-textMute)' }}>Empty directory</div>
       ) : (
         <div>
-          {tree.map((item) => {
-            const fullPath = rootPath + '/' + item;
-            const isDir = !item.includes('.');
-            const isExpanded = expanded.has(fullPath);
-            const subItems = children[fullPath] || [];
-            return (
-              <div key={item}>
-                <div
-                  onClick={() => isDir && toggleDir(fullPath)}
-                  style={{
-                    padding: '2px 4px', cursor: isDir ? 'pointer' : 'default',
-                    borderRadius: 'var(--r-sm)', color: 'var(--c-text)',
-                  }}
-                  onMouseEnter={(e) => { if (isDir) e.currentTarget.style.background = 'var(--c-surface-hover)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  {isDir ? (isExpanded ? '📂' : '📁') : '📄'} {item}
-                </div>
-                {isExpanded && subItems.length > 0 && (
-                  <div style={{ paddingLeft: 16 }}>
-                    {subItems.map((sub) => (
-                      <div key={sub} style={{ padding: '2px 4px', color: 'var(--c-textSub)' }}>
-                        {sub.includes('.') ? '📄' : '📁'} {sub}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {tree.map((item) => (
+            <TreeNode
+              key={item}
+              name={item}
+              path={rootPath + '/' + item}
+              depth={0}
+              expanded={expanded}
+              children={children}
+              onToggle={toggleDir}
+              onPreview={setPreviewPath}
+            />
+          ))}
         </div>
+      )}
+      {previewPath && (
+        <FilePreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
       )}
     </div>
   );

@@ -21,7 +21,6 @@ func TestWindowsCommandInjection_VulnerabilityExists(t *testing.T) {
 	app.projects = []Project{{Path: tempDir}}
 	app.acl = setupSecurityACL([]string{tempDir})
 	app.sandbox = setupSecuritySandbox(app.acl)
-	app.setGlobalValidateCommand()
 
 	t.Log("Verifying: removing Windows command escaping increases injection risk")
 
@@ -203,7 +202,6 @@ func TestSecurityDefenseInDepth(t *testing.T) {
 	app.projects = []Project{{Path: tempDir}}
 	app.acl = setupSecurityACL([]string{tempDir})
 	app.sandbox = setupSecuritySandbox(app.acl)
-	app.setGlobalValidateCommand()
 
 	defenseLayers := []struct {
 		name     string

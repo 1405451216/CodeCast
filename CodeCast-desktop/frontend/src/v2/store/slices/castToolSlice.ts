@@ -1,4 +1,6 @@
 // frontend/src/v2/store/slices/castToolSlice.ts
+// Note: replaces the old castSlice. This is the single source of truth for
+// Cast tool catalog / history / invocation state.
 import type { StateCreator } from 'zustand';
 import type { ToolCatalogItem, CastInvocation } from '../../wails/types';
 import { Cast } from '../../wails/adapter';
@@ -7,6 +9,8 @@ import { reportError } from '../../lib/reportError';
 export interface CastToolSlice {
   /** Available tools from backend catalog */
   castTools: ToolCatalogItem[];
+  /** Tools grouped by category (derived from castTools on each load) */
+  castToolByCategory: Record<string, ToolCatalogItem[]>;
   /** Recent tool invocation history */
   castToolHistory: CastInvocation[];
   /** Last invocation result (JSON string) */
@@ -24,8 +28,18 @@ export interface CastToolSlice {
   extractStructured: (text: string, schemaName: string) => Promise<string>;
 }
 
+/** Group a flat tool list by category. */
+function groupByCategory(tools: ToolCatalogItem[]): Record<string, ToolCatalogItem[]> {
+  const out: Record<string, ToolCatalogItem[]> = {};
+  tools.forEach((t) => {
+    (out[t.category] ||= []).push(t);
+  });
+  return out;
+}
+
 export const createCastToolSlice: StateCreator<CastToolSlice, [], [], CastToolSlice> = (set) => ({
   castTools: [],
+  castToolByCategory: {},
   castToolHistory: [],
   castToolResult: null,
   castToolInvoking: false,
@@ -35,7 +49,7 @@ export const createCastToolSlice: StateCreator<CastToolSlice, [], [], CastToolSl
     set({ castToolLoading: true });
     try {
       const castTools = await Cast.catalog();
-      set({ castTools, castToolLoading: false });
+      set({ castTools, castToolByCategory: groupByCategory(castTools), castToolLoading: false });
     } catch (e) {
       set({ castToolLoading: false });
       reportError('castTool', e);

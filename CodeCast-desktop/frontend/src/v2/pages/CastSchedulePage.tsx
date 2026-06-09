@@ -6,6 +6,7 @@ import { useAppStore } from '../store';
  * ==================================================================== */
 
 interface ScheduleTask {
+  id?: string;
   title: string;
   description?: string;
   status?: 'pending' | 'in_progress' | 'done';
@@ -33,9 +34,9 @@ function getStatusConfig(status: string | undefined) {
 
 export function CastSchedulePage() {
   const {
-    loadCatalog,
-    byCategory,
-    castLoading,
+    loadCastTools,
+    castToolByCategory,
+    castToolLoading,
     invokeCastTool,
     castToolInvoking,
     castToolResult,
@@ -51,13 +52,17 @@ export function CastSchedulePage() {
   // Task list state
   const [taskListResult, setTaskListResult] = useState<string | null>(null);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Load catalog on mount
   useEffect(() => {
-    loadCatalog();
-  }, [loadCatalog]);
+    loadCastTools();
+  }, [loadCastTools]);
 
-  const scheduleTools = byCategory['schedule'] || [];
+  // CastSchedule has two specialized tools (add + list); the generic
+  // useFirstTool hook only returns one. We keep the regex-based discovery
+  // here because it is schedule-specific.
+  const scheduleTools = useMemo(() => castToolByCategory['schedule'] || [], [castToolByCategory]);
 
   // Find specific tool types by name pattern
   const addTool = useMemo(
@@ -143,6 +148,41 @@ export function CastSchedulePage() {
     }
   }, [listTool, invokeCastTool]);
 
+  // Find update/delete tools by name pattern
+  const updateTool = useMemo(
+    () => scheduleTools.find((t) => /update|edit|modify|status/i.test(t.name)),
+    [scheduleTools],
+  );
+  const deleteTool = useMemo(
+    () => scheduleTools.find((t) => /delete|remove/i.test(t.name)),
+    [scheduleTools],
+  );
+
+  const handleToggleStatus = useCallback(async (task: ScheduleTask, idx: number) => {
+    if (!updateTool) return;
+    setActionError(null);
+    const statusOrder: string[] = ['pending', 'in_progress', 'done'];
+    const curIdx = statusOrder.indexOf(task.status || 'pending');
+    const nextStatus = statusOrder[(curIdx + 1) % statusOrder.length];
+    try {
+      await invokeCastTool(updateTool.name, JSON.stringify({ index: idx, status: nextStatus, ...task }));
+      if (listTool) await handleLoadTasks();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
+  }, [updateTool, listTool, invokeCastTool, handleLoadTasks]);
+
+  const handleDeleteTask = useCallback(async (task: ScheduleTask, idx: number) => {
+    if (!deleteTool) return;
+    setActionError(null);
+    try {
+      await invokeCastTool(deleteTool.name, JSON.stringify({ index: idx, ...task }));
+      if (listTool) await handleLoadTasks();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
+  }, [deleteTool, listTool, invokeCastTool, handleLoadTasks]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -156,7 +196,7 @@ export function CastSchedulePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--c-bg)' }}>
-      <div style={{ padding: '24px 32px', maxWidth: 880, width: '100%', margin: '0 auto' }}>
+      <div style={{ padding: '24px 32px', maxWidth: 'var(--page-max-width)', width: '100%', margin: '0 auto' }}>
         {/* Title */}
         <h2
           style={{
@@ -348,6 +388,20 @@ export function CastSchedulePage() {
                 任务已添加
               </div>
             )}
+            {actionError && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  background: 'rgba(220, 38, 38, 0.05)',
+                  border: '1px solid var(--c-danger, #dc2626)',
+                  borderRadius: 'var(--r-md)',
+                  fontSize: 12,
+                  color: 'var(--c-danger, #dc2626)',
+                }}
+              >
+                {actionError}
+              </div>
+            )}
 
             {/* Submit button */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -453,7 +507,7 @@ export function CastSchedulePage() {
           </div>
 
           {/* Loading state */}
-          {(loadingTasks || castLoading) && parsedTasks.length === 0 && (
+          {(loadingTasks || castToolLoading) && parsedTasks.length === 0 && (
             <div
               style={{
                 display: 'flex',
@@ -477,12 +531,11 @@ export function CastSchedulePage() {
                 }}
               />
               加载中…
-              <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
             </div>
           )}
 
           {/* Empty state */}
-          {!loadingTasks && !castLoading && parsedTasks.length === 0 && (
+          {!loadingTasks && !castToolLoading && parsedTasks.length === 0 && (
             <div
               style={{
                 display: 'flex',
@@ -525,7 +578,7 @@ export function CastSchedulePage() {
                 const statusCfg = getStatusConfig(task.status);
                 return (
                   <div
-                    key={idx}
+                    key={task.id || `${task.title}-${task.dueDate || ''}-${idx}`}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -610,6 +663,48 @@ export function CastSchedulePage() {
                     >
                       {statusCfg.label}
                     </span>
+
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                      {updateTool && (
+                        <button
+                          onClick={() => void handleToggleStatus(task, idx)}
+                          title="切换状态"
+                          style={{
+                            padding: '4px 8px',
+                            background: 'transparent',
+                            border: '1px solid var(--c-border)',
+                            borderRadius: 'var(--r-md)',
+                            color: 'var(--c-textSub)',
+                            fontSize: 11,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          切换
+                        </button>
+                      )}
+                      {deleteTool && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`确定要删除任务「${task.title || task.name || '未命名'}」吗？`)) {
+                              void handleDeleteTask(task, idx);
+                            }
+                          }}
+                          title="删除任务"
+                          style={{
+                            padding: '4px 8px',
+                            background: 'transparent',
+                            border: '1px solid var(--c-danger, #e55)',
+                            borderRadius: 'var(--r-md)',
+                            color: 'var(--c-danger, #e55)',
+                            fontSize: 11,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          删除
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}

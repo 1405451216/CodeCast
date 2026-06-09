@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '../store';
-import type { APMetricsSnapshot, AgentInfo } from '../wails/types';
+import type { AgentInfo } from '../wails/types';
+import { AgentEventLog } from '../components/agent/AgentEventLog';
 
 const I = {
   chevron: (
@@ -219,6 +220,8 @@ export function RightPanel() {
           )}
         </Section>
 
+        <AgentEventLog />
+
         <Section icon={I.folder} title="工作文件夹">
           <div
             style={{
@@ -254,22 +257,16 @@ export function RightPanel() {
                 overflow: 'hidden',
               }}
             >
-              <div style={{ width: `${Math.min(100, (totalTokens / maxContext) * 100).toFixed(1)}%`, height: '100%', background: 'var(--c-accent)' }} />
+              <div style={{
+                width: `${Math.min(100, (totalTokens / maxContext) * 100).toFixed(1)}%`,
+                height: '100%',
+                background: totalTokens / maxContext > 0.85 ? 'var(--c-danger, #e74c3c)' : totalTokens / maxContext > 0.6 ? 'var(--c-warn, #f39c12)' : 'var(--c-accent)',
+                transition: 'background 0.3s ease',
+              }} />
             </div>
           </div>
         </Section>
       </div>
-
-      <style>{`
-        @keyframes slideInRight {
-          from { opacity: 0; transform: translateX(8px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 1; }
-        }
-      `}</style>
     </aside>
   );
 }

@@ -16,8 +16,8 @@ export const light: ThemeTokens = {
   text: '#1F1E1B',
   textSub: '#6B6862',
   textMute: '#9A968D',
-  accent: '#DA7756',
-  accentBg: '#F5E5DC',
+  accent: '#B85038',
+  accentBg: '#F0D8CC',
   accentText: '#8C3A1A',
   success: '#3A8266',
   warn: '#C4923C',
@@ -33,12 +33,12 @@ export const dark: ThemeTokens = {
   text: '#F0EEE5',
   textSub: '#B5B0A4',
   textMute: '#7A766C',
-  accent: '#E08766',
+  accent: '#B85838',
   accentBg: '#3A2A22',
   accentText: '#F0B097',
   success: '#5A9D80',
   warn: '#D4A65A',
-  danger: '#D86A52',
+  danger: '#C05040',
 };
 
 export const radius = { sm: '4px', md: '6px', lg: '8px' } as const;

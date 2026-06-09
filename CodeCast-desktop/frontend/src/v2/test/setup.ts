@@ -1,5 +1,6 @@
 // frontend/src/v2/test/setup.ts
 import { vi, beforeEach } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import * as App from '../wails/__mocks__/App';
 
 vi.mock('@wailsjs/go/main/App', () => App);

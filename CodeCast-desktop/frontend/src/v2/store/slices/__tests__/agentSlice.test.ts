@@ -41,9 +41,32 @@ describe('agentSlice', () => {
   });
 
   it('appendAgentEvent: appends to agentEventLog', () => {
-    useAppStore.getState().appendAgentEvent({ type: 'test' });
+    useAppStore.getState().appendAgentEvent({ _type: 'agent:start', _ts: 1 });
     expect(useAppStore.getState().agentEventLog).toHaveLength(1);
-    useAppStore.getState().appendAgentEvent({ type: 'test2' });
+    useAppStore.getState().appendAgentEvent({ _type: 'agent:stop', _ts: 2 });
     expect(useAppStore.getState().agentEventLog).toHaveLength(2);
+  });
+
+  it('appendAgentEvent: LRU drops oldest beyond capacity (200)', () => {
+    // Seed with 200 entries.
+    for (let i = 0; i < 200; i++) {
+      useAppStore.getState().appendAgentEvent({ _type: 'agent:turn', _ts: i });
+    }
+    expect(useAppStore.getState().agentEventLog).toHaveLength(200);
+
+    // Push 50 more — total 250, expect 50 dropped, 200 retained, last entry is _ts:249.
+    for (let i = 200; i < 250; i++) {
+      useAppStore.getState().appendAgentEvent({ _type: 'agent:turn', _ts: i });
+    }
+    const log = useAppStore.getState().agentEventLog;
+    expect(log).toHaveLength(200);
+    expect(log[0]._ts).toBe(50); // oldest kept
+    expect(log[199]._ts).toBe(249); // newest
+  });
+
+  it('clearAgentEventLog: empties the log', () => {
+    useAppStore.getState().appendAgentEvent({ _type: 'agent:start', _ts: 1 });
+    useAppStore.getState().clearAgentEventLog();
+    expect(useAppStore.getState().agentEventLog).toHaveLength(0);
   });
 });

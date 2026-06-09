@@ -1,4 +1,11 @@
 // frontend/src/v2/store/slices/memorySlice.ts
+//
+// IMPORTANT (P1.7): Memory search runs **client-side** over the episodes
+// already returned by `Metrics.snapshot()`. The backend does not expose
+// a dedicated `SearchMemory` endpoint, so substring filtering happens
+// here. This is fine for small/medium episode sets (< few thousand);
+// if/when the backend adds a real search endpoint, swap the filter in
+// `searchMemory` for an adapter call.
 import type { StateCreator } from 'zustand';
 import { Metrics } from '../../wails/adapter';
 import { reportError } from '../../lib/reportError';
@@ -8,9 +15,25 @@ export interface MemorySlice {
   recallResults: any[];
   stats: { totalEpisodes: number; sizeBytes: number };
   memoryLoading: boolean;
+  /** The current filter query. UI surfaces a "本地搜索" hint so the
+   * user understands the search runs over the in-memory episode list. */
   searchQuery: string;
   searchMemory: (q: string) => Promise<void>;
   refreshMemory: () => Promise<void>;
+}
+
+/** Client-side substring filter (case-insensitive). Pulled out so the
+ * behaviour is identical between `searchMemory` and `refreshMemory`. */
+function filterEpisodes(episodes: unknown[], query: string): unknown[] {
+  if (!query) return episodes;
+  const q = query.toLowerCase();
+  return episodes.filter((ep: any) => {
+    const text = [ep.title, ep.summary, ep.content, ep.text, JSON.stringify(ep.tags)]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return text.includes(q);
+  });
 }
 
 export const createMemorySlice: StateCreator<MemorySlice, [], [], MemorySlice> = (set, get) => ({
@@ -25,18 +48,7 @@ export const createMemorySlice: StateCreator<MemorySlice, [], [], MemorySlice> =
     try {
       const snap: any = await Metrics.snapshot();
       const allEpisodes: any[] = snap.episodes || [];
-
-      // If query is provided, filter episodes client-side
-      const filtered = q
-        ? allEpisodes.filter((ep: any) => {
-            const text = [ep.title, ep.summary, ep.content, ep.text, JSON.stringify(ep.tags)]
-              .filter(Boolean)
-              .join(' ')
-              .toLowerCase();
-            return text.includes(q.toLowerCase());
-          })
-        : allEpisodes;
-
+      const filtered = filterEpisodes(allEpisodes, q);
       set({
         episodes: allEpisodes,
         recallResults: filtered,
@@ -54,19 +66,7 @@ export const createMemorySlice: StateCreator<MemorySlice, [], [], MemorySlice> =
     try {
       const snap: any = await Metrics.snapshot();
       const allEpisodes: any[] = snap.episodes || [];
-      const currentQuery = get().searchQuery;
-
-      // Re-apply current filter if a search is active
-      const filtered = currentQuery
-        ? allEpisodes.filter((ep: any) => {
-            const text = [ep.title, ep.summary, ep.content, ep.text, JSON.stringify(ep.tags)]
-              .filter(Boolean)
-              .join(' ')
-              .toLowerCase();
-            return text.includes(currentQuery.toLowerCase());
-          })
-        : allEpisodes;
-
+      const filtered = filterEpisodes(allEpisodes, get().searchQuery);
       set({
         episodes: allEpisodes,
         recallResults: filtered,

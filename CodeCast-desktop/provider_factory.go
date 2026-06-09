@@ -131,12 +131,6 @@ func (a *App) createProviderLocked(modelOverride string) (ap.Provider, error) {
 	return resilient, nil
 }
 
-// createCachedProviderLocked creates a cached provider for code completion use cases.
-// Now delegates to createProviderLocked() since CacheManager-backed caching is always active.
-// IMPORTANT: Caller MUST hold a.mu lock (calls createProviderLocked which requires it).
-func (a *App) createCachedProviderLocked() (ap.Provider, error) {
-	return a.createProviderLocked("")
-}
 
 // simpleEmbeddingFunc provides a deterministic hash-based embedding for cache keys.
 // This avoids calling the LLM just for cache lookups.

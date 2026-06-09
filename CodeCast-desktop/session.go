@@ -6,18 +6,19 @@ import (
 	"strings"
 	"time"
 
-	ap "agentprimordia/pkg"
 	"github.com/google/uuid"
 )
 
 // ==================== Core Types ====================
 
+// ToolCall represents a tool invocation in a message.
 type ToolCall struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Args string `json:"args"`
 }
 
+// Message represents a chat message with role, content, and optional tool calls.
 type Message struct {
 	Role       string     `json:"role"`
 	Content    string     `json:"content"`
@@ -26,6 +27,7 @@ type Message struct {
 	ToolCallID string     `json:"tool_call_id,omitempty"`
 }
 
+// Skill represents a reusable prompt template for specific tasks.
 type Skill struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -35,6 +37,7 @@ type Skill struct {
 	CreatedAt   int64  `json:"created_at"`
 }
 
+// Task represents a scheduled or automated task.
 type Task struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -48,6 +51,7 @@ type Task struct {
 	LastError   string `json:"last_error"`
 }
 
+// Session represents a chat conversation with its history and metadata.
 type Session struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -57,6 +61,7 @@ type Session struct {
 	Messages  []Message `json:"messages"`
 }
 
+// NewSession creates a new session with a generated ID.
 func NewSession(name string, skillID string) *Session {
 	return &Session{
 		ID:        "sess_" + uuid.New().String()[:8],
@@ -98,6 +103,7 @@ func (a *App) GetSessions() []*Session {
 	return result
 }
 
+// CreateSession creates a new session with the given name, skill ID, and mode.
 func (a *App) CreateSession(name, skillID, mode string) *Session {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -110,6 +116,7 @@ func (a *App) CreateSession(name, skillID, mode string) *Session {
 	return deepCopySession(session)
 }
 
+// GetSession returns a deep copy of the session with the given ID, or nil if not found.
 func (a *App) GetSession(id string) *Session {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -122,6 +129,7 @@ func (a *App) GetSession(id string) *Session {
 	return nil
 }
 
+// DeleteSession deletes the session with the given ID and cancels any in-flight requests.
 func (a *App) DeleteSession(id string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -356,23 +364,6 @@ func (a *App) cancelSessionRequestsLocked(sessionID string) {
 			delete(a.sessionCancels, key)
 		}
 	}
-}
-// ==================== Tool Event Bridge ====================
-// emitToolEvent replaces the old recordToolIfEnabled. It publishes a tool-use
-// event via the AP EventBus so the Memory and Metrics subsystems can consume it.
-
-func (a *App) emitToolEvent(toolName, detail string) {
-	if a.eventBus == nil {
-		return
-	}
-	a.eventBus.PublishAsync(ap.Event{
-		Type:    ap.EventToolCall,
-		Source:  "system",
-		Payload: map[string]string{
-			"tool":   toolName,
-			"detail": detail,
-		},
-	})
 }
 
 // ==================== Notes Recording ====================

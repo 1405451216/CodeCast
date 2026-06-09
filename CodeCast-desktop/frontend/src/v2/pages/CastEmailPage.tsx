@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store';
+import { useFirstTool } from '../lib/useFirstTool';
+import { copyToClipboard } from '../lib/clipboard';
+import { useDraft } from '../lib/useDraft';
+import { readPipedText, sendToPage, PIPELINE_TARGETS } from '../lib/pipeline';
 
 /* ====================================================================
  *  Types
@@ -15,7 +19,7 @@ interface EmailTemplate {
  *  Templates
  * ==================================================================== */
 
-const TEMPLATES: EmailTemplate[] = [
+const BUILTIN_TEMPLATES: EmailTemplate[] = [
   {
     label: '工作汇报',
     subject: '工作汇报 — [日期]',
@@ -36,7 +40,33 @@ const TEMPLATES: EmailTemplate[] = [
     subject: '关于 [主题] 的咨询',
     body: '您好，\n\n我有一些关于 [主题] 的问题，希望能得到您的解答：\n\n1. \n2. \n\n方便的话请告知您的看法，感谢您的时间。\n\n此致',
   },
+  {
+    label: '跟进',
+    subject: '跟进：[主题]',
+    body: '您好，\n\n我想跟进一下之前关于 [主题] 的沟通。\n\n[跟进内容]\n\n如有任何更新，请随时告知。\n\n此致',
+  },
+  {
+    label: '道歉',
+    subject: '关于 [事项] 的致歉',
+    body: '您好，\n\n对于 [事项] 给您带来的不便，我深表歉意。\n\n[具体情况说明]\n\n我们已采取以下措施确保不再发生：\n\n1. \n2. \n\n感谢您的理解与支持。\n\n此致',
+  },
+  {
+    label: '推荐/介绍',
+    subject: '推荐：[人名/产品]',
+    body: '您好，\n\n我想向您推荐 [人名/产品]，原因如下：\n\n[推荐理由]\n\n如您有兴趣，我可以安排进一步沟通。\n\n此致',
+  },
 ];
+
+function loadCustomTemplates(): EmailTemplate[] {
+  try {
+    const raw = localStorage.getItem('codecast-email-templates');
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveCustomTemplates(templates: EmailTemplate[]) {
+  try { localStorage.setItem('codecast-email-templates', JSON.stringify(templates)); } catch { /* ignore */ }
+}
 
 /* ====================================================================
  *  Styles
@@ -45,7 +75,7 @@ const TEMPLATES: EmailTemplate[] = [
 const S = {
   wrap: {
     padding: 32,
-    maxWidth: 760,
+    maxWidth: 'var(--page-max-width)',
     margin: '0 auto',
   } as React.CSSProperties,
   title: {
@@ -173,12 +203,17 @@ const S = {
  * ==================================================================== */
 
 export function CastEmailPage() {
-  const { catalog, loadCatalog, invokeTool, castLoading } = useAppStore();
+  const email = useFirstTool('email');
+  const invokeCastTool = useAppStore((s) => s.invokeCastTool);
 
-  const [to, setTo] = useState('');
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const [to, setTo] = useDraft('email:to', '');
+  const [cc, setCc] = useDraft('email:cc', '');
+  const [bcc, setBcc] = useDraft('email:bcc', '');
+  const [subject, setSubject] = useDraft('email:subject', '');
+  const [body, setBody] = useDraft('email:body', '');
+  const [showCcBcc, setShowCcBcc] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<number | null>(null);
+  const [customTemplates, setCustomTemplates] = useState<EmailTemplate[]>(loadCustomTemplates);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -186,24 +221,37 @@ export function CastEmailPage() {
 
   /* Load catalog on mount */
   useEffect(() => {
-    loadCatalog();
-  }, [loadCatalog]);
+    email.load();
+  }, [email.load]);
+
+  // Read piped text from another Cast page
+  useEffect(() => {
+    const piped = readPipedText('/cast/email');
+    if (piped) setBody(piped);
+  }, [setBody]);
 
   /* Derive email tools from catalog */
-  const emailTools = catalog.filter((t) => t.category === 'email');
-  const emailToolName = emailTools[0]?.name ?? 'email';
+  const emailToolName = email.tool?.name;
 
   /* Template selection handler */
+  const allTemplates = [...BUILTIN_TEMPLATES, ...customTemplates];
   const handleSelectTemplate = useCallback((index: number) => {
+    if (subject.trim() || body.trim()) {
+      if (!window.confirm('应用模板将替换当前的邮件内容，确定继续吗？')) return;
+    }
     setActiveTemplate(index);
-    const tpl = TEMPLATES[index];
+    const tpl = allTemplates[index];
     setSubject(tpl.subject);
     setBody(tpl.body);
-  }, []);
+  }, [subject, body, allTemplates]);
 
   /* Generate email handler */
   const handleGenerate = useCallback(async () => {
     if (!subject.trim() && !body.trim()) return;
+    if (!emailToolName) {
+      setError('暂无可用的邮件工具');
+      return;
+    }
     setGenerating(true);
     setError(null);
     setResult(null);
@@ -211,7 +259,7 @@ export function CastEmailPage() {
 
     try {
       const args = JSON.stringify({ to, subject, body });
-      const res = await invokeTool(emailToolName, args);
+      const res = await invokeCastTool(emailToolName, args);
       setResult(res);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '生成失败，请重试';
@@ -219,48 +267,69 @@ export function CastEmailPage() {
     } finally {
       setGenerating(false);
     }
-  }, [to, subject, body, emailToolName, invokeTool]);
+  }, [to, subject, body, emailToolName, invokeCastTool]);
 
   /* Copy result handler */
   const handleCopy = useCallback(async () => {
     if (!result) return;
-    try {
-      await navigator.clipboard.writeText(result);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* Fallback for clipboard failure */
-      const ta = document.createElement('textarea');
-      ta.value = result;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
+    const ok = await copyToClipboard(result);
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   }, [result]);
 
-  const canGenerate = !generating && (subject.trim().length > 0 || body.trim().length > 0);
+  const canGenerate =
+    !generating && email.available && (subject.trim().length > 0 || body.trim().length > 0);
+
+  const emailValid = !to.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim());
+  const emailError = to.trim() && !emailValid ? '请输入有效的邮箱地址' : null;
 
   return (
     <div style={S.wrap}>
-      {/* Keyframe for spinner */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
       <h2 style={S.title}>邮件草稿</h2>
 
       {/* Template selector */}
       <div style={{ marginBottom: 20 }}>
-        <div style={S.sectionLabel}>快速模板</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={S.sectionLabel}>快速模板</div>
+          {subject.trim() && (
+            <button
+              onClick={() => {
+                const name = window.prompt('模板名称:');
+                if (name && name.trim()) {
+                  const newTpl = { label: name.trim(), subject, body };
+                  const updated = [...customTemplates, newTpl];
+                  setCustomTemplates(updated);
+                  saveCustomTemplates(updated);
+                }
+              }}
+              style={{ fontSize: 11, color: 'var(--c-accent)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+              title="将当前内容保存为模板"
+            >
+              + 保存为模板
+            </button>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {TEMPLATES.map((tpl, i) => (
+          {[...BUILTIN_TEMPLATES, ...customTemplates].map((tpl, i) => (
             <span
-              key={tpl.label}
+              key={tpl.label + i}
               style={S.templateChip(activeTemplate === i)}
               onClick={() => handleSelectTemplate(i)}
+              onContextMenu={i >= BUILTIN_TEMPLATES.length ? (e) => {
+                e.preventDefault();
+                if (window.confirm(`删除自定义模板「${tpl.label}」？`)) {
+                  const ci = i - BUILTIN_TEMPLATES.length;
+                  const updated = customTemplates.filter((_, idx) => idx !== ci);
+                  setCustomTemplates(updated);
+                  saveCustomTemplates(updated);
+                  setActiveTemplate(null);
+                }
+              } : undefined}
             >
               {tpl.label}
+              {i >= BUILTIN_TEMPLATES.length && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.5 }}>✕</span>}
             </span>
           ))}
         </div>
@@ -272,11 +341,34 @@ export function CastEmailPage() {
         <div style={{ marginBottom: 14 }}>
           <div style={S.sectionLabel}>收件人</div>
           <input
-            style={S.input}
+            style={{ ...S.input, borderColor: emailError ? 'var(--c-danger, #dc2626)' : undefined }}
             placeholder="example@company.com"
             value={to}
             onChange={(e) => setTo(e.target.value)}
           />
+          {emailError && (
+            <div style={{ fontSize: 11, color: 'var(--c-danger, #dc2626)', marginTop: 4 }}>{emailError}</div>
+          )}
+          {!showCcBcc && (
+            <button
+              onClick={() => setShowCcBcc(true)}
+              style={{ fontSize: 11, color: 'var(--c-accent)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 0', marginTop: 2 }}
+            >
+              + CC / BCC
+            </button>
+          )}
+          {showCcBcc && (
+            <>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ ...S.sectionLabel, fontSize: 11 }}>CC</div>
+                <input style={S.input} placeholder="抄送邮箱" value={cc} onChange={(e) => setCc(e.target.value)} />
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ ...S.sectionLabel, fontSize: 11 }}>BCC</div>
+                <input style={S.input} placeholder="密送邮箱" value={bcc} onChange={(e) => setBcc(e.target.value)} />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Subject */}
@@ -304,6 +396,12 @@ export function CastEmailPage() {
               setBody(e.target.value);
               setActiveTemplate(null);
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                void handleGenerate();
+              }
+            }}
           />
         </div>
 
@@ -318,14 +416,20 @@ export function CastEmailPage() {
             {generating ? '生成中...' : '生成邮件'}
           </button>
 
-          {emailTools.length === 0 && !castLoading && (
+          {!email.available && !email.loading && (
             <span style={{ fontSize: 12, color: 'var(--c-textMute)' }}>
-              未找到邮件工具，将使用默认引擎
+              暂无可用的邮件工具
             </span>
           )}
         </div>
 
-        {error && <div style={S.errorText}>{error}</div>}
+        {error && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...S.errorText }}>
+            <span style={{ flex: 1 }}>{error}</span>
+            <button onClick={() => void handleGenerate()} style={{ fontSize: 11, padding: '2px 6px', background: 'transparent', border: '1px solid var(--c-danger)', borderRadius: 'var(--r-sm)', color: 'var(--c-danger)', cursor: 'pointer' }}>重试</button>
+            <button onClick={() => setError(null)} style={{ fontSize: 14, background: 'transparent', border: 'none', color: 'var(--c-danger)', cursor: 'pointer', padding: '0 2px' }}>×</button>
+          </div>
+        )}
       </div>
 
       {/* Result preview */}

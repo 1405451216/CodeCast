@@ -51,4 +51,25 @@ describe('chatSlice', () => {
     expect(useAppStore.getState().interrupted).toBe(true);
     expect(App.CancelSessionRequest).toHaveBeenCalledWith('s1');
   });
+
+  it('send: assigns an AbortController to store, then nulls it after cancel', async () => {
+    vi.mocked(App.SendMessageEx).mockResolvedValueOnce([]);
+    // Make EventsOn return a noop unsubscribe and abort sync the cleanup.
+    vi.mocked(EventsOn).mockReturnValueOnce(() => { /* noop */ });
+
+    // Start send (don't await — we want to inspect mid-flight state)
+    const p = useAppStore.getState().send('s1', 'hi');
+    // After send begins, abort should be a real AbortController.
+    const mid = useAppStore.getState().abort;
+    expect(mid).not.toBeNull();
+    expect(typeof mid!.abort).toBe('function');
+
+    // Cancel mid-flight
+    useAppStore.getState().cancel('s1');
+    expect(useAppStore.getState().abort).toBeNull();
+    expect(useAppStore.getState().isStreaming).toBe(false);
+    expect(useAppStore.getState().interrupted).toBe(true);
+
+    await p;
+  });
 });

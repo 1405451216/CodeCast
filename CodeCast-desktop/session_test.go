@@ -76,14 +76,14 @@ func TestBuildSystemPromptCodingMode(t *testing.T) {
 	if prompt == "" {
 		t.Fatal("buildSystemPrompt returned empty for coding mode")
 	}
-	if !strings.Contains(prompt, PromptBase) {
-		t.Error("Should contain PromptBase")
+	if !strings.Contains(prompt, promptBase) {
+		t.Error("Should contain promptBase")
 	}
-	if !strings.Contains(prompt, string(PromptCoding)) {
-		t.Error("Coding mode should contain PromptCoding")
+	if !strings.Contains(prompt, promptCoding) {
+		t.Error("Coding mode should contain promptCoding")
 	}
-	if strings.Contains(prompt, string(PromptDaily)) {
-		t.Error("Coding mode should NOT contain PromptDaily")
+	if strings.Contains(prompt, promptDaily) {
+		t.Error("Coding mode should NOT contain promptDaily")
 	}
 }
 
@@ -97,11 +97,11 @@ func TestBuildSystemPromptDailyMode(t *testing.T) {
 	}
 
 	prompt := app.buildSystemPrompt(session)
-	if !strings.Contains(prompt, string(PromptDaily)) {
-		t.Error("Daily mode should contain PromptDaily")
+	if !strings.Contains(prompt, promptDaily) {
+		t.Error("Daily mode should contain promptDaily")
 	}
-	if strings.Contains(prompt, string(PromptCoding)) {
-		t.Error("Daily mode should NOT contain PromptCoding")
+	if strings.Contains(prompt, promptCoding) {
+		t.Error("Daily mode should NOT contain promptCoding")
 	}
 }
 
@@ -116,7 +116,7 @@ func TestBuildSystemPromptEmptyModeFallsBackToSettings(t *testing.T) {
 	}
 
 	prompt := app.buildSystemPrompt(session)
-	if !strings.Contains(prompt, string(PromptCoding)) {
+	if !strings.Contains(prompt, promptCoding) {
 		t.Error("Empty mode should fall back to settings.WorkMode (coding)")
 	}
 }
@@ -132,7 +132,7 @@ func TestBuildSystemPromptEmptyModeFallsBackToSettingsDaily(t *testing.T) {
 	}
 
 	prompt := app.buildSystemPrompt(session)
-	if !strings.Contains(prompt, string(PromptCoding)) {
+	if !strings.Contains(prompt, promptCoding) {
 		t.Error("Empty mode defaults to coding (AP template behavior)")
 	}
 }
@@ -148,7 +148,7 @@ func TestBuildSystemPromptBothEmptyDefaultsToDaily(t *testing.T) {
 	}
 
 	prompt := app.buildSystemPrompt(session)
-	if !strings.Contains(prompt, string(PromptCoding)) {
+	if !strings.Contains(prompt, promptCoding) {
 		t.Error("Both empty defaults to coding mode")
 	}
 }
@@ -290,7 +290,7 @@ func TestBuildSystemPromptNonExistentSkill(t *testing.T) {
 	}
 
 	prompt := app.buildSystemPrompt(session)
-	if !strings.Contains(prompt, string(PromptDaily)) {
+	if !strings.Contains(prompt, promptDaily) {
 		t.Error("Non-existent skill ID should fall through to normal mode prompt")
 	}
 }

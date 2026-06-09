@@ -13,15 +13,16 @@ interface Props {
 }
 
 /**
- * Code 模式空状态
+ * Code 模式空状态 — 底部固定输入框样式
  *  - 主体：✱ 接下来做什么？ + 使用统计卡片（tab 切换 + 时间段 + 8 项指标 + 26 周热力图）
- *  - 底部：标签栏 + 输入框 + 像素机器人头像
+ *  - 底部：标签栏 + 输入框 + 像素机器人头像（固定在底部）
  */
 export function CodeEmptyState({
   onSend, onCancel, model, sessionName: _sessionName = 'SD session', projectName: _projectName = 'AgentPrimordia',
   thinking, onToggleEdit,
 }: Props) {
   useError('chat');
+  useFadeUpStyle();
   const [text, setText] = useState('');
   const [tab, setTab] = useState<'overview' | 'model'>('overview');
   const [period, setPeriod] = useState<'all' | '30d' | '7d'>('all');
@@ -80,8 +81,8 @@ export function CodeEmptyState({
         flexDirection: 'column',
       }}
     >
-      {/* 主体：紧凑展示在左上角（标题 + 统计卡片） */}
-      <div style={{ padding: '24px 16px 16px' }}>
+      {/* 主体：紧凑展示在左上角（标题 + 统计卡片）— 撑满剩余空间 */}
+      <div style={{ padding: '24px 16px 16px', flex: '1 1 auto', minHeight: 0, overflow: 'auto' }}>
         <div style={{ maxWidth: 640, marginLeft: 32 }}>
           {/* 标题 */}
           <h1
@@ -96,7 +97,7 @@ export function CodeEmptyState({
               fontFamily: 'var(--font-serif)',
             }}
           >
-            <SparkleIcon color="var(--c-accent)" size={20} />
+            <SparkleIcon color="#e85d04" size={20} />
             接下来做什么？
           </h1>
 
@@ -136,11 +137,11 @@ export function CodeEmptyState({
                 marginBottom: 10,
               }}
             >
-              <Stat label="会话" value="9" />
-              <Stat label="消息" value="5,929" />
-              <Stat label="Token 总数" value="22.4M" />
-              <Stat label="活跃天数" value="6" />
-              <Stat label="当前连胜" value="1 天" />
+              <Stat label="会话" value="15" />
+              <Stat label="消息" value="7,353" />
+              <Stat label="Token 总数" value="39.1M" />
+              <Stat label="活跃天数" value="7" />
+              <Stat label="当前连胜" value="2 天" />
               <Stat label="最长连胜" value="5 天" />
               <Stat label="高峰时段" value="21 时" />
               <Stat label="常用模型" value="MiniMax-M3" small />
@@ -158,102 +159,111 @@ export function CodeEmptyState({
                 lineHeight: 1.5,
               }}
             >
-              你使用的 token 数约为 The Great Gatsby 的 ~361 倍。
+              你使用的 token 数约为 Harry Potter and the Philosopher's Stone 的 ~379 倍。
             </p>
           </div>
         </div>
       </div>
 
-      {/* 对话框：水平居中 */}
+      {/* 底部输入区：始终贴在页面最底部 — 两段式（上输入框 + 下底栏） */}
       <div
         style={{
-          flex: 1,
-          minHeight: 0,
+          padding: '16px 24px 20px',
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'center',
-          padding: '24px 16px 16px',
+          background: 'linear-gradient(to top, var(--c-bg) 70%, transparent 100%)',
+          zIndex: 2,
+          flexShrink: 0,
         }}
       >
-        <div style={{ width: '100%', maxWidth: 720, position: 'relative' }}>
-          {/* 标签栏 */}
+        <div style={{ width: '100%', maxWidth: 720 }}>
+          {/* ====== 上段：大圆角输入框（白底，仅上半圆角） ====== */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              marginBottom: 6,
-              flexWrap: 'wrap',
+              position: 'relative',
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              borderRadius: '20px 20px 0 0',
+              boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04)',
             }}
+            tabIndex={0}
           >
-            <TagPill active={tag === 'local'} onClick={() => setTag('local')}>
-              <FolderIcon size={11} /> 本地
-            </TagPill>
-            <TagPill active={tag === 'agent'} onClick={() => setTag('agent')}>
-              <FolderIcon size={11} /> agentprimordia
-            </TagPill>
-            <TagPill active={tag === 'branch'} onClick={() => setTag('branch')}>
-              <BranchIcon size={11} /> main
-            </TagPill>
-            <TagPill active={tag === 'worktree'} onClick={() => setTag('worktree')}>
-              <WorktreeIcon size={11} /> 工作树
-            </TagPill>
-            <div style={{ flex: 1 }} />
-            <button
-              aria-label="切换标签"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 24,
-                height: 24,
-                background: 'transparent',
-                border: 'none',
-                borderRadius: 'var(--r-sm)',
-                color: 'var(--c-textMute)',
-                cursor: 'pointer',
-              }}
-            >
-              <SwitchIcon size={14} />
-            </button>
-          </div>
-
-          {/* 输入框 + 机器人头像 */}
-          <div style={{ position: 'relative' }}>
-            <Composer
-              sessionId="code-empty"
-              model={model || 'MiniMax-M3'}
-              thinking={!!thinking}
-              text={text}
-              setText={setText}
-              onSend={(v) => { onSend?.(v); setText(''); }}
-              onCancel={onCancel || (() => {})}
-              placeholder="描述任务或提出问题"
-            />
+            {/* 标签栏 */}
             <div
               style={{
-                position: 'absolute',
-                right: -8,
-                top: -8,
-                width: 32,
-                height: 32,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: 6,
+                padding: '10px 14px 6px',
+                flexWrap: 'wrap',
               }}
             >
-              <PixelBot />
+              <TagPill active={tag === 'local'} onClick={() => setTag('local')}>
+                <FolderIcon size={11} /> 本地
+              </TagPill>
+              <TagPill active={tag === 'agent'} onClick={() => setTag('agent')}>
+                <FolderIcon size={11} /> CodeCast-desktop
+              </TagPill>
+              <TagPill active={tag === 'branch'} onClick={() => setTag('branch')}>
+                <BranchIcon size={11} /> main
+              </TagPill>
+              <TagPill active={tag === 'worktree'} onClick={() => setTag('worktree')}>
+                <WorktreeIcon size={11} /> 工作树
+              </TagPill>
+            </div>
+
+            {/* 输入框（无机器人头像，带发送按钮） */}
+            <div style={{ position: 'relative', padding: '0 14px 14px' }}>
+              <Composer
+                sessionId="code-empty"
+                model={model || 'MiniMax-M3'}
+                thinking={!!thinking}
+                text={text}
+                setText={setText}
+                onSend={(v) => { onSend?.(v); setText(''); }}
+                onCancel={onCancel || (() => {})}
+                placeholder="描述任务或提出问题"
+                hideDefaultActions
+                footerRight={
+                  <button
+                    onClick={() => {
+                      if (text.trim()) { onSend?.(text.trim()); setText(''); }
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 34,
+                      height: 34,
+                      background: '#f0d9cc',
+                      border: 'none',
+                      borderRadius: 8,
+                      color: '#b86125',
+                      cursor: 'pointer',
+                    }}
+                    aria-label="发送"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="m3 8 10-5-4 12-2-5-4-2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" fill="currentColor" fillOpacity=".3" />
+                    </svg>
+                  </button>
+                }
+              />
             </div>
           </div>
 
-          {/* 接受编辑 + 工具 + 模型 */}
+          {/* ====== 下段：底栏（微深色背景，与输入框区分） ====== */}
           <div
             ref={popoverRef}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '6px 4px 0',
+              padding: '10px 14px',
+              background: 'rgba(0,0,0,.02)',
+              borderTop: '1px solid var(--c-border)',
+              borderBottomLeftRadius: 20,
+              borderBottomRightRadius: 20,
               fontSize: 12,
               color: 'var(--c-textSub)',
             }}
@@ -267,10 +277,10 @@ export function CodeEmptyState({
                   alignItems: 'center',
                   gap: 4,
                   padding: '3px 8px',
-                  background: popover === 'edit' ? 'var(--c-surface-hover)' : 'var(--c-bgSub)',
-                  border: '1px solid var(--c-border)',
+                  background: acceptEdit ? '#fef3c7' : (popover === 'edit' ? 'rgba(0,0,0,.04)' : 'transparent'),
+                  border: 'none',
                   borderRadius: 'var(--r-md)',
-                  color: 'var(--c-textSub)',
+                  color: acceptEdit ? '#92400e' : 'var(--c-textSub)',
                   fontSize: 12,
                   cursor: 'pointer',
                   transition: 'background var(--dur-fast) var(--ease)',
@@ -382,8 +392,8 @@ export function CodeEmptyState({
                   width: 24,
                   height: 24,
                   padding: 0,
-                  background: popover === 'add' ? 'var(--c-surface-hover)' : 'var(--c-bgSub)',
-                  border: '1px solid var(--c-border)',
+                  background: popover === 'add' ? 'rgba(0,0,0,.04)' : 'transparent',
+                  border: 'none',
                   borderRadius: 'var(--r-md)',
                   color: 'var(--c-textSub)',
                   fontSize: 14,
@@ -545,14 +555,6 @@ function WorktreeIcon({ size = 12 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
       <rect x="2" y="3" width="12" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.1" />
       <rect x="2" y="10" width="12" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.1" />
-    </svg>
-  );
-}
-
-function SwitchIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
-      <path d="M3 5h8l-2-2M13 11H5l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -738,47 +740,23 @@ function Heatmap({ period }: { period: 'all' | '30d' | '7d' }) {
   );
 }
 
-/* ====================================================================
- *  像素机器人
- * ==================================================================== */
-
-function PixelBot() {
-  // 8x8 像素艺术机器人
-  const grid = [
-    '..XXXX..',
-    '.XAAAAX.',
-    'XAYAYAYX',
-    'XAXAXAX.',
-    'XAAAAAX.',
-    'XXAYYAX.',
-    'XAXAXAX.',
-    '.XXXXXX.',
-  ];
-  const palette: Record<string, string> = {
-    X: '#E07B3F', // 主体橙
-    A: '#2A2520', // 眼/嘴框
-    Y: '#FFFFFF', // 眼白/嘴
-  };
-  return (
-    <svg width="32" height="32" viewBox="0 0 8 8" shapeRendering="crispEdges">
-      {grid.map((row, y) =>
-        row.split('').map((c, x) => (
-          <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill={palette[c] || 'transparent'} />
-        ))
-      )}
-    </svg>
-  );
-}
-
-/* 全局动画：popover fadeUp */
-if (typeof document !== 'undefined' && !document.getElementById('code-empty-fadeup')) {
-  const style = document.createElement('style');
-  style.id = 'code-empty-fadeup';
-  style.textContent = `
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  `;
-  document.head.appendChild(style);
+/* 全局动画：popover fadeUp — 通过 useEffect 管理 */
+function useFadeUpStyle() {
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('code-empty-fadeup')) return;
+    const style = document.createElement('style');
+    style.id = 'code-empty-fadeup';
+    style.textContent = `
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      const el = document.getElementById('code-empty-fadeup');
+      if (el) el.remove();
+    };
+  }, []);
 }

@@ -169,7 +169,7 @@ func (a *App) SendMessageWithAttachments(sessionID string, input string, attachm
 		return a.SendMessageEx(sessionID, input, "", "")
 	}
 
-	agentRef, _, err := a.getOrCreateAgent(sessionID, "")
+	agentRef, err := a.getOrCreateAgent(sessionID, "")
 	if err != nil {
 		return nil, fmt.Errorf("create agent: %w", err)
 	}

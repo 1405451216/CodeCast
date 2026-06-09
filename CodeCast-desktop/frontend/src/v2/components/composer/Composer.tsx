@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState, type KeyboardEvent } from 'react';
 import { useAppStore } from '../../store';
-import { Models } from '../../wails/adapter';
 import { Button } from '../primitives/Button';
 import { SlashCommandMenu } from './SlashCommandMenu';
 import { AttachmentList, type Attachment } from './AttachmentList';
@@ -11,6 +10,7 @@ export interface ComposerProps {
   thinking: boolean;
   onSend: (text: string, opts?: { model?: string; thinking?: boolean }) => void;
   onCancel: () => void;
+  isStreaming?: boolean;
   attachments?: Attachment[];
   onRemoveAttachment?: (id: string) => void;
   /** 受控文本（用于空状态共享） */
@@ -18,6 +18,14 @@ export interface ComposerProps {
   setText?: (v: string) => void;
   /** 自定义占位符 */
   placeholder?: string;
+  /** 自定义底部左下角内容（默认显示 +/- 按钮） */
+  footerLeft?: React.ReactNode;
+  /** 自定义底部右下角内容（默认显示模型选择器+发送） */
+  footerRight?: React.ReactNode;
+  /** 隐藏默认 +/- 按钮 */
+  hideDefaultActions?: boolean;
+  /** 隐藏默认模型选择器+发送按钮 */
+  hideDefaultFooter?: boolean;
 }
 
 const I = {
@@ -60,13 +68,26 @@ const I = {
  *  - 右侧模型选择器 + 发送按钮
  */
 export function Composer({
-  model, thinking, onSend, onCancel,
+  sessionId, model, thinking, onSend, onCancel, isStreaming,
   attachments = [], onRemoveAttachment,
   text: controlledText, setText: controlledSetText,
   placeholder = '发消息 · ⌘⇧P 切换 Plan 模式',
+  footerLeft, footerRight, hideDefaultActions, hideDefaultFooter,
 }: ComposerProps) {
   const [localText, setLocalText] = useLocalOrControlled(controlledText, controlledSetText);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Restore draft from session switch
+  useEffect(() => {
+    if (!sessionId) return;
+    try {
+      const draft = sessionStorage.getItem(`codecast-composer-draft:${sessionId}`);
+      if (draft) {
+        setLocalText(draft);
+        sessionStorage.removeItem(`codecast-composer-draft:${sessionId}`);
+      }
+    } catch { /* ignore */ }
+  }, [sessionId, setLocalText]);
 
   useEffect(() => {
     const ta = taRef.current;
@@ -124,7 +145,7 @@ export function Composer({
         style={{
           display: 'block',
           width: '100%',
-          padding: '14px 60px 14px 88px',
+          padding: hideDefaultActions ? '16px 56px 16px 20px' : '14px 60px 14px 88px',
           background: 'transparent',
           border: 'none',
           outline: 'none',
@@ -135,7 +156,7 @@ export function Composer({
           fontFamily: 'var(--font-sans)',
         }}
       />
-      {/* 左侧 +/- 按钮组 */}
+      {/* 左侧 +/- 按钮组 / 自定义内容 */}
       <div
         style={{
           position: 'absolute',
@@ -143,16 +164,23 @@ export function Composer({
           bottom: 8,
           display: 'flex',
           gap: 2,
+          alignItems: 'center',
         }}
       >
-        <RoundIconBtn aria-label="添加附件" title="添加附件">
-          {I.plus}
-        </RoundIconBtn>
-        <RoundIconBtn aria-label="工具" title="工具">
-          {I.minus}
-        </RoundIconBtn>
+        {footerLeft ?? (
+          !hideDefaultActions && (
+            <>
+              <RoundIconBtn aria-label="添加附件" title="添加附件">
+                {I.plus}
+              </RoundIconBtn>
+              <RoundIconBtn aria-label="工具" title="工具">
+                {I.minus}
+              </RoundIconBtn>
+            </>
+          )
+        )}
       </div>
-      {/* 右侧模型选择器 + 发送 */}
+      {/* 右侧模型选择器 + 发送 / 自定义内容 */}
       <div
         style={{
           position: 'absolute',
@@ -163,39 +191,47 @@ export function Composer({
           gap: 6,
         }}
       >
-        <ModelSelector model={model} />
-        <Button
-          variant="primary"
-          onClick={send}
-          aria-label="发送"
-          style={{
-            width: 30,
-            height: 30,
-            padding: 0,
-            borderRadius: 'var(--r-md)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {I.send}
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={onCancel}
-          aria-label="取消"
-          style={{
-            width: 30,
-            height: 30,
-            padding: 0,
-            borderRadius: 'var(--r-md)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          ×
-        </Button>
+        {footerRight ?? (
+          !hideDefaultFooter && (
+            <>
+              <ModelSelector model={model} />
+              <Button
+                variant="primary"
+                onClick={send}
+                aria-label="发送"
+                style={{
+                  width: 32,
+                  height: 32,
+                  padding: 0,
+                  borderRadius: 'var(--r-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {I.send}
+              </Button>
+              {isStreaming && (
+                <Button
+                  variant="ghost"
+                  onClick={onCancel}
+                  aria-label="取消"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    padding: 0,
+                    borderRadius: 'var(--r-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  ×
+                </Button>
+              )}
+            </>
+          )
+        )}
       </div>
     </div>
   );
@@ -206,8 +242,8 @@ function RoundIconBtn({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButt
     <button
       {...rest}
       style={{
-        width: 30,
-        height: 30,
+        width: 32,
+        height: 32,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -229,6 +265,7 @@ function RoundIconBtn({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButt
 function ModelSelector({ model }: { model: string }) {
   const [open, setOpen] = useState(false);
   const configs = useAppStore((s) => s.configs);
+  const setCurrent = useAppStore((s) => s.setCurrent);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -236,14 +273,17 @@ function ModelSelector({ model }: { model: string }) {
     const onDoc = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
   }, [open]);
 
   const handleSelect = async (modelName: string) => {
     try {
-      await Models.setCurrent(modelName);
-      useAppStore.setState({ current: modelName } as Record<string, unknown>);
+      await setCurrent(modelName);
     } catch { /* ignore */ }
     setOpen(false);
   };

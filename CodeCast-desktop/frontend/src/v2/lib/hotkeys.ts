@@ -7,8 +7,18 @@ function parseCombo(combo: string) {
 export function registerHotkey(combo: string, fn: Handler) { handlers.set(combo, fn); }
 export function unregisterHotkey(combo: string) { handlers.delete(combo); }
 export function unregisterAll() { handlers.clear(); }
+function isEditableTarget(el: EventTarget | null): boolean {
+  if (!el || !(el instanceof HTMLElement)) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (el.isContentEditable) return true;
+  return false;
+}
+
 if (typeof document !== 'undefined') {
   document.addEventListener('keydown', (e) => {
+    // Skip hotkeys when focus is in an editable element, except for Escape
+    if (isEditableTarget(e.target) && e.key !== 'Escape') return;
     for (const [combo, fn] of handlers) {
       const p = parseCombo(combo);
       const k = e.key.toLowerCase();

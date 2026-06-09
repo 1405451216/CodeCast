@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
+import { Button } from '../components/primitives/Button';
 import { TopBar } from '../layout/TopBar';
+import { Skills, Files } from '../wails/adapter';
+import { ConfirmDialog } from '../components/primitives/ConfirmDialog';
+import type { Skill } from '../wails/types';
 
 /* ====================================================================
  *  分类 ID / 分组结构
@@ -10,7 +14,7 @@ import { TopBar } from '../layout/TopBar';
 type SectionId =
   | 'general' | 'privacy' | 'skills' | 'connectors'
   | 'codecast' | 'cowork'
-  | 'desktop-general' | 'extensions' | 'developer';
+  | 'desktop-general' | 'extensions' | 'developer' | 'updates';
 
 interface NavGroup {
   title?: string; // 分组小标题（无标题 = 顶部分组）
@@ -38,6 +42,7 @@ const NAV: NavGroup[] = [
       { id: 'desktop-general', label: '一般' },
       { id: 'extensions', label: '扩展' },
       { id: 'developer', label: '开发者' },
+      { id: 'updates', label: '更新' },
     ],
   },
 ];
@@ -115,8 +120,11 @@ export function SettingsPage() {
           style={{
             flex: 1,
             padding: '24px 32px',
-            overflow: 'auto',
+            overflowY: 'auto',
+            overflowX: 'hidden',
             background: 'var(--c-bg)',
+            minHeight: 0,
+            overscrollBehavior: 'contain',
           }}
         >
           <div style={{ maxWidth: 720, margin: '0 auto' }}>
@@ -129,6 +137,7 @@ export function SettingsPage() {
             {active === 'desktop-general' && <DesktopGeneralSection />}
             {active === 'extensions' && <ExtensionsSection />}
             {active === 'developer' && <DeveloperSection />}
+            {active === 'updates' && <UpdatesSection />}
           </div>
         </main>
       </div>
@@ -142,8 +151,8 @@ export function SettingsPage() {
 
 function GeneralSection() {
   const { theme, setTheme, settings, updateKey } = useAppStore();
-  const [fullName, setFullName] = useState('Cowork 3P');
-  const [callYou, setCallYou] = useState('Cowork 3P');
+  const [fullName, setFullName] = useState('');
+  const [callYou, setCallYou] = useState('');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -232,6 +241,49 @@ function GeneralSection() {
         <Card>
           <Row label="响应完成" desc="CodeCast 完成回复时通知你。适合长时间运行的任务。">
             <Toggle checked={settings?.notify_complete === 'true'} onChange={(v) => updateKey('notify_complete', v ? 'true' : 'false')} />
+          </Row>
+          <Row label="权限请求" desc="当 Agent 需要执行需要权限的操作时通知你。">
+            <Toggle checked={settings?.notify_permission ?? true} onChange={(v) => updateKey('notify_permission', v)} />
+          </Row>
+          <Row label="问题报告" desc="当 Agent 遇到错误或问题时通知你。">
+            <Toggle checked={settings?.notify_issue ?? true} onChange={(v) => updateKey('notify_issue', v)} />
+          </Row>
+        </Card>
+      </section>
+
+      {/* 浏览器控制 */}
+      <section>
+        <SectionTitle>浏览器控制</SectionTitle>
+        <Card>
+          <Row label="允许浏览器" desc="允许 Agent 控制浏览器进行自动化操作。">
+            <Toggle checked={settings?.allow_browser ?? false} onChange={(v) => updateKey('allow_browser', v)} />
+          </Row>
+          <Row label="浏览器审批模式" desc="控制 Agent 使用浏览器时的审批级别。">
+            <select
+              value={settings?.browser_approval ?? 'always'}
+              onChange={(e) => updateKey('browser_approval', e.target.value)}
+              style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', background: 'var(--c-surface)', color: 'var(--c-text)' }}
+            >
+              <option value="always">始终询问</option>
+              <option value="first">首次询问</option>
+              <option value="never">从不询问</option>
+            </select>
+          </Row>
+        </Card>
+      </section>
+
+      {/* Git 设置 */}
+      <section>
+        <SectionTitle>Git 设置</SectionTitle>
+        <Card>
+          <Row label="自动提交" desc="Agent 修改文件后自动创建 Git 提交。">
+            <Toggle checked={settings?.auto_commit ?? false} onChange={(v) => updateKey('auto_commit', v)} />
+          </Row>
+          <Row label="提交前确认" desc="在创建 Git 提交前要求确认。">
+            <Toggle checked={settings?.confirm_before_commit ?? true} onChange={(v) => updateKey('confirm_before_commit', v)} />
+          </Row>
+          <Row label="使用 Worktree" desc="使用 Git worktree 进行隔离的代码修改。">
+            <Toggle checked={settings?.use_worktree ?? false} onChange={(v) => updateKey('use_worktree', v)} />
           </Row>
         </Card>
       </section>
@@ -342,6 +394,61 @@ function BlockTitle({ children }: { children: React.ReactNode }) {
 
 function SkillsSection() {
   const [artifacts, setArtifacts] = useState(true);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formDesc, setFormDesc] = useState('');
+  const [formPrompt, setFormPrompt] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const loadSkills = async () => {
+    setLoading(true);
+    try {
+      setSkills(await Skills.list());
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  useEffect(() => { loadSkills(); }, []);
+
+  const handleSave = async () => {
+    if (!formName.trim()) return;
+    try {
+      if (editId) {
+        await Skills.update(editId, formName, formDesc, formPrompt);
+      } else {
+        await Skills.create(formName, formDesc, formPrompt);
+      }
+      setShowForm(false);
+      setEditId(null);
+      setFormName(''); setFormDesc(''); setFormPrompt('');
+      await loadSkills();
+    } catch { /* ignore */ }
+  };
+
+  const handleDelete = async (id: string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const doDelete = async () => {
+    if (!confirmDeleteId) return;
+    try {
+      await Skills.delete(confirmDeleteId);
+      await loadSkills();
+    } catch { /* ignore */ }
+    setConfirmDeleteId(null);
+  };
+
+  const startEdit = (s: Skill) => {
+    setEditId(s.id);
+    setFormName(s.name);
+    setFormDesc(s.description);
+    setFormPrompt(s.prompt);
+    setShowForm(true);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <section>
@@ -355,11 +462,59 @@ function SkillsSection() {
       <section>
         <SectionTitle>技能</SectionTitle>
         <Card>
-          <Row label="" desc={<span>技能已移至 <a style={{ color: 'var(--c-accentText)' }}>自定义</a>。</span>}>
-            <div />
-          </Row>
+          {loading ? (
+            <Row label="" desc="加载中…" />
+          ) : skills.length === 0 && !showForm ? (
+            <Row label="" desc="暂无自定义技能。">
+              <Button variant="primary" onClick={() => { setShowForm(true); setEditId(null); setFormName(''); setFormDesc(''); setFormPrompt(''); }}>
+                新建技能
+              </Button>
+            </Row>
+          ) : (
+            <>
+              {skills.map((s) => (
+                <Row
+                  key={s.id}
+                  label={s.name}
+                  desc={s.description.length > 80 ? s.description.slice(0, 80) + '…' : s.description}
+                >
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <Button variant="secondary" onClick={() => startEdit(s)}>编辑</Button>
+                    <Button variant="secondary" onClick={() => handleDelete(s.id)}>删除</Button>
+                  </div>
+                </Row>
+              ))}
+              {!showForm && (
+                <Row label="">
+                  <Button variant="primary" onClick={() => { setShowForm(true); setEditId(null); setFormName(''); setFormDesc(''); setFormPrompt(''); }}>
+                    新建技能
+                  </Button>
+                </Row>
+              )}
+            </>
+          )}
+          {showForm && (
+            <div style={{ padding: '14px 16px', borderTop: '1px solid var(--c-divider)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <TextInput value={formName} onChange={setFormName} placeholder="技能名称" />
+              <TextInput value={formDesc} onChange={setFormDesc} placeholder="描述" />
+              <TextArea value={formPrompt} onChange={setFormPrompt} placeholder="提示词" rows={3} />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <Button variant="secondary" onClick={() => { setShowForm(false); setEditId(null); }}>取消</Button>
+                <Button variant="primary" onClick={handleSave}>{editId ? '保存' : '创建'}</Button>
+              </div>
+            </div>
+          )}
         </Card>
       </section>
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="删除技能"
+        message="确定要删除该技能吗？此操作不可撤销。"
+        confirmLabel="删除"
+        onConfirm={() => void doDelete()}
+        onCancel={() => setConfirmDeleteId(null)}
+        danger
+      />
     </div>
   );
 }
@@ -369,17 +524,31 @@ function SkillsSection() {
  * ==================================================================== */
 
 function ConnectorsSection() {
+  const navigate = useNavigate();
+  const { servers } = useAppStore();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <section>
-        <SectionTitle>连接器</SectionTitle>
+        <SectionTitle>连接器 (MCP)</SectionTitle>
         <Card>
           <Row
-            label=""
-            desc={<span>连接器已移至 <a style={{ color: 'var(--c-accentText)' }}>自定义</a>。请前往那里浏览、连接和管理它们。</span>}
+            label="MCP 服务器"
+            desc={servers.length > 0 ? `已连接 ${servers.filter(s => s.connected).length} / ${servers.length} 个服务器` : '未配置 MCP 服务器。'}
           >
-            <div />
+            <Button variant="secondary" onClick={() => navigate('/cast-tools')}>查看工具</Button>
           </Row>
+          {servers.map((s) => (
+            <Row
+              key={s.id}
+              label={s.name}
+              desc={s.connected ? '已连接' : s.error || '未连接'}
+            >
+              <div style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: s.connected ? 'var(--c-success, #4ade80)' : 'var(--c-textMute)',
+              }} />
+            </Row>
+          ))}
         </Card>
       </section>
     </div>
@@ -588,7 +757,8 @@ function CodeThemeCard({
  * ==================================================================== */
 
 function CoworkSection() {
-  const { settings, updateKey } = useAppStore();
+  const { settings, updateKey, stats } = useAppStore();
+  const sizeStr = stats.sizeBytes > 0 ? `${(stats.sizeBytes / 1024).toFixed(1)} KB` : '—';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Cowork 文件 */}
@@ -602,14 +772,9 @@ function CoworkSection() {
             </span>
           }
         >
-          <Button variant="secondary" icon={<FolderIcon />}>更改</Button>
+          <Button variant="secondary" icon={<FolderIcon />} onClick={() => Files.selectFolder().then((p) => { if (p) window.alert(`工作目录已选择: ${p}`); })}>更改</Button>
         </Row>
-        <Row
-          label="全局指令"
-          desc="此处的说明适用于所有 Cowork 会话。使用它来表示 CodeCast 应该始终了解的偏好、惯例或背景。"
-        >
-          <Button variant="secondary">编辑</Button>
-        </Row>
+        {/* 全局指令已移至"给 CodeCast 的指令"（通用设置），避免重复 */}
       </Card>
 
       {/* 记忆 */}
@@ -622,8 +787,10 @@ function CoworkSection() {
           >
             <Toggle checked={settings?.auto_memory ?? false} onChange={(v) => updateKey('auto_memory', v)} />
           </Row>
-          <Row desc="CodeCast 会保存在 Cowork 会话期间了解的有关你和你的工作的信息。这些文件存储在该设备上。" />
-          <Row desc="还没有记忆。当你们一起工作时，CodeCast 将在此处添加条目。" />
+          <Row
+            label="记忆统计"
+            desc={`共 ${stats.totalEpisodes} 条记忆，占用 ${sizeStr}`}
+          />
         </Card>
       </section>
     </div>
@@ -635,32 +802,29 @@ function CoworkSection() {
  * ==================================================================== */
 
 function DesktopGeneralSection() {
-  const [runOnStartup, setRunOnStartup] = useState(false);
-  const [systemTray, setSystemTray] = useState(true);
-  const [keepAwake, setKeepAwake] = useState(false);
-  const [shortcut] = useState('Control+Alt+Space');
-
+  const { settings, updateKey } = useAppStore();
+  const shortcut = settings?.hotkey ?? 'Control+Alt+Space';
   return (
     <section>
       <SectionTitle>常规桌面设置</SectionTitle>
       <Card>
         <Row label="启动时运行" desc="登录计算机时自动启动 CodeCast">
-          <Toggle checked={runOnStartup} onChange={setRunOnStartup} />
+          <Toggle checked={settings?.desktop_run_on_startup ?? false} onChange={(v) => updateKey('desktop_run_on_startup', v)} />
         </Row>
         <Row
           label="快速输入键盘快捷键"
           desc="从任何地方快速打开 CodeCast"
         >
-          <KeyChip label={shortcut} onClear={() => {}} />
+          <KeyChip label={shortcut} onClear={() => updateKey('hotkey', 'Control+Alt+Space')} />
         </Row>
         <Row label="系统托盘" desc="让 CodeCast 在系统托盘中运行">
-          <Toggle checked={systemTray} onChange={setSystemTray} />
+          <Toggle checked={settings?.desktop_system_tray ?? true} onChange={(v) => updateKey('desktop_system_tray', v)} />
         </Row>
         <Row
           label="保持计算机处于唤醒状态"
           desc="防止电脑在 CodeCast 打开时进入空闲睡眠，以便计划任务可以运行。显示器仍可关闭。合上笔记本电脑盖子仍会进入睡眠。"
         >
-          <Toggle checked={keepAwake} onChange={setKeepAwake} />
+          <Toggle checked={settings?.desktop_keep_awake ?? false} onChange={(v) => updateKey('desktop_keep_awake', v)} />
         </Row>
       </Card>
     </section>
@@ -672,6 +836,7 @@ function DesktopGeneralSection() {
  * ==================================================================== */
 
 function ExtensionsSection() {
+  const navigate = useNavigate();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <section>
@@ -680,27 +845,10 @@ function ExtensionsSection() {
           <Row
             desc="允许 CodeCast 直接与计算机上的应用、数据和工具交互。"
           >
-            <Button variant="secondary">浏览扩展</Button>
+            <Button variant="secondary" onClick={() => navigate('/plugins')}>浏览扩展</Button>
           </Row>
         </Card>
       </section>
-
-      {/* 空状态插图 */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          gap: 16,
-          padding: '40px 0 0',
-        }}
-      >
-        <ExtensionsIllustration />
-      </div>
-
-      <div>
-        <Button variant="secondary">高级设置</Button>
-      </div>
     </div>
   );
 }
@@ -734,8 +882,87 @@ function ExtensionsIllustration() {
  * ==================================================================== */
 
 function DeveloperSection() {
+  const navigate = useNavigate();
+  const {
+    checkpoints,
+    checkpointLoading,
+    loadCheckpoints,
+    deleteCheckpoint,
+    currentSessionId,
+    securityStatus,
+    telemetryStatus,
+    rotateKey,
+    toggleEnabled: toggleTelemetry,
+  } = useAppStore();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <section>
+        <SectionTitle>Agent Checkpoints</SectionTitle>
+        <Card>
+          <Row
+            label="当前会话 checkpoints"
+            desc={currentSessionId ? `已记录 ${checkpoints.length} 个 checkpoint。` : '未选择会话'}
+          >
+            <Button
+              variant="secondary"
+              onClick={() => currentSessionId && loadCheckpoints(currentSessionId, 50)}
+            >
+              刷新
+            </Button>
+          </Row>
+          {checkpointLoading ? (
+            <Row label="" desc="加载中…" />
+          ) : checkpoints.length === 0 ? (
+            <Row label="" desc="暂无记录" />
+          ) : (
+            checkpoints.slice(0, 10).map((cp) => (
+              <Row
+                key={cp.ID}
+                label={`#${cp.Turn} · ${cp.ToolName}`}
+                desc={`${cp.Status} · ${cp.CreatedAt}`}
+              >
+                <Button variant="secondary" onClick={() => deleteCheckpoint(cp.ID)}>
+                  删除
+                </Button>
+              </Row>
+            ))
+          )}
+        </Card>
+      </section>
+
+      {/* Security 子区 */}
+      <section>
+        <SectionTitle>安全</SectionTitle>
+        <Card>
+          <Row
+            label="加密状态"
+            desc={securityStatus ? (securityStatus.encryptionEnabled ? '已启用' : '未启用') : '加载中…'}
+          />
+          {securityStatus?.lastKeyRotation && (
+            <Row label="上次密钥轮换" desc={securityStatus.lastKeyRotation} />
+          )}
+          <Row label="密钥轮换" desc={securityStatus?.keyRotationDue ? '需要轮换' : '正常'}>
+            <Button variant="secondary" onClick={rotateKey}>立即轮换</Button>
+          </Row>
+        </Card>
+      </section>
+
+      {/* Telemetry 子区 */}
+      <section>
+        <SectionTitle>遥测</SectionTitle>
+        <Card>
+          <Row label="启用遥测" desc="发送匿名使用数据帮助改进 CodeCast">
+            <Toggle checked={telemetryStatus?.enabled ?? false} onChange={toggleTelemetry} />
+          </Row>
+          {telemetryStatus?.endpoint && (
+            <Row label="端点" desc={telemetryStatus.endpoint} />
+          )}
+          {telemetryStatus?.eventsSent !== undefined && (
+            <Row label="已发送事件" desc={String(telemetryStatus.eventsSent)} />
+          )}
+        </Card>
+      </section>
+
       <section>
         <SectionTitle>本地 MCP 服务器</SectionTitle>
         <Card>
@@ -757,8 +984,8 @@ function DeveloperSection() {
         <McpIllustration />
         <div style={{ fontSize: 13, color: 'var(--c-textSub)' }}>未添加服务器</div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="primary">编辑配置</Button>
-          <Button variant="secondary">
+          <Button variant="primary" onClick={() => navigate('/settings')}>编辑配置</Button>
+          <Button variant="secondary" onClick={() => window.open('https://modelcontextprotocol.io/docs', '_blank')}>
             开发者文档 <ExternalIcon />
           </Button>
         </div>
@@ -780,6 +1007,68 @@ function McpIllustration() {
       {/* 显示器底座 */}
       <path d="M32 60h16M28 64h24" stroke="var(--c-text)" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
+  );
+}
+
+/* ====================================================================
+ *  更新
+ * ==================================================================== */
+
+function UpdatesSection() {
+  const {
+    currentVersion, updateInfo, updateHistory,
+    checkUpdate, downloadUpdate, openReleasePage,
+    refreshHistory, updaterLoading,
+  } = useAppStore();
+
+  useEffect(() => { refreshHistory(); }, [refreshHistory]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <section>
+        <SectionTitle>应用更新</SectionTitle>
+        <Card>
+          <Row label="当前版本" desc={currentVersion || '加载中…'} />
+          {updateInfo && updateInfo.version !== currentVersion ? (
+            <>
+              <Row label="最新版本" desc={`v${updateInfo.version}: ${updateInfo.title}`} />
+              <Row label="">
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button variant="primary" onClick={() => downloadUpdate(updateInfo.downloadURL)}>
+                    下载并安装
+                  </Button>
+                  <Button variant="secondary" onClick={openReleasePage}>
+                    查看详情
+                  </Button>
+                </div>
+              </Row>
+            </>
+          ) : (
+            <Row label="最新版本" desc="已是最新" />
+          )}
+          <Row label="">
+            <Button variant="secondary" onClick={checkUpdate} disabled={updaterLoading}>
+              {updaterLoading ? '检查中…' : '立即检查更新'}
+            </Button>
+          </Row>
+        </Card>
+      </section>
+
+      {updateHistory.length > 0 && (
+        <section>
+          <SectionTitle>更新历史</SectionTitle>
+          <Card>
+            {updateHistory.slice(0, 10).map((r, i) => (
+              <Row
+                key={i}
+                label={`${r.fromVersion} → ${r.toVersion}`}
+                desc={`${r.success ? '成功' : '失败'} · ${r.notes || '无备注'}`}
+              />
+            ))}
+          </Card>
+        </section>
+      )}
+    </div>
   );
 }
 
@@ -836,7 +1125,7 @@ function Row({
           <div style={{ fontSize: 12, color: 'var(--c-textSub)', lineHeight: 1.5 }}>
             {desc}
             {link && (
-              <a style={{ color: 'var(--c-textSub)', textDecoration: 'underline', marginLeft: 4 }} href="#">
+              <a style={{ color: 'var(--c-textSub)', textDecoration: 'underline', marginLeft: 4 }} href="https://docs.anthropic.com/zh-CN/docs/claude-code" target="_blank" rel="noopener noreferrer">
                 {link}
               </a>
             )}
@@ -1043,34 +1332,6 @@ function Avatar({ name }: { name: string }) {
     >
       {initial}{name.trim().charAt(1) || ''}
     </div>
-  );
-}
-
-function Button({ children, variant = 'secondary', icon }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; icon?: React.ReactNode }) {
-  const isPrimary = variant === 'primary';
-  return (
-    <button
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '6px 12px',
-        background: isPrimary ? 'var(--c-accent)' : 'var(--c-bg)',
-        color: isPrimary ? '#fff' : 'var(--c-text)',
-        border: '1px solid ' + (isPrimary ? 'var(--c-accent)' : 'var(--c-border)'),
-        borderRadius: 'var(--r-md)',
-        fontSize: 12,
-        fontWeight: 500,
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        boxShadow: isPrimary ? 'none' : 'var(--shadow-sm)',
-        transition: 'all var(--dur-fast) var(--ease)',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {icon}
-      {children}
-    </button>
   );
 }
 

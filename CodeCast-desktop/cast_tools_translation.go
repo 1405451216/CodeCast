@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	ap "agentprimordia/pkg"
 )
@@ -79,11 +80,13 @@ func (a *App) castToolTranslateGlossary(ctx context.Context, args json.RawMessag
 	}
 	// 术语表存储到 AP Memory（用 RAGStore 也可）
 	if a.memory != nil {
-		_ = a.memory.Add(ctx, &ap.Episode{
+		if err := a.memory.Add(ctx, &ap.Episode{
 			SessionID: "_glossary",
 			Role:      string(ap.RoleSystem),
 			Content:   fmt.Sprintf("glossary:%s=%s", in.Term, in.Trans),
-		})
+		}); err != nil {
+			slog.Warn("failed to save glossary to memory", "term", in.Term, "error", err)
+		}
 	}
 	out := map[string]string{"term": in.Term, "translation": in.Trans, "status": "saved"}
 	outJSON, _ := json.Marshal(out)

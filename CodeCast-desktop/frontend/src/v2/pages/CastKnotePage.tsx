@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store';
+import { useFirstTool } from '../lib/useFirstTool';
+import { copyToClipboard } from '../lib/clipboard';
+import { useDraft } from '../lib/useDraft';
 
 /* ====================================================================
  *  Types
@@ -19,13 +22,10 @@ interface Episode {
  * ==================================================================== */
 
 export function CastKnotePage() {
+  const knowledge = useFirstTool('knowledge');
   const {
-    loadCatalog,
-    byCategory,
-    castLoading,
     invokeCastTool,
     castToolInvoking,
-    castToolResult: _castToolResult,
     episodes,
     recallResults,
     memoryLoading,
@@ -34,23 +34,32 @@ export function CastKnotePage() {
     searchQuery,
   } = useAppStore();
 
-  // Suppress unused-variable warning for castToolResult;
-  // we track our own retrieveResult locally for the retrieve panel.
-  void _castToolResult;
-
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useDraft('knote:query', '');
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [retrieveResult, setRetrieveResult] = useState<string | null>(null);
   const [retrieveError, setRetrieveError] = useState<string | null>(null);
+  const [localInvoking, setLocalInvoking] = useState(false);
+  const [pageSize, setPageSize] = useState(20);
+  const [copied, setCopied] = useState(false);
+  const [showNewEntry, setShowNewEntry] = useState(false);
+  const [newEntryTitle, setNewEntryTitle] = useState('');
+  const [newEntryContent, setNewEntryContent] = useState('');
+  const [localEntries, setLocalEntries] = useState<Array<{title: string; content: string; ts: number}>>(() => {
+    try { return JSON.parse(localStorage.getItem('codecast-kb-entries') || '[]'); } catch { return []; }
+  });
 
   // Load catalog + memory on mount
   useEffect(() => {
-    loadCatalog();
+    knowledge.load();
     refreshMemory();
-  }, [loadCatalog, refreshMemory]);
+  }, [knowledge.load, refreshMemory]);
 
-  const knowledgeTools = byCategory['knowledge'] || [];
-  const displayItems: Episode[] = searchQuery ? (recallResults as Episode[]) : (episodes as Episode[]);
+  const displayItems: Episode[] = searchQuery
+    ? (recallResults as Episode[])
+    : [
+        ...localEntries.map((e, i) => ({ id: `local-${i}`, content: `${e.title}\n${e.content}`, createdAt: e.ts } as any)),
+        ...(episodes as Episode[]),
+      ];
 
   /* ---------- Handlers ---------- */
 
@@ -72,17 +81,19 @@ export function CastKnotePage() {
   );
 
   const handleRetrieve = useCallback(async () => {
-    if (!knowledgeTools.length) return;
+    if (!knowledge.tool) return;
     setRetrieveError(null);
+    setLocalInvoking(true);
     try {
-      const toolName = knowledgeTools[0].name;
       const args = JSON.stringify({ query: query || '' });
-      const result = await invokeCastTool(toolName, args);
+      const result = await invokeCastTool(knowledge.tool.name, args);
       setRetrieveResult(result);
     } catch (err: unknown) {
       setRetrieveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLocalInvoking(false);
     }
-  }, [knowledgeTools, query, invokeCastTool]);
+  }, [knowledge.tool, query, invokeCastTool]);
 
   const getEpisodeTitle = (ep: Episode): string =>
     ep.title || (ep.summary ? ep.summary.slice(0, 60) : 'Untitled');
@@ -90,12 +101,26 @@ export function CastKnotePage() {
   const getEpisodeSummary = (ep: Episode): string =>
     ep.summary || ep.content || ep.text || '';
 
+  const handleCopyEpisode = useCallback(async () => {
+    if (!selectedEpisode) return;
+    const text = selectedEpisode.content || selectedEpisode.text || selectedEpisode.summary || '';
+    if (!text) return;
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [selectedEpisode]);
+
+  const visibleItems = displayItems.slice(0, pageSize);
+  const hasMore = displayItems.length > pageSize;
+
   /* ---------- Render ---------- */
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--c-bg)' }}>
       {/* Header */}
-      <div style={{ padding: '24px 32px 0', maxWidth: 880, width: '100%', margin: '0 auto' }}>
+      <div style={{ padding: '24px 32px 0', maxWidth: 'var(--page-max-width)', width: '100%', margin: '0 auto' }}>
         <h2
           style={{
             fontFamily: 'var(--font-serif, serif)',
@@ -189,7 +214,7 @@ export function CastKnotePage() {
           </button>
           <button
             onClick={handleRetrieve}
-            disabled={castToolInvoking || knowledgeTools.length === 0}
+            disabled={localInvoking || !knowledge.available}
             style={{
               padding: '9px 16px',
               background: 'var(--c-accent)',
@@ -199,15 +224,74 @@ export function CastKnotePage() {
               fontSize: 13,
               fontWeight: 500,
               fontFamily: 'inherit',
-              cursor: castToolInvoking || knowledgeTools.length === 0 ? 'not-allowed' : 'pointer',
+              cursor: localInvoking || !knowledge.available ? 'not-allowed' : 'pointer',
               whiteSpace: 'nowrap',
-              opacity: castToolInvoking || knowledgeTools.length === 0 ? 0.6 : 1,
+              opacity: localInvoking || !knowledge.available ? 0.6 : 1,
               transition: 'all var(--dur-fast) var(--ease)',
             }}
           >
-            {castToolInvoking ? '检索中…' : '检索'}
+            {localInvoking ? '检索中…' : '检索'}
+          </button>
+          <button
+            onClick={() => setShowNewEntry(!showNewEntry)}
+            style={{
+              padding: '9px 16px',
+              background: showNewEntry ? 'var(--c-accent)' : 'transparent',
+              border: '1px solid var(--c-border)',
+              borderRadius: 'var(--r-md)',
+              color: showNewEntry ? '#fff' : 'var(--c-textSub)',
+              fontSize: 13,
+              fontWeight: 500,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            + 新建
           </button>
         </div>
+
+        {/* New entry form */}
+        {showNewEntry && (
+          <div style={{ marginBottom: 16, padding: 12, background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)' }}>
+            <input
+              value={newEntryTitle}
+              onChange={(e) => setNewEntryTitle(e.target.value)}
+              placeholder="条目标题"
+              style={{ width: '100%', padding: '6px 10px', marginBottom: 8, border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', fontSize: 13, background: 'var(--c-bg)', color: 'var(--c-text)', outline: 'none' }}
+            />
+            <textarea
+              value={newEntryContent}
+              onChange={(e) => setNewEntryContent(e.target.value)}
+              placeholder="条目内容…"
+              rows={4}
+              style={{ width: '100%', padding: '6px 10px', marginBottom: 8, border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', fontSize: 13, background: 'var(--c-bg)', color: 'var(--c-text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  if (!newEntryTitle.trim()) return;
+                  const entry = { title: newEntryTitle.trim(), content: newEntryContent.trim(), ts: Date.now() };
+                  const updated = [entry, ...localEntries];
+                  setLocalEntries(updated);
+                  try { localStorage.setItem('codecast-kb-entries', JSON.stringify(updated)); } catch { /* ignore */ }
+                  setNewEntryTitle('');
+                  setNewEntryContent('');
+                  setShowNewEntry(false);
+                }}
+                style={{ padding: '6px 14px', background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}
+              >
+                保存
+              </button>
+              <button
+                onClick={() => { setShowNewEntry(false); setNewEntryTitle(''); setNewEntryContent(''); }}
+                style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer', color: 'var(--c-textMute)' }}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Active search indicator */}
         {searchQuery && (
@@ -242,19 +326,19 @@ export function CastKnotePage() {
         )}
 
         {/* Available knowledge tools (small indicator) */}
-        {knowledgeTools.length > 0 && (
+        {knowledge.tools.length > 0 && (
           <div style={{ marginBottom: 12, fontSize: 11, color: 'var(--c-textMute)' }}>
-            可用工具: {knowledgeTools.map((t) => t.name).join(', ')}
+            可用工具: {knowledge.tools.map((t) => t.name).join(', ')}
           </div>
         )}
       </div>
 
       {/* Content area */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '0 32px 24px' }}>
-        <div style={{ maxWidth: 880, margin: '0 auto' }}>
+        <div style={{ maxWidth: 'var(--page-max-width)', margin: '0 auto' }}>
 
           {/* Loading state */}
-          {(memoryLoading || castLoading) && displayItems.length === 0 && (
+          {(memoryLoading || knowledge.loading) && displayItems.length === 0 && (
             <div
               style={{
                 display: 'flex',
@@ -278,12 +362,11 @@ export function CastKnotePage() {
                 }}
               />
               加载中…
-              <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
             </div>
           )}
 
           {/* Empty state */}
-          {!memoryLoading && !castLoading && displayItems.length === 0 && (
+          {!memoryLoading && !knowledge.loading && displayItems.length === 0 && (
             <div
               style={{
                 display: 'flex',
@@ -314,7 +397,7 @@ export function CastKnotePage() {
           )}
 
           {/* Episode cards grid */}
-          {displayItems.length > 0 && (
+          {visibleItems.length > 0 && (
             <div
               style={{
                 display: 'grid',
@@ -323,7 +406,7 @@ export function CastKnotePage() {
                 marginTop: 4,
               }}
             >
-              {displayItems.map((ep, idx) => {
+              {visibleItems.map((ep, idx) => {
                 const isSelected = selectedEpisode === ep;
                 const title = getEpisodeTitle(ep);
                 const summary = getEpisodeSummary(ep);
@@ -414,6 +497,26 @@ export function CastKnotePage() {
             </div>
           )}
 
+          {/* Load more */}
+          {hasMore && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+              <button
+                onClick={() => setPageSize((p) => p + 20)}
+                style={{
+                  padding: '8px 20px',
+                  background: 'var(--c-surface)',
+                  border: '1px solid var(--c-border)',
+                  borderRadius: 'var(--r-md)',
+                  color: 'var(--c-text)',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                加载更多（{displayItems.length - pageSize} 条）
+              </button>
+            </div>
+          )}
+
           {/* Detail panel */}
           {selectedEpisode && (
             <div
@@ -444,22 +547,36 @@ export function CastKnotePage() {
                 >
                   {getEpisodeTitle(selectedEpisode)}
                 </h3>
-                <button
-                  onClick={() => setSelectedEpisode(null)}
-                  style={{
-                    padding: '4px 8px',
-                    background: 'transparent',
-                    border: '1px solid var(--c-border)',
-                    borderRadius: 'var(--r-md)',
-                    color: 'var(--c-textMute)',
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    marginLeft: 12,
-                  }}
-                >
-                  关闭
-                </button>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
+                  <button
+                    onClick={() => void handleCopyEpisode()}
+                    style={{
+                      padding: '4px 8px',
+                      background: 'transparent',
+                      border: '1px solid var(--c-border)',
+                      borderRadius: 'var(--r-md)',
+                      color: copied ? 'var(--c-accent)' : 'var(--c-textMute)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {copied ? '已复制' : '复制'}
+                  </button>
+                  <button
+                    onClick={() => setSelectedEpisode(null)}
+                    style={{
+                      padding: '4px 8px',
+                      background: 'transparent',
+                      border: '1px solid var(--c-border)',
+                      borderRadius: 'var(--r-md)',
+                      color: 'var(--c-textMute)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    关闭
+                  </button>
+                </div>
               </div>
 
               {/* Tags */}
@@ -568,6 +685,22 @@ export function CastKnotePage() {
                 >
                   {retrieveError ? '检索失败' : '检索结果'}
                 </span>
+                <button
+                  onClick={async () => {
+                    if (retrieveResult) { await copyToClipboard(retrieveResult); }
+                  }}
+                  style={{
+                    padding: '2px 8px',
+                    background: 'transparent',
+                    border: '1px solid var(--c-border)',
+                    borderRadius: 'var(--r-md)',
+                    color: 'var(--c-textMute)',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                  }}
+                >
+                  复制
+                </button>
                 <button
                   onClick={() => { setRetrieveResult(null); setRetrieveError(null); }}
                   style={{

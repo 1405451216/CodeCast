@@ -4,7 +4,6 @@ import { createSessionSlice, type SessionSlice } from './slices/sessionSlice';
 import { createChatSlice, type ChatSlice } from './slices/chatSlice';
 import { createModelSlice, type ModelSlice } from './slices/modelSlice';
 import { createProjectSlice, type ProjectSlice } from './slices/projectSlice';
-import { createCastSlice, type CastSlice } from './slices/castSlice';
 import { createCastToolSlice, type CastToolSlice } from './slices/castToolSlice';
 import { createMemorySlice, type MemorySlice } from './slices/memorySlice';
 import { createMCPSlice, type MCPSlice } from './slices/mcpSlice';
@@ -19,8 +18,12 @@ import { createPluginSlice, type PluginSlice } from './slices/pluginSlice';
 import { createUpdaterSlice, type UpdaterSlice } from './slices/updaterSlice';
 import { createOrchestrationSlice, type OrchestrationSlice } from './slices/orchestrationSlice';
 import { createRuntimeSlice, type RuntimeSlice } from './slices/runtimeSlice';
+import { createCheckpointSlice, type CheckpointSlice } from './slices/checkpointSlice';
+import { createSecuritySlice, type SecuritySlice } from './slices/securitySlice';
+import { createTelemetrySlice, type TelemetrySlice } from './slices/telemetrySlice';
+import { createAuthSlice, type AuthSlice } from './slices/authSlice';
 
-export type AppState = & UISlice & SessionSlice & ChatSlice & ModelSlice & ProjectSlice & CastSlice & CastToolSlice & MemorySlice & MCPSlice & GitSlice & SettingsSlice & ErrorsSlice & NotificationSlice & AgentSlice & CostSlice & WorkflowSlice & PluginSlice & UpdaterSlice & OrchestrationSlice & RuntimeSlice;
+export type AppState = & UISlice & SessionSlice & ChatSlice & ModelSlice & ProjectSlice & CastToolSlice & MemorySlice & MCPSlice & GitSlice & SettingsSlice & ErrorsSlice & NotificationSlice & AgentSlice & CostSlice & WorkflowSlice & PluginSlice & UpdaterSlice & OrchestrationSlice & RuntimeSlice & CheckpointSlice & SecuritySlice & TelemetrySlice & AuthSlice;
 export type { AppMode };
 
 export const useAppStore = create<AppState>()((...a) => ({
@@ -29,7 +32,6 @@ export const useAppStore = create<AppState>()((...a) => ({
   ...createChatSlice(...a),
   ...createModelSlice(...a),
   ...createProjectSlice(...a),
-  ...createCastSlice(...a),
   ...createCastToolSlice(...a),
   ...createMemorySlice(...a),
   ...createMCPSlice(...a),
@@ -44,4 +46,8 @@ export const useAppStore = create<AppState>()((...a) => ({
   ...createUpdaterSlice(...a),
   ...createOrchestrationSlice(...a),
   ...createRuntimeSlice(...a),
+  ...createCheckpointSlice(...a),
+  ...createSecuritySlice(...a),
+  ...createTelemetrySlice(...a),
+  ...createAuthSlice(...a),
 }));

@@ -10,18 +10,27 @@ describe('castToolSlice', () => {
     vi.mocked(App.InvokeCastTool).mockReset();
     vi.mocked(App.ExtractStructured).mockReset();
     useAppStore.setState({
-      castTools: [], castToolHistory: [], castToolResult: null,
-      castToolInvoking: false, castToolLoading: false, errors: {},
+      castTools: [],
+      castToolByCategory: {},
+      castToolHistory: [],
+      castToolResult: null,
+      castToolInvoking: false,
+      castToolLoading: false,
+      errors: {},
     });
   });
 
-  it('loadCastTools: fetches tool catalog', async () => {
+  it('loadCastTools: fetches tool catalog and groups by category', async () => {
     vi.mocked(App.GetToolCatalog).mockResolvedValueOnce([
       { name: 'search', category: 'web', description: 'Search' },
+      { name: 'fetch', category: 'web', description: 'Fetch URL' },
+      { name: 'calc', category: 'math', description: 'Calculator' },
     ] as any);
     await useAppStore.getState().loadCastTools();
-    expect(useAppStore.getState().castTools).toHaveLength(1);
-    expect(useAppStore.getState().castTools[0].name).toBe('search');
+    const s = useAppStore.getState();
+    expect(s.castTools).toHaveLength(3);
+    expect(s.castToolByCategory.web).toHaveLength(2);
+    expect(s.castToolByCategory.math).toHaveLength(1);
   });
 
   it('loadCastTools: failure sets castTool error', async () => {
@@ -38,11 +47,18 @@ describe('castToolSlice', () => {
     expect(useAppStore.getState().castToolResult).toBe('{"ok":true}');
   });
 
+  it('invokeCastTool: failure throws and sets castTool error', async () => {
+    vi.mocked(App.InvokeCastTool).mockRejectedValueOnce(new Error('invoke-err'));
+    await expect(useAppStore.getState().invokeCastTool('bad', '{}')).rejects.toThrow('invoke-err');
+    expect(useAppStore.getState().errors.castTool).toBe('invoke-err');
+  });
+
   it('refreshCastToolHistory: fetches history for session', async () => {
     vi.mocked(App.GetToolHistory).mockResolvedValueOnce([
       { id: 'h1', toolName: 'search', args: '{}', result: 'ok', isError: false },
     ] as any);
-    await useAppStore.getState().refreshCastToolHistory('sess-1');
+    await useAppStore.getState().refreshCastToolHistory('sess-1', 10);
+    expect(App.GetToolHistory).toHaveBeenCalledWith('sess-1', 10);
     expect(useAppStore.getState().castToolHistory).toHaveLength(1);
   });
 

@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store';
 import type { ToolCatalogItem, CastInvocation } from '../wails/types';
+import { OrchestrationRunner } from '../components/orchestration/OrchestrationRunner';
+import { useDraft } from '../lib/useDraft';
+import { TopBar } from '../layout/TopBar';
 
 /* ====================================================================
  *  Styles
@@ -9,7 +13,7 @@ import type { ToolCatalogItem, CastInvocation } from '../wails/types';
 const S = {
   wrap: {
     padding: 32,
-    maxWidth: 960,
+    maxWidth: 'var(--page-max-width)',
     margin: '0 auto',
   } as React.CSSProperties,
   title: {
@@ -270,12 +274,20 @@ function truncate(text: string, max: number): string {
  * ==================================================================== */
 
 export function CastToolsPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode') || '';
+
+  const MODE_LABELS: Record<string, string> = {
+    review: '代码审查',
+    test: '生成测试',
+    refactor: '智能重构',
+    commit: '提交信息',
+  };
+
   const {
-    catalog,
-    byCategory,
-    castLoading,
-    loadCatalog,
     castTools,
+    castToolByCategory,
     castToolHistory,
     castToolInvoking,
     castToolLoading,
@@ -285,18 +297,17 @@ export function CastToolsPage() {
     currentSessionId,
   } = useAppStore();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string>('全部');
+  const [searchQuery, setSearchQuery] = useDraft('tools:search', '');
+  const [activeCategory, setActiveCategory] = useDraft<string>('tools:category', '全部');
   const [selectedTool, setSelectedTool] = useState<ToolCatalogItem | null>(null);
-  const [argsInput, setArgsInput] = useState('{}');
+  const [argsInput, setArgsInput] = useDraft('tools:args', '{}');
   const [runResult, setRunResult] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
 
   /* Load data on mount */
   useEffect(() => {
-    loadCatalog();
     loadCastTools();
-  }, [loadCatalog, loadCastTools]);
+  }, [loadCastTools]);
 
   /* Load history when session is available */
   useEffect(() => {
@@ -307,13 +318,13 @@ export function CastToolsPage() {
 
   /* Derive categories list */
   const categories = useMemo(() => {
-    const cats = Object.keys(byCategory);
+    const cats = Object.keys(castToolByCategory);
     return ['全部', ...cats];
-  }, [byCategory]);
+  }, [castToolByCategory]);
 
   /* Filter tools based on search + category */
   const filteredTools = useMemo(() => {
-    let tools = catalog;
+    let tools = castTools;
 
     if (activeCategory !== '全部') {
       tools = tools.filter((t) => t.category === activeCategory);
@@ -329,7 +340,7 @@ export function CastToolsPage() {
     }
 
     return tools;
-  }, [catalog, activeCategory, searchQuery]);
+  }, [castTools, activeCategory, searchQuery]);
 
   /* Tool click handler */
   const handleSelectTool = useCallback((tool: ToolCatalogItem) => {
@@ -380,12 +391,14 @@ export function CastToolsPage() {
     [castToolHistory],
   );
 
-  const isLoading = castLoading || castToolLoading;
+  const isLoading = castToolLoading;
 
   return (
-    <div style={S.wrap}>
-      {/* Keyframe for spinner */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--c-bg)' }}>
+      <TopBar onBack={() => navigate('/')} backLabel={MODE_LABELS[mode] || '工具箱'} />
+
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px 32px', minHeight: 0, overscrollBehavior: 'contain' }}>
+      <div style={S.wrap}>
 
       <h2 style={S.title}>工具箱</h2>
 
@@ -458,6 +471,12 @@ export function CastToolsPage() {
               style={S.textarea}
               value={argsInput}
               onChange={(e) => setArgsInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  void handleRun();
+                }
+              }}
               placeholder='{"key": "value"}'
               spellCheck={false}
             />
@@ -483,7 +502,28 @@ export function CastToolsPage() {
           {/* Result */}
           {(runResult !== null || castToolInvoking) && (
             <div style={{ marginTop: 12 }}>
-              <div style={S.sectionLabel}>结果</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={S.sectionLabel}>结果</div>
+                {runResult && (
+                  <button
+                    onClick={async () => {
+                      const { copyToClipboard } = await import('../lib/clipboard');
+                      await copyToClipboard(runResult);
+                    }}
+                    style={{
+                      padding: '2px 8px',
+                      background: 'transparent',
+                      border: '1px solid var(--c-border)',
+                      borderRadius: 'var(--r-md)',
+                      color: 'var(--c-textMute)',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    复制
+                  </button>
+                )}
+              </div>
               <div style={S.resultBox}>
                 {castToolInvoking && runResult === null
                   ? '正在执行...'
@@ -514,6 +554,13 @@ export function CastToolsPage() {
             </span>
           </div>
         ))}
+      </div>
+
+      {/* Orchestration workflows */}
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--c-divider)' }}>
+        <OrchestrationRunner />
+      </div>
+      </div>
       </div>
     </div>
   );

@@ -262,7 +262,6 @@ type castMemorySearchResult struct {
 	} `json:"episodes"`
 }
 
-type castMemoryStatsArgs struct{}
 type castMemoryStatsResult struct {
 	TotalEpisodes   int    `json:"totalEpisodes"`
 	TotalSessions   int    `json:"totalSessions"`
@@ -272,7 +271,6 @@ type castMemoryStatsResult struct {
 }
 
 // Performance
-type castPerfGetMetricsArgs struct{}
 type castPerfGetMetricsResult struct {
 	FPS         float64 `json:"fps"`
 	MemoryMB    float64 `json:"memoryMB"`
@@ -299,12 +297,8 @@ type castLearningGetPatternsResult struct {
 	} `json:"patterns"`
 }
 
-type castLearningClearArgs struct{}
 
 // Security
-type castSecurityAuditArgs struct {
-	Range string `json:"range,omitempty"` // 1h, 24h, 7d
-}
 type castSecurityAuditResult struct {
 	ThreatsBlocked int `json:"threatsBlocked"`
 	ThreatsAllowed int `json:"threatsAllowed"`
@@ -369,7 +363,6 @@ type castSoulSetResult struct {
 	Active string `json:"active"`
 }
 
-type castSoulListArgs struct{}
 type castSoulListResult struct {
 	Personas []struct {
 		ID          string `json:"id"`

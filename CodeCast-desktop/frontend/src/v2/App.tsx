@@ -5,13 +5,15 @@ import { initSentry } from './lib/sentry';
 import { applyTheme } from './design/theme';
 import { registerHotkey, unregisterAll } from './lib/hotkeys';
 import { useAppStore } from './store';
+import { bootstrapStore } from './store/bootstrap';
 import { WorkspaceFrame } from './layout/WorkspaceFrame';
 import { TopBar } from './layout/TopBar';
 import { Sidebar } from './layout/Sidebar';
 import { BottomBar } from './layout/BottomBar';
 import { ChatArea } from './layout/ChatArea';
 import { RightPanel } from './layout/RightPanel';
-import { CommandPalette } from './components/command/CommandPalette';
+import { Drawer } from './layout/Drawer';
+import { CommandPalette, type CommandItem } from './components/command/CommandPalette';
 import { MenuPanel, type MenuItem } from './components/menu/MenuPanel';
 import { mainMenu } from './components/menu/mainMenu';
 import { ToastProvider, useToast } from './components/primitives/Toast';
@@ -26,6 +28,10 @@ import { CastSchedulePage } from './pages/CastSchedulePage';
 import { CastEmailPage } from './pages/CastEmailPage';
 import { CastToolsPage } from './pages/CastToolsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CostPage } from './pages/CostPage';
+import { PluginsPage } from './pages/PluginsPage';
+import { InferenceConfigPage } from './pages/InferenceConfigPage';
+import { UpdateBanner } from './components/updater/UpdateBanner';
 import {
   onNotification,
   onMetricsSnapshot,
@@ -63,25 +69,23 @@ initSentry();
 
 function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: boolean; setPaletteOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
-  const { theme, togglePlanMode, mode, currentSessionId, sessions, messages, isStreaming, send, cancel, current, currentVersion, switchSession, updateKey, checkUpdate, updateInfo } = useAppStore();
+  const { theme, togglePlanMode, mode, currentSessionId, sessions, messages, isStreaming, send, cancel, current, currentVersion, switchSession, checkUpdate, sidebarOpen, toggleSidebar, drawerOpen, toggleDrawer } = useAppStore();
   const toast = useToast();
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [booted, setBooted] = useState(false);
   // 只在"已有对话"时显示右侧浮动面板；新建对话（空状态）不显示
-  const hasMessages = !!currentSessionId && (messages[currentSessionId]?.length ?? 0) > 0;
+  // 同时检查当前会话是否属于当前 mode
+  const currentSession = currentSessionId ? sessions.find((s) => s.id === currentSessionId) : null;
+  const sessionModeMatch = currentSession ? (currentSession.mode || 'daily') === (mode === 'cast' ? 'daily' : 'coding') : false;
+  const hasMessages = !!currentSessionId && sessionModeMatch && (messages[currentSessionId]?.length ?? 0) > 0;
 
   useEffect(() => { applyTheme(theme); }, [theme]);
 
   // ---- Bootstrap: load data from Go backend on startup ----
   useEffect(() => {
-    const s = useAppStore.getState();
-    s.loadSessions();
-    s.loadModels();
-    s.loadProjects();
-    s.loadSettings();
-    s.loadCatalog();
-    s.refreshGit();
+    void bootstrapStore(useAppStore.getState()).finally(() => setBooted(true));
   }, []);
 
   // ---- Message send / cancel wired to real store dispatches ----
@@ -93,34 +97,47 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
     if (currentSessionId) cancel(currentSessionId);
   }, [currentSessionId, cancel]);
 
-  // ---- Session navigation (prev / next) ----
+  // ---- Session navigation (prev / next) — only within current mode ----
+  const modeSessions = sessions.filter((s) => (s.mode || 'daily') === (mode === 'cast' ? 'daily' : 'coding'));
   const handlePrevSession = useCallback(() => {
-    if (!currentSessionId || sessions.length <= 1) return;
-    const idx = sessions.findIndex((s) => s.id === currentSessionId);
-    const prev = idx > 0 ? sessions[idx - 1] : sessions[sessions.length - 1];
+    if (!currentSessionId || modeSessions.length <= 1) return;
+    const idx = modeSessions.findIndex((s) => s.id === currentSessionId);
+    const prev = idx > 0 ? modeSessions[idx - 1] : modeSessions[modeSessions.length - 1];
     switchSession(prev.id);
-  }, [currentSessionId, sessions, switchSession]);
+  }, [currentSessionId, modeSessions, switchSession]);
 
   const handleNextSession = useCallback(() => {
-    if (!currentSessionId || sessions.length <= 1) return;
-    const idx = sessions.findIndex((s) => s.id === currentSessionId);
-    const next = idx < sessions.length - 1 ? sessions[idx + 1] : sessions[0];
+    if (!currentSessionId || modeSessions.length <= 1) return;
+    const idx = modeSessions.findIndex((s) => s.id === currentSessionId);
+    const next = idx < modeSessions.length - 1 ? modeSessions[idx + 1] : modeSessions[0];
     switchSession(next.id);
-  }, [currentSessionId, sessions, switchSession]);
+  }, [currentSessionId, modeSessions, switchSession]);
 
   const [splitView, setSplitView] = useState(false);
+  void splitView; // Used by TopBar's onToggleSplit callback
 
   useEffect(() => {
     registerHotkey('mod+k', () => setPaletteOpen(true));
     registerHotkey('mod+p', () => setPaletteOpen(true));
     registerHotkey('mod+l', () => document.querySelector<HTMLTextAreaElement>('textarea')?.focus());
     registerHotkey('mod+shift+p', () => togglePlanMode());
+    registerHotkey('mod+b', () => toggleSidebar());
+    registerHotkey('mod+j', () => toggleDrawer());
+    // Page navigation shortcuts (Ctrl+1~6)
+    registerHotkey('mod+1', () => navigate('/'));
+    registerHotkey('mod+2', () => navigate('/cast/writing'));
+    registerHotkey('mod+3', () => navigate('/cast/translation'));
+    registerHotkey('mod+4', () => navigate('/cast/knowledge'));
+    registerHotkey('mod+5', () => navigate('/cast/email'));
+    registerHotkey('mod+6', () => navigate('/cast/tools'));
     return () => unregisterAll();
-  }, [togglePlanMode, setPaletteOpen]);
+  }, [togglePlanMode, setPaletteOpen, toggleSidebar, toggleDrawer, navigate]);
 
   // ---- Go backend event subscriptions ----
   useEffect(() => {
-    const unsubs = [
+    let unsubs: (() => void)[] = [];
+    try {
+      unsubs = [
       onNotification((n) => {
         useAppStore.getState().pushNotification(n);
         toast.show(n.body, n.type === 'error' ? 'danger' : 'info');
@@ -177,8 +194,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
         useAppStore.getState().appendAgentEvent({ ...p, _type: 'agent:tool_result', _ts: Date.now() });
       }),
       // ---- LLM events (store only, no toast) ----
-      onLLMCall(() => { /* high-frequency, tracked via metricsSnap */ }),
-      onLLMResponse(() => { /* high-frequency, tracked via metricsSnap */ }),
+      // Intentionally not subscribed: high-frequency, tracked via metricsSnap
       // ---- Pool events ----
       onPoolDispatch((p) => {
         useAppStore.getState().setPoolQueue(p.queueLength ?? 0);
@@ -231,7 +247,10 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       onWorkflowResumed(() => {}),
       onWorkflowCancelled(() => {}),
       onWorkflowNodeEvent(() => {}),
-    ];
+      ];
+    } catch {
+      // Wails runtime not available (browser-only preview mode)
+    }
     return () => unsubs.forEach((fn) => fn());
   }, [toast]);
 
@@ -252,29 +271,38 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       case 'undo': document.execCommand('undo'); break;
       case 'redo': document.execCommand('redo'); break;
       case 'cut': document.execCommand('cut'); break;
-      case 'copy': document.execCommand('copy'); break;
-      case 'paste': document.execCommand('paste'); break;
+      case 'copy': {
+        const sel = window.getSelection()?.toString();
+        if (sel) navigator.clipboard?.writeText(sel);
+        break;
+      }
+      case 'paste': {
+        navigator.clipboard?.readText().then((text) => {
+          document.execCommand('insertText', false, text);
+        });
+        break;
+      }
       case 'select-all': document.execCommand('selectAll'); break;
       case 'find': toast.show('查找：' + (window.getSelection()?.toString() || '')); break;
       case 'reload': window.location.reload(); break;
-      case 'actual-size': (document.body.style as any).zoom = ''; break;
-      case 'zoom-in': (document.body.style as any).zoom = ((Number((document.body.style as any).zoom) || 100) + 10) + '%'; break;
-      case 'zoom-out': (document.body.style as any).zoom = ((Number((document.body.style as any).zoom) || 100) - 10) + '%'; break;
+      case 'actual-size': document.body.style.zoom = ''; break;
+      case 'zoom-in': document.body.style.zoom = ((Number(document.body.style.zoom) || 100) + 10) + '%'; break;
+      case 'zoom-out': document.body.style.zoom = ((Number(document.body.style.zoom) || 100) - 10) + '%'; break;
       case 'copy-url':
         navigator.clipboard?.writeText(window.location.href);
         toast.show('已复制 URL', 'success');
         break;
-      case 'open-mcp-log': toast.show('打开 MCP 日志…（需 Wails 后端）'); break;
-      case 'reload-mcp': toast.show('重新加载 MCP 配置…'); break;
+      case 'open-mcp-log': navigate('/settings'); break;
+      case 'reload-mcp': navigate('/settings'); break;
       case 'config-third-party': navigate('/settings'); break;
-      case 'open-app-config': toast.show('打开应用配置文件…'); break;
-      case 'open-dev-config': toast.show('打开开发者配置文件…'); break;
-      case 'show-devtools': toast.show('显示开发者工具（Wails 后端）'); break;
-      case 'show-all-devtools': toast.show('显示所有开发者工具'); break;
-      case 'enable-main-debugger': toast.show('Enable Main Process Debugger'); break;
-      case 'record-perf': toast.show('Record Performance Trace'); break;
-      case 'heap-snapshot': toast.show('Write Main Process Heap Snapshot'); break;
-      case 'record-mem': toast.show('Record Memory Trace'); break;
+      case 'open-app-config': navigate('/settings'); break;
+      case 'open-dev-config': navigate('/settings'); break;
+      case 'show-devtools': { try { (window as any).__WAILS_RUNTIME__?.Call('Runtime.BrowserOpenURL', 'devtools://devtools/bundled/inspector.html'); } catch {} toast.show('请通过 Wails 后端启用 DevTools', 'info'); break; }
+      case 'show-all-devtools': toast.show('请通过 Wails 后端启用 DevTools', 'info'); break;
+      case 'enable-main-debugger': toast.show('请通过 Wails 后端启用主进程调试器', 'info'); break;
+      case 'record-perf': toast.show('性能追踪需 Wails 后端支持', 'info'); break;
+      case 'heap-snapshot': toast.show('堆快照需 Wails 后端支持', 'info'); break;
+      case 'record-mem': toast.show('内存追踪需 Wails 后端支持', 'info'); break;
       case 'open-docs': window.open('https://docs.anthropic.com/zh-CN/docs/claude-code', '_blank'); break;
       case 'check-update': {
         checkUpdate().then(() => {
@@ -289,18 +317,37 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       }
       case 'get-support': window.open('https://support.anthropic.com', '_blank'); break;
       case 'about': toast.show(`CodeCast v${currentVersion || '…'} · Claude Code 风格前端`); break;
-      case 'ext-installed': toast.show('已安装的扩展'); break;
-      case 'ext-market': toast.show('扩展市场'); break;
-      case 'ext-install-local': toast.show('从本地文件安装扩展'); break;
-      case 'reset-session': toast.show('重置当前会话'); break;
-      case 'clear-cache': toast.show('清除本地缓存'); break;
-      case 'view-logs': toast.show('查看运行日志'); break;
+      case 'ext-installed': navigate('/plugins'); break;
+      case 'ext-market': navigate('/plugins'); break;
+      case 'ext-install-local': navigate('/plugins'); break;
+      case 'reset-session': { const sid = useAppStore.getState().currentSessionId; if (sid) { useAppStore.getState().deleteSession(sid); toast.show('会话已重置', 'success'); } break; }
+      case 'clear-cache': { try { localStorage.clear(); } catch {} toast.show('本地缓存已清除', 'success'); break; }
+      case 'view-logs': toast.show('运行日志功能开发中', 'info'); break;
       case 'report-bug': window.open('https://github.com/anthropics/claude-code/issues', '_blank'); break;
     }
   }, [navigate, toast, checkUpdate, currentVersion]);
 
+  // Skeleton loading screen during bootstrap
+  if (!booted) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', background: 'var(--c-bg)', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%',
+            border: '3px solid var(--c-border)',
+            borderTopColor: 'var(--c-accent)',
+            animation: 'spin 0.8s linear infinite',
+          }} />
+          <span style={{ fontSize: 13, color: 'var(--c-textMute)' }}>加载中…</span>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
+      <UpdateBanner />
       <WorkspaceFrame
         top={
           <TopBar
@@ -314,6 +361,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
             onMinimize={() => Window.minimise()}
             onMaximize={() => Window.maximise()}
             onClose={() => Window.close()}
+            sessionName={currentSession?.name}
           />
         }
         sidebar={<Sidebar />}
@@ -361,11 +409,18 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
               <Route path="/cast/email" element={<CastEmailPage />} />
               <Route path="/cast/tools" element={<CastToolsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/cost" element={<CostPage />} />
+              <Route path="/plugins" element={<PluginsPage />} />
+              <Route path="/inference" element={<InferenceConfigPage />} />
             </Routes>
           </ChatArea>
         }
         rightPanel={hasMessages ? <RightPanel /> : null}
         bottom={<BottomBar />}
+        drawer={<Drawer />}
+        drawerOpen={drawerOpen}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={toggleSidebar}
       />
       {menuOpen && menuAnchor && (
         <MenuPanel
@@ -382,13 +437,72 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
 
 export const App = Sentry.withErrorBoundary(function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const navigate = useNavigate();
+  const store = useAppStore;
+
+  const handleCommand = useCallback((item: { id: string; label: string }) => {
+    const s = store.getState();
+    switch (item.id) {
+      case 'new':
+        s.createSession('New Session', '', s.mode === 'cast' ? 'daily' : 'coding');
+        navigate('/');
+        break;
+      case 'clear':
+        if (s.currentSessionId) { s.deleteSession(s.currentSessionId); }
+        break;
+      case 'theme':
+        s.setTheme(s.theme === 'dark' ? 'light' : 'dark');
+        break;
+      case 'cast.writing': navigate('/cast/writing'); break;
+      case 'cast.translation': navigate('/cast/translation'); break;
+      case 'cast.knowledge': navigate('/cast/knowledge'); break;
+      case 'cast.schedule': navigate('/cast/schedule'); break;
+      case 'cast.email': navigate('/cast/email'); break;
+      case 'cast.tools': navigate('/cast/tools'); break;
+      case 'settings': navigate('/settings'); break;
+      case 'cost': navigate('/cost'); break;
+      case 'plugins': navigate('/plugins'); break;
+      case 'inference': navigate('/inference'); break;
+      case 'sidebar': s.toggleSidebar(); break;
+      case 'drawer': s.toggleDrawer(); break;
+      default: break;
+    }
+  }, [navigate, store]);
+
   return (
     <ToastProvider>
       <BrowserRouter>
         <AppShell paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
-        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onCommand={() => {}} />
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onCommand={handleCommand} />
       </BrowserRouter>
     </ToastProvider>
   );
-}, { fallback: <div style={{ padding: 24 }}>Something went wrong.</div> });
+}, {
+  fallback: (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, padding: 32, textAlign: 'center' }}>
+      <svg width="48" height="48" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--c-danger, #e74c3c)' }}>
+        <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.2"/>
+        <path d="M8 4.5v4M8 10.5v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+      <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: 'var(--c-text)' }}>应用遇到错误</h2>
+      <p style={{ fontSize: 14, color: 'var(--c-textMute)', maxWidth: 400 }}>
+        抱歉，应用发生了意外错误。您可以尝试重新加载，或报告此问题。
+      </p>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <button
+          onClick={() => window.location.reload()}
+          style={{ padding: '8px 20px', background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+        >
+          重新加载
+        </button>
+        <button
+          onClick={() => window.open('https://github.com/anthropics/claude-code/issues', '_blank')}
+          style={{ padding: '8px 20px', background: 'transparent', color: 'var(--c-text)', border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)', fontSize: 14, cursor: 'pointer' }}
+        >
+          报告问题
+        </button>
+      </div>
+    </div>
+  ),
+});
 

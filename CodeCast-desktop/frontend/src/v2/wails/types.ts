@@ -150,6 +150,13 @@ export interface Settings {
   mcp_servers: MCPServer[]; model_configs: ModelConfigItem[];
   env_vars: EnvVar[]; slash_commands: SlashCommand[];
   archived_sessions: string[];
+  // GitHub OAuth (persisted in settings, no env var needed for other users)
+  github_client_id?: string;
+  github_client_secret?: string;
+  // Desktop settings (P2.1.4) — backend ignores unknown keys
+  desktop_run_on_startup?: boolean;
+  desktop_system_tray?: boolean;
+  desktop_keep_awake?: boolean;
 }
 
 export type Project = {
@@ -500,6 +507,49 @@ export interface EditorInfo {
   name: string;
   path: string;
   installed: boolean;
+}
+
+// ---- Notes subsystem ----
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  created_at: number;
+  updated_at: number;
+}
+
+// ---- Completion subsystem ----
+
+export interface CompletionRequest {
+  language: string;
+  code: string;
+  position: number;
+  filePath: string;
+}
+
+export interface CompletionResult {
+  suggestions: string[];
+  confidence: number;
+}
+
+// ---- Guardrail subsystem ----
+
+export interface GuardrailStatusData {
+  sanitizerEnabled: boolean;
+  sanitizerStrategy: string;
+  topicConstraints: string[];
+  ruleCount: number;
+}
+
+// ---- GitHub Auth subsystem ----
+
+export interface GitHubUser {
+  login: string;
+  name: string;
+  avatar_url: string;
+  id: number;
 }
 
 // ---- 向后兼容别名（v1 代码可能引用） ----

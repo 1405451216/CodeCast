@@ -1,13 +1,25 @@
 // frontend/src/v2/store/slices/agentSlice.ts
 import type { StateCreator } from 'zustand';
-import type { AgentInfo } from '../../wails/types';
+import type { AgentInfo, AgentEventPayload } from '../../wails/types';
 import { Agent } from '../../wails/adapter';
 import { reportError } from '../../lib/reportError';
+
+/** A single agent event in the log. We enrich the raw payload with a
+ * local timestamp and a discriminator (`_type`) for fast UI filtering. */
+export interface AgentEventLogEntry extends AgentEventPayload {
+  _type: 'agent:start' | 'agent:stop' | 'agent:error' | 'agent:turn' | 'agent:turn_end' | 'agent:tool' | 'agent:tool_result';
+  _ts: number;
+}
+
+/** Capacity for the in-memory event log. Oldest entries are dropped when
+ * the log exceeds this size. Keeps the UI responsive even on long
+ * sessions with thousands of tool calls. */
+const EVENT_LOG_CAPACITY = 200;
 
 export interface AgentSlice {
   agents: AgentInfo[];
   agentLoading: boolean;
-  agentEventLog: unknown[];
+  agentEventLog: AgentEventLogEntry[];
   agentStates: unknown;
   poolQueue: number;
   refreshAgents: (sessionID: string) => Promise<void>;
@@ -15,7 +27,8 @@ export interface AgentSlice {
   cancelAgent: (agentID: string) => Promise<void>;
   cancelSessionAgents: (sessionID: string) => Promise<void>;
   dispatchAgents: (tasksJSON: string) => Promise<string[]>;
-  appendAgentEvent: (payload: unknown) => void;
+  appendAgentEvent: (payload: AgentEventLogEntry) => void;
+  clearAgentEventLog: () => void;
   setAgentStates: (states: unknown) => void;
   setPoolQueue: (length: number) => void;
 }
@@ -72,7 +85,18 @@ export const createAgentSlice: StateCreator<AgentSlice, [], [], AgentSlice> = (s
   },
 
   appendAgentEvent: (payload) => {
-    set((s) => ({ agentEventLog: [...s.agentEventLog, payload] }));
+    set((s) => {
+      const next = [...s.agentEventLog, payload];
+      // LRU: drop oldest if over capacity.
+      if (next.length > EVENT_LOG_CAPACITY) {
+        next.splice(0, next.length - EVENT_LOG_CAPACITY);
+      }
+      return { agentEventLog: next };
+    });
+  },
+
+  clearAgentEventLog: () => {
+    set({ agentEventLog: [] });
   },
 
   setAgentStates: (states) => {

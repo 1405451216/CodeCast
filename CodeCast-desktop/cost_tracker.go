@@ -6,6 +6,59 @@ import (
 	ap "agentprimordia/pkg"
 )
 
+// BudgetConfigDTO is the JSON-safe budget configuration exposed to the frontend.
+// ap.BudgetConfig contains a func field (OnBudgetExceed) which cannot be serialized,
+// so we project only the data fields the UI needs.
+type BudgetConfigDTO struct {
+	MaxCostUSD          float64 `json:"maxCostUSD"`
+	AlertThreshold      float64 `json:"alertThreshold"`
+	EnforcementEnabled  bool    `json:"enforcementEnabled"`
+	MaxTokensPerCall    int     `json:"maxTokensPerCall"`
+	MaxTokensPerSession int     `json:"maxTokensPerSession"`
+}
+
+// budgetToDTO converts an ap.BudgetConfig to a JSON-safe DTO.
+// AlertThreshold and EnforcementEnabled are stored at the application layer
+// since AP's BudgetConfig does not have these fields.
+func budgetToDTO(b *ap.BudgetConfig, alertThreshold float64, enforcementEnabled bool) BudgetConfigDTO {
+	if b == nil {
+		return BudgetConfigDTO{
+			AlertThreshold:     alertThreshold,
+			EnforcementEnabled: enforcementEnabled,
+		}
+	}
+	return BudgetConfigDTO{
+		MaxCostUSD:          b.MaxTotalCostUSD,
+		AlertThreshold:      alertThreshold,
+		EnforcementEnabled:  enforcementEnabled,
+		MaxTokensPerCall:    b.MaxTokensPerCall,
+		MaxTokensPerSession: b.MaxTokensPerSession,
+	}
+}
+
+// dtoToBudgetConfig converts a DTO back to ap.BudgetConfig, preserving the
+// OnBudgetExceed callback from the current app config.
+func dtoToBudgetConfig(dto BudgetConfigDTO, current *ap.BudgetConfig) *ap.BudgetConfig {
+	cb := defaultBudgetCallback
+	if current != nil && current.OnBudgetExceed != nil {
+		cb = current.OnBudgetExceed
+	}
+	return &ap.BudgetConfig{
+		MaxTotalCostUSD:     dto.MaxCostUSD,
+		MaxTokensPerCall:    dto.MaxTokensPerCall,
+		MaxTokensPerSession: dto.MaxTokensPerSession,
+		OnBudgetExceed:      cb,
+	}
+}
+
+func defaultBudgetCallback(summary *ap.CostSummary) {
+	slog.Warn("LLM budget exceeded",
+		"total_cost_usd", summary.TotalCostUSD,
+		"total_tokens", summary.TotalTokens,
+		"call_count", summary.CallCount,
+	)
+}
+
 // initCostTracker sets up AP CostTracker for LLM usage and cost monitoring.
 func (a *App) initCostTracker() {
 	pricing := ap.DefaultPricingTable()
@@ -13,13 +66,7 @@ func (a *App) initCostTracker() {
 		MaxTotalCostUSD:     0,
 		MaxTokensPerCall:    0,
 		MaxTokensPerSession: 0,
-		OnBudgetExceed: func(summary *ap.CostSummary) {
-			slog.Warn("LLM budget exceeded",
-				"total_cost_usd", summary.TotalCostUSD,
-				"total_tokens", summary.TotalTokens,
-				"call_count", summary.CallCount,
-			)
-		},
+		OnBudgetExceed:      defaultBudgetCallback,
 	}
 	a.costTracker = ap.NewCostTracker(pricing, budget)
 	slog.Info("AP CostTracker 已启动", "pricing_models", len(pricing))
@@ -49,47 +96,50 @@ func (a *App) CheckBudgetExceeded() bool {
 	return a.costTracker.CheckBudget()
 }
 
-// GetBudgetConfig returns the current budget configuration.
-func (a *App) GetBudgetConfig() ap.BudgetConfig {
+// GetBudgetConfig returns the current budget configuration (JSON-safe DTO).
+func (a *App) GetBudgetConfig() BudgetConfigDTO {
 	a.mu.RLock()
 	budget := a.budgetConfig
+	alertThreshold := a.budgetAlertThreshold
+	enforcementEnabled := a.budgetEnforcementEnabled
 	a.mu.RUnlock()
-	if budget == nil {
-		return ap.BudgetConfig{}
-	}
-	return *budget
+	return budgetToDTO(budget, alertThreshold, enforcementEnabled)
 }
 
 // SetBudgetConfig updates the budget configuration.
-func (a *App) SetBudgetConfig(budget *ap.BudgetConfig) {
-	if budget == nil {
-		return
-	}
+// H13 fix: preserve the existing CostTracker instance when updating budget config
+// to avoid discarding all accumulated cost-tracking data. The budget limits are
+// updated via a shared pointer—CheckBudget reads the latest limits on each call.
+func (a *App) SetBudgetConfig(dto BudgetConfigDTO) {
+	slog.Debug("[COST] SetBudgetConfig start", "max_cost_usd", dto.MaxCostUSD)
 
-	pricing := ap.DefaultPricingTable()
-	if budget.OnBudgetExceed == nil {
-		budget.OnBudgetExceed = func(summary *ap.CostSummary) {
-			slog.Warn("LLM budget exceeded",
-				"total_cost_usd", summary.TotalCostUSD,
-				"total_tokens", summary.TotalTokens,
-			)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// Preserve existing CostTracker so accumulated cost data is not lost.
+	// BudgetConfig fields are updated in-place so CostTracker (which holds
+	// a pointer) sees the new limits on its next CheckBudget call.
+	if a.budgetConfig != nil {
+		a.budgetConfig.MaxTotalCostUSD = dto.MaxCostUSD
+		a.budgetConfig.MaxTokensPerCall = dto.MaxTokensPerCall
+		a.budgetConfig.MaxTokensPerSession = dto.MaxTokensPerSession
+	} else {
+		a.budgetConfig = dtoToBudgetConfig(dto, nil)
+		// Only create a new CostTracker if one doesn't exist yet
+		if a.costTracker == nil {
+			pricing := ap.DefaultPricingTable()
+			a.costTracker = ap.NewCostTracker(pricing, a.budgetConfig)
 		}
 	}
-	newTracker := ap.NewCostTracker(pricing, budget)
+	a.budgetAlertThreshold = dto.AlertThreshold
+	a.budgetEnforcementEnabled = dto.EnforcementEnabled
 
-	// H3 fix: assign both budget and costTracker under the same lock to prevent
-	// readers from seeing a new costTracker with an old budgetConfig (or vice versa).
-	a.mu.Lock()
-	a.budgetConfig = budget
-	a.costTracker = newTracker
-	a.mu.Unlock()
-
-	slog.Info("AP CostTracker budget updated", "max_cost_usd", budget.MaxTotalCostUSD)
+	slog.Debug("[COST] SetBudgetConfig done", "max_cost_usd", a.budgetConfig.MaxTotalCostUSD, "alert_threshold", dto.AlertThreshold, "enforcement", dto.EnforcementEnabled)
 }
 
 // SetBudgetLimit is a convenience Wails binding to set just the cost limit.
 func (a *App) SetBudgetLimit(maxCostUSD float64) {
 	current := a.GetBudgetConfig()
-	current.MaxTotalCostUSD = maxCostUSD
-	a.SetBudgetConfig(&current)
+	current.MaxCostUSD = maxCostUSD
+	a.SetBudgetConfig(current)
 }

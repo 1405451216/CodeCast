@@ -47,8 +47,16 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
       });
       guard.reset();
     };
+    const resetReasoning = () => { reasoningBuf = ''; };
     guard.start();
+    // Wire the Wails stream subscription to an AbortController so that
+    // `cancel()` can tear it down deterministically. Aborting the controller
+    // runs the cleanup closure that disposes the stream buffer / guard and
+    // unsubscribes from Wails events in one place.
+    const controller = new AbortController();
+    controller.signal.addEventListener('abort', resetReasoning);
     const unsubscribe = onStreamChunk(sessionId, (evt) => {
+      if (controller.signal.aborted) return;
       switch (evt.type) {
         case 'content':
           if (evt.content) buf.push(evt.content);
@@ -81,35 +89,60 @@ export const createChatSlice: StateCreator<ChatSlice, [], [], ChatSlice> = (set,
           });
           break;
         case 'done':
-          buf.dispose(); guard.dispose(); unsubscribe();
+          controller.abort();
           set({ isStreaming: false });
           break;
         case 'error':
-          buf.dispose(); guard.dispose(); unsubscribe();
+          controller.abort();
           set({ isStreaming: false, interrupted: true });
           if (evt.error) reportError('chat', evt.error);
           break;
       }
     });
+    // Tie cleanup to abort so cancel() and 'done' / 'error' paths share it.
+    controller.signal.addEventListener('abort', () => {
+      buf.dispose();
+      guard.dispose();
+      unsubscribe();
+    });
+    set({ abort: controller });
     try {
       await Chat.send(sessionId, text, model, thinking);
     } catch (e) {
-      buf.dispose(); guard.dispose(); unsubscribe();
+      controller.abort();
       set({ isStreaming: false, interrupted: true });
       reportError('chat', e);
     }
   },
 
   cancel: (sessionId) => {
+    // Aborting the controller runs the cleanup listener: disposes the
+    // stream buffer/guard and tears down the Wails subscription. After
+    // cleanup we null the field so subsequent sends start fresh.
     get().abort?.abort();
-    Chat.cancel(sessionId);
-    set({ isStreaming: false, interrupted: true });
+    set({ abort: null, isStreaming: false, interrupted: true });
+    // Best-effort: ask the backend to stop the in-flight request too.
+    // We don't await — the local abort already gives the UI immediate
+    // feedback, and the backend typically finishes quickly.
+    try {
+      void Chat.cancel(sessionId);
+    } catch (e) {
+      reportError('chat', e);
+    }
   },
 
   resume: async (sessionId) => {
     if (!get().interrupted) return;
-    const last = get().messages[sessionId]?.slice(-1)[0];
-    if (!last || last.role !== 'user') return;
-    await get().send(sessionId, last.content);
+    const msgs = get().messages[sessionId] || [];
+    // Find the last user message (assistant may have a partial response after interrupt)
+    let lastUser: Message | undefined;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'user') {
+        lastUser = msgs[i];
+        break;
+      }
+    }
+    if (!lastUser) return;
+    await get().send(sessionId, lastUser.content);
   },
 });
