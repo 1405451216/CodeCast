@@ -114,20 +114,16 @@ export function RightPanel() {
   return (
     <aside
       style={{
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        bottom: 12,
+        position: 'relative',
         width: 'var(--right-panel-w)',
-        maxWidth: 'calc(100% - 24px)',
+        minWidth: 'var(--right-panel-w)',
+        maxWidth: 'var(--right-panel-w)',
         background: 'var(--c-surface)',
-        border: '1px solid var(--c-border)',
-        borderRadius: 'var(--r-lg)',
-        boxShadow: 'var(--shadow-pop)',
+        borderLeft: '1px solid var(--c-border)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        zIndex: 5,
+        flexShrink: 0,
         animation: 'slideInRight var(--dur-base) var(--ease)',
       }}
     >

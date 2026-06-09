@@ -96,14 +96,14 @@ type InferenceSection =
   | 'outbound';
 
 const SIDEBAR_ITEMS: { id: InferenceSection; label: string; keywords: string[] }[] = [
-  { id: 'connection', label: '连接', keywords: ['gateway', 'proxy', 'api', 'key', 'url', 'endpoint', 'model', 'TLS', 'SSL', '认证'] },
-  { id: 'workspace', label: '工作区限制', keywords: ['workspace', 'folder', '工具', '禁用', 'Bash', 'Edit', 'Read', '登录'] },
-  { id: 'connectors', label: '连接器与扩展', keywords: ['connector', 'MCP', 'server', 'plugin', '扩展', '托管'] },
-  { id: 'diagnostics', label: '诊断与更新', keywords: ['diagnostic', 'update', 'test', '测试', '连接', '自动更新'] },
-  { id: 'usage', label: '使用限制', keywords: ['token', 'limit', 'cost', 'budget', '成本', '限制', '上下文'] },
-  { id: 'appearance', label: '外观', keywords: ['theme', 'font', 'timestamp', 'markdown', '主题', '字体', '时间戳'] },
-  { id: 'plugins', label: '插件与技能', keywords: ['plugin', 'skill', 'tool', '插件', '技能', '工具', '文件夹'] },
-  { id: 'outbound', label: '出站要求', keywords: ['outbound', 'host', 'domain', 'proxy', '出站', '主机'] },
+  { id: 'connection', label: '连接', keywords: ['gateway', 'proxy', 'api', 'key', 'url', 'endpoint', 'model', 'TLS', 'SSL', '认证', 'timeout', '超时', '密钥', 'base URL', '端口', 'port'] },
+  { id: 'workspace', label: '工作区限制', keywords: ['workspace', 'folder', '工具', '禁用', 'Bash', 'Edit', 'Read', '登录', '目录', '路径', 'path', 'allowed', 'blocked'] },
+  { id: 'connectors', label: '连接器与扩展', keywords: ['connector', 'MCP', 'server', 'plugin', '扩展', '托管', 'managed', 'host', '服务器'] },
+  { id: 'diagnostics', label: '诊断与更新', keywords: ['diagnostic', 'update', 'test', '测试', '连接', '自动更新', 'health', '健康', '版本', 'version'] },
+  { id: 'usage', label: '使用限制', keywords: ['token', 'limit', 'cost', 'budget', '成本', '限制', '上下文', 'context', 'daily', 'monthly', '每日', '每月', '额度'] },
+  { id: 'appearance', label: '外观', keywords: ['theme', 'font', 'timestamp', 'markdown', '主题', '字体', '时间戳', '外观', '显示', 'render'] },
+  { id: 'plugins', label: '插件与技能', keywords: ['plugin', 'skill', 'tool', '插件', '技能', '工具', '文件夹', 'command', '命令'] },
+  { id: 'outbound', label: '出站要求', keywords: ['outbound', 'host', 'domain', 'proxy', '出站', '主机', '域名', 'allowlist', '白名单'] },
 ];
 
 /* ---------- 主题感知颜色（CSS 变量） ---------- */
@@ -277,9 +277,16 @@ export function InferenceConfigPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* CC Switch */}
-          <button style={btnStyle}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-success, #52c41a)' }} />
-            CC Switch
+          <button style={btnStyle} onClick={() => {
+            if (!config) return;
+            // Toggle a cc_mode flag in the config
+            const next = (config as any).cc_mode === 'claude-code' ? 'codecast' : 'claude-code';
+            setConfig({ ...(config as any), cc_mode: next });
+            setSaveMsg(`已切换到 ${next === 'claude-code' ? 'Claude Code' : 'CodeCast'} 模式`);
+            setTimeout(() => setSaveMsg(null), 2000);
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: (config as any)?.cc_mode === 'claude-code' ? 'var(--c-accent)' : 'var(--c-success, #52c41a)' }} />
+            {(config as any)?.cc_mode === 'claude-code' ? 'Claude Code' : 'CodeCast'}
             <ChevronIcon />
           </button>
           {/* 导出 */}
@@ -409,7 +416,7 @@ function ConnectionSection({ config, onChange }: { config: InferenceCfgType; onC
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 780 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       {/* ---- 连接标题 ---- */}
       <div>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: '0 0 6px' }}>连接</h2>
@@ -543,7 +550,7 @@ function WorkspaceSection({ config, onChange }: { config: InferenceCfgType; onCh
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 780 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>工作区限制</h2>
 
       {/* 功能界面 */}
@@ -640,7 +647,7 @@ function ConnectorsSection({ config, onChange }: { config: InferenceCfgType; onC
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 780 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>连接器与扩展</h2>
 
       {/* MCP 服务器 */}
@@ -683,7 +690,7 @@ function PluginsSection({ config, onChange }: { config: InferenceCfgType; onChan
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 780 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>插件与技能</h2>
 
       {/* 组织插件 */}
@@ -743,7 +750,7 @@ function DiagnosticsSection({ config, onChange }: { config: InferenceCfgType; on
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 780 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>诊断与更新</h2>
 
       {/* 日志 */}
@@ -795,7 +802,7 @@ function UsageSection({ config, onChange }: { config: InferenceCfgType; onChange
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 780 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>使用限制</h2>
 
       {/* Token 限制 */}
@@ -851,7 +858,7 @@ function AppearanceSection({ config, onChange }: { config: InferenceCfgType; onC
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 780 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>外观</h2>
 
       {/* 主题 */}
@@ -906,7 +913,7 @@ function OutboundSection({ config, onChange }: { config: InferenceCfgType; onCha
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 780 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>出站要求</h2>
 
       {/* 网络代理 */}

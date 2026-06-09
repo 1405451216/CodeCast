@@ -165,7 +165,8 @@ export function CastSchedulePage() {
     const curIdx = statusOrder.indexOf(task.status || 'pending');
     const nextStatus = statusOrder[(curIdx + 1) % statusOrder.length];
     try {
-      await invokeCastTool(updateTool.name, JSON.stringify({ index: idx, status: nextStatus, ...task }));
+      const id = task.id || idx;
+      await invokeCastTool(updateTool.name, JSON.stringify({ id, index: idx, status: nextStatus, ...task }));
       if (listTool) await handleLoadTasks();
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : String(err));
@@ -176,7 +177,8 @@ export function CastSchedulePage() {
     if (!deleteTool) return;
     setActionError(null);
     try {
-      await invokeCastTool(deleteTool.name, JSON.stringify({ index: idx, ...task }));
+      const id = task.id || idx;
+      await invokeCastTool(deleteTool.name, JSON.stringify({ id, index: idx, ...task }));
       if (listTool) await handleLoadTasks();
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : String(err));

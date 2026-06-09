@@ -3,6 +3,7 @@ import { useAppStore } from '../store';
 import { useFirstTool } from '../lib/useFirstTool';
 import { copyToClipboard } from '../lib/clipboard';
 import { useDraft } from '../lib/useDraft';
+import { useResultHistory } from '../lib/useResultHistory';
 
 /* ====================================================================
  *  Types
@@ -36,7 +37,13 @@ export function CastKnotePage() {
 
   const [query, setQuery] = useDraft('knote:query', '');
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
-  const [retrieveResult, setRetrieveResult] = useState<string | null>(null);
+  const resultHistory = useResultHistory<string>(5);
+  const [retrieveResultLocal, setRetrieveResultLocal] = useState<string | null>(null);
+  const retrieveResult = resultHistory.current ?? retrieveResultLocal;
+  const setRetrieveResult = (v: string | null) => {
+    setRetrieveResultLocal(v);
+    if (v !== null) resultHistory.push(v);
+  };
   const [retrieveError, setRetrieveError] = useState<string | null>(null);
   const [localInvoking, setLocalInvoking] = useState(false);
   const [pageSize, setPageSize] = useState(20);
@@ -67,19 +74,6 @@ export function CastKnotePage() {
     searchMemory(query);
   }, [query, searchMemory]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        searchMemory(query);
-      }
-      if (e.key === 'Escape') {
-        setQuery('');
-        searchMemory('');
-      }
-    },
-    [query, searchMemory],
-  );
-
   const handleRetrieve = useCallback(async () => {
     if (!knowledge.tool) return;
     setRetrieveError(null);
@@ -94,6 +88,23 @@ export function CastKnotePage() {
       setLocalInvoking(false);
     }
   }, [knowledge.tool, query, invokeCastTool]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        if (e.ctrlKey || e.metaKey) {
+          handleRetrieve();
+        } else {
+          searchMemory(query);
+        }
+      }
+      if (e.key === 'Escape') {
+        setQuery('');
+        searchMemory('');
+      }
+    },
+    [query, searchMemory, handleRetrieve],
+  );
 
   const getEpisodeTitle = (ep: Episode): string =>
     ep.title || (ep.summary ? ep.summary.slice(0, 60) : 'Untitled');
@@ -561,6 +572,29 @@ export function CastKnotePage() {
                     }}
                   >
                     {copied ? '已复制' : '复制'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const text = selectedEpisode?.content || selectedEpisode?.text || selectedEpisode?.summary || '';
+                      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `knowledge-${new Date().toISOString().slice(0,19).replace(/[T:]/g,'-')}.txt`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      background: 'transparent',
+                      border: '1px solid var(--c-border)',
+                      borderRadius: 'var(--r-md)',
+                      color: 'var(--c-textMute)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    下载
                   </button>
                   <button
                     onClick={() => setSelectedEpisode(null)}

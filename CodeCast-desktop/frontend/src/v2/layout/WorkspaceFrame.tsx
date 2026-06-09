@@ -201,8 +201,10 @@ export function WorkspaceFrame({ top, sidebar, chat, rightPanel, bottom, drawer,
           flexDirection: 'column',
         }}
       >
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-          {chat}
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {chat}
+          </div>
           {rightPanel}
         </div>
         {drawerOpen && drawer && (

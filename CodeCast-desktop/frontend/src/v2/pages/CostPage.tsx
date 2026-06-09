@@ -14,6 +14,7 @@ import { useAppStore } from '../store';
 import { Button } from '../components/primitives/Button';
 import { TopBar } from '../layout/TopBar';
 import { ConfirmDialog } from '../components/primitives/ConfirmDialog';
+import { Breadcrumb } from '../components/primitives/Breadcrumb';
 
 function CostPageFallback({ error }: { error: Error }) {
   return (
@@ -127,7 +128,8 @@ export function CostPage() {
       <TopBar onBack={() => navigate('/')} backLabel="成本" />
 
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px 32px', minHeight: 0, overscrollBehavior: 'contain' }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ maxWidth: 'var(--page-max-width)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <Breadcrumb items={[{ label: '设置', path: '/settings' }, { label: '成本' }]} />
           {/* Time range filter */}
           <section>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

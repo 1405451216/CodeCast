@@ -19,6 +19,7 @@ interface Props {
   message: Message;
   onCopy?: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   onRegenerate?: () => void;
   onPreview?: () => void;
   onDiff?: () => void;
@@ -74,6 +75,11 @@ const I = {
       <circle cx="12" cy="12" r="2" fill="var(--c-bg)" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   ),
+  delete: (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <path d="M5 3V2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M2 4h12M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
 /**
@@ -82,7 +88,7 @@ const I = {
  *  - 助手消息：左对齐，无头像，"✱ Ns · thinking..." 状态
  *  - 助手消息右上 ⓘ Popover 菜单
  */
-export function MessageItem({ message, onCopy, onEdit, onRegenerate, onPreview, onDiff, onTerminal, onBackground, onPlan }: Props) {
+export function MessageItem({ message, onCopy, onEdit, onDelete, onRegenerate, onPreview, onDiff, onTerminal, onBackground, onPlan }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [hovered, setHovered] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -158,6 +164,28 @@ export function MessageItem({ message, onCopy, onEdit, onRegenerate, onPreview, 
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M11 2l3 3-9 9H2v-3l9-9Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
           </button>
         )}
+        {hovered && onDelete && (
+          <button
+            onClick={onDelete}
+            aria-label="删除消息"
+            title="删除"
+            style={{
+              width: 28,
+              height: 28,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              borderRadius: 'var(--r-sm)',
+              color: 'var(--c-textMute)',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            {I.delete}
+          </button>
+        )}
         <div
           style={{
             maxWidth: '70%',
@@ -228,6 +256,8 @@ export function MessageItem({ message, onCopy, onEdit, onRegenerate, onPreview, 
             <MenuItem icon={I.term} label="终端" onClick={onTerminal} />
             <MenuItem icon={I.bg} label="Background tasks" onClick={onBackground} />
             <MenuItem icon={I.plan} label="计划" onClick={onPlan} />
+            <div style={{ height: 1, background: 'var(--c-border)', margin: '4px 0' }} />
+            <MenuItem icon={I.delete} label="删除" onClick={onDelete} />
           </div>
         </Popover>
       </div>

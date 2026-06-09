@@ -5,6 +5,7 @@ import { Button } from '../components/primitives/Button';
 import { TopBar } from '../layout/TopBar';
 import { Skills, Files } from '../wails/adapter';
 import { ConfirmDialog } from '../components/primitives/ConfirmDialog';
+import { Breadcrumb } from '../components/primitives/Breadcrumb';
 import type { Skill } from '../wails/types';
 
 /* ====================================================================
@@ -127,7 +128,8 @@ export function SettingsPage() {
             overscrollBehavior: 'contain',
           }}
         >
-          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div style={{ maxWidth: 'var(--page-max-width)', margin: '0 auto' }}>
+            <Breadcrumb items={[{ label: '设置' }]} />
             {active === 'general' && <GeneralSection />}
             {active === 'privacy' && <PrivacySection />}
             {active === 'skills' && <SkillsSection />}
@@ -287,9 +289,39 @@ function GeneralSection() {
           </Row>
         </Card>
       </section>
+
+      {/* SMTP 设置 */}
+      <section>
+        <SectionTitle>SMTP 邮件</SectionTitle>
+        <Card>
+          <Row label="SMTP 服务器" desc="邮件服务器地址。">
+            <input value={settings?.smtp_host ?? ''} onChange={(e) => updateKey('smtp_host', e.target.value)} placeholder="smtp.example.com" style={inputStyle} />
+          </Row>
+          <Row label="端口" desc="SMTP 端口号。">
+            <input value={settings?.smtp_port ?? ''} onChange={(e) => updateKey('smtp_port', e.target.value)} placeholder="587" style={{ ...inputStyle, width: 80 }} />
+          </Row>
+          <Row label="用户名" desc="SMTP 认证用户名。">
+            <input value={settings?.smtp_user ?? ''} onChange={(e) => updateKey('smtp_user', e.target.value)} placeholder="user@example.com" style={inputStyle} />
+          </Row>
+          <Row label="密码" desc="SMTP 认证密码。">
+            <input type="password" value={settings?.smtp_pass ?? ''} onChange={(e) => updateKey('smtp_pass', e.target.value)} placeholder="••••••" style={inputStyle} />
+          </Row>
+        </Card>
+      </section>
     </div>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  padding: '6px 10px',
+  border: '1px solid var(--c-border)',
+  borderRadius: 'var(--r-sm)',
+  background: 'var(--c-bg)',
+  color: 'var(--c-text)',
+  fontSize: 13,
+  outline: 'none',
+  width: 200,
+};
 
 function themeIcon(t: 'system' | 'light' | 'dark') {
   if (t === 'system') {

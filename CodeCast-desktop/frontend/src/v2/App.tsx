@@ -133,6 +133,16 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
     return () => unregisterAll();
   }, [togglePlanMode, setPaletteOpen, toggleSidebar, toggleDrawer, navigate]);
 
+  // Toast dedup: prevent identical messages within 2s window
+  const lastToastRef = useRef({ msg: '', time: 0 });
+  const showDedupedToast = useCallback((msg: string, type?: 'info' | 'success' | 'danger') => {
+    const now = Date.now();
+    if (msg !== lastToastRef.current.msg || now - lastToastRef.current.time > 2000) {
+      lastToastRef.current = { msg, time: now };
+      toast.show(msg, type);
+    }
+  }, [toast]);
+
   // ---- Go backend event subscriptions ----
   useEffect(() => {
     let unsubs: (() => void)[] = [];
@@ -140,7 +150,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       unsubs = [
       onNotification((n) => {
         useAppStore.getState().pushNotification(n);
-        toast.show(n.body, n.type === 'error' ? 'danger' : 'info');
+        showDedupedToast(n.body, n.type === 'error' ? 'danger' : 'info');
       }),
       onMetricsSnapshot((snap) => {
         useAppStore.getState().setMetricsSnap(snap);
@@ -149,7 +159,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
         useAppStore.getState().setAgentStates(states);
       }),
       onSummaryReady(({ sessionID, summary }) => {
-        toast.show(`[${sessionID.slice(0, 8)}] ${summary.slice(0, 40)}…`, 'info');
+        showDedupedToast(`[${sessionID.slice(0, 8)}] ${summary.slice(0, 40)}…`, 'info');
       }),
       onGitCommitConfirm(({ file }) => {
         if (window.confirm(`Git 提交确认: ${file}?`)) {
@@ -158,7 +168,7 @@ function AppShell({ paletteOpen: _paletteOpen, setPaletteOpen }: { paletteOpen: 
       }),
       onUpdateProgress((p) => {
         if (p.phase === 'download') {
-          toast.show(`更新下载: ${p.percent}%`, 'info');
+          showDedupedToast(`更新下载: ${p.percent}%`, 'info');
         }
       }),
       // ---- Cost tracking ----

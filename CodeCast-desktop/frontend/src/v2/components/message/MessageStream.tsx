@@ -5,6 +5,7 @@ interface Props {
   isStreaming: boolean;
   onCopy?: (msg: Message) => void;
   onEdit?: (msg: Message) => void;
+  onDelete?: (msg: Message) => void;
   onRegenerate?: () => void;
   onPreview?: () => void;
   onDiff?: () => void;
@@ -12,7 +13,7 @@ interface Props {
   searchQuery?: string;
   highlightMatchIdx?: number;
 }
-export function MessageStream({ messages, isStreaming, onCopy, onEdit, onRegenerate, onPreview, onDiff, onTerminal, searchQuery, highlightMatchIdx }: Props) {
+export function MessageStream({ messages, isStreaming, onCopy, onEdit, onDelete, onRegenerate, onPreview, onDiff, onTerminal, searchQuery, highlightMatchIdx }: Props) {
   return <div data-stream aria-live={isStreaming ? 'polite' : 'off'} style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px', overflow: 'auto', flex: 1 }}>
     {messages.map((m, i) => {
       const isMatch = searchQuery && m.content.toLowerCase().includes(searchQuery.toLowerCase());
@@ -23,6 +24,7 @@ export function MessageStream({ messages, isStreaming, onCopy, onEdit, onRegener
             message={m}
             onCopy={() => onCopy?.(m)}
             onEdit={m.role === 'user' ? () => onEdit?.(m) : undefined}
+            onDelete={() => onDelete?.(m)}
             onRegenerate={i === messages.length - 1 && m.role === 'assistant' ? onRegenerate : undefined}
             onPreview={onPreview}
             onDiff={onDiff}

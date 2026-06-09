@@ -58,10 +58,9 @@ const focusVisibleStyle: React.CSSProperties = {
   outlineOffset: '2px',
 };
 
-export function Button({ variant = 'secondary', style, icon, children, disabled, ...rest }: ButtonProps) {
+export function Button({ variant = 'secondary', style, icon, children, disabled, className, ...rest }: ButtonProps) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
-  const [focused, setFocused] = useState(false);
 
   const v = vs[variant];
   const stateStyle = disabled
@@ -76,19 +75,17 @@ export function Button({ variant = 'secondary', style, icon, children, disabled,
     <button
       {...rest}
       disabled={disabled}
+      className={`cc-btn${className ? ` ${className}` : ''}`}
       style={{
         ...base,
         ...v.base,
         ...stateStyle,
-        ...(focused && !disabled ? focusVisibleStyle : {}),
         ...style,
       }}
       onMouseEnter={(e) => { setHovered(true); rest.onMouseEnter?.(e); }}
       onMouseLeave={(e) => { setHovered(false); setPressed(false); rest.onMouseLeave?.(e); }}
       onMouseDown={(e) => { setPressed(true); rest.onMouseDown?.(e); }}
       onMouseUp={(e) => { setPressed(false); rest.onMouseUp?.(e); }}
-      onFocus={(e) => { setFocused(true); rest.onFocus?.(e); }}
-      onBlur={(e) => { setFocused(false); rest.onBlur?.(e); }}
     >
       {icon}
       {children}

@@ -4,6 +4,7 @@ import { useAppStore } from '../store';
 import type { ToolCatalogItem, CastInvocation } from '../wails/types';
 import { OrchestrationRunner } from '../components/orchestration/OrchestrationRunner';
 import { useDraft } from '../lib/useDraft';
+import { useResultHistory } from '../lib/useResultHistory';
 import { TopBar } from '../layout/TopBar';
 
 /* ====================================================================
@@ -301,7 +302,13 @@ export function CastToolsPage() {
   const [activeCategory, setActiveCategory] = useDraft<string>('tools:category', '全部');
   const [selectedTool, setSelectedTool] = useState<ToolCatalogItem | null>(null);
   const [argsInput, setArgsInput] = useDraft('tools:args', '{}');
-  const [runResult, setRunResult] = useState<string | null>(null);
+  const resultHistory = useResultHistory<string>(5);
+  const [runResultLocal, setRunResultLocal] = useState<string | null>(null);
+  const runResult = resultHistory.current ?? runResultLocal;
+  const setRunResult = (v: string | null) => {
+    setRunResultLocal(v);
+    if (v !== null) resultHistory.push(v);
+  };
   const [runError, setRunError] = useState<string | null>(null);
 
   /* Load data on mount */
@@ -521,6 +528,30 @@ export function CastToolsPage() {
                     }}
                   >
                     复制
+                  </button>
+                )}
+                {runResult && (
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([runResult], { type: 'text/plain;charset=utf-8' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `tool-result-${new Date().toISOString().slice(0,19).replace(/[T:]/g,'-')}.txt`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    style={{
+                      padding: '2px 8px',
+                      background: 'transparent',
+                      border: '1px solid var(--c-border)',
+                      borderRadius: 'var(--r-md)',
+                      color: 'var(--c-textMute)',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    下载
                   </button>
                 )}
               </div>

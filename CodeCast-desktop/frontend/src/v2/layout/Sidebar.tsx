@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore, type AppMode } from '../store';
 import { useError } from '../lib/useError';
+import { ConfirmDialog } from '../components/primitives/ConfirmDialog';
 
 interface NavItem {
   id: string;
@@ -139,7 +140,26 @@ export function Sidebar({ activeId, onSelect }: Props) {
   const deleteSession = useAppStore((s) => s.deleteSession);
   const renameSession = useAppStore((s) => s.renameSession);
 
+  // Context menu state
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string; name: string } | null>(null);
+  const ctxRef = useRef<HTMLDivElement>(null);
+  // Draft protection state
+  const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) {
+        setCtxMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [ctxMenu]);
+
   const handleRenameSession = useCallback((id: string, currentName: string) => {
+    setCtxMenu(null);
     const newName = window.prompt('重命名会话:', currentName);
     if (newName && newName.trim() && newName !== currentName) {
       renameSession(id, newName.trim());
@@ -147,36 +167,73 @@ export function Sidebar({ activeId, onSelect }: Props) {
   }, [renameSession]);
 
   const handleDeleteSession = useCallback((id: string, name: string) => {
+    setCtxMenu(null);
     if (window.confirm(`确定要删除会话「${name}」吗？此操作不可撤销。`)) {
       deleteSession(id);
-      // If deleting current session, navigate home
       if (id === useAppStore.getState().currentSessionId) {
         navigate('/');
       }
     }
   }, [deleteSession, navigate]);
 
+  const handleExportSession = useCallback((id: string, name: string) => {
+    setCtxMenu(null);
+    try {
+      const session = sessions.find((s: any) => s.id === id);
+      const data = JSON.stringify(session, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name || 'session'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  }, [sessions]);
+
   const handleSessionContext = useCallback((e: React.MouseEvent, id: string, name: string) => {
     e.preventDefault();
-    const action = window.prompt(`会话「${name}」\n输入: 1=重命名, 2=删除`, '1');
-    if (action === '1') handleRenameSession(id, name);
-    else if (action === '2') handleDeleteSession(id, name);
-  }, [handleRenameSession, handleDeleteSession]);
+    setCtxMenu({ x: e.clientX, y: e.clientY, id, name });
+  }, []);
 
-  const handleSessionSelect = useCallback((id: string) => {
+  const doSessionSwitch = useCallback((id: string) => {
     // Check for unsent text in composer
     const ta = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息输入"]');
     if (ta && ta.value.trim()) {
-      // Auto-save draft for current session
-      const currentId = useAppStore.getState().currentSessionId;
-      if (currentId) {
-        try { sessionStorage.setItem(`codecast-composer-draft:${currentId}`, ta.value); } catch { /* ignore */ }
-      }
+      // Show confirm dialog
+      setPendingSwitch(id);
+      return;
     }
     switchSession(id);
     navigate('/');
     onSelect?.(id);
   }, [switchSession, navigate, onSelect]);
+
+  const handleSessionSelect = useCallback((id: string) => {
+    doSessionSwitch(id);
+  }, [doSessionSwitch]);
+
+  const confirmSwitchSave = useCallback(() => {
+    if (!pendingSwitch) return;
+    // Save draft for current session
+    const ta = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息输入"]');
+    const currentId = useAppStore.getState().currentSessionId;
+    if (ta && ta.value.trim() && currentId) {
+      try { sessionStorage.setItem(`codecast-composer-draft:${currentId}`, ta.value); } catch { /* ignore */ }
+    }
+    switchSession(pendingSwitch);
+    navigate('/');
+    onSelect?.(pendingSwitch);
+    setPendingSwitch(null);
+  }, [pendingSwitch, switchSession, navigate, onSelect]);
+
+  const confirmSwitchDiscard = useCallback(() => {
+    if (!pendingSwitch) return;
+    switchSession(pendingSwitch);
+    navigate('/');
+    onSelect?.(pendingSwitch);
+    setPendingSwitch(null);
+  }, [pendingSwitch, switchSession, navigate, onSelect]);
 
   const handleCreateSession = useCallback(async () => {
     await createSession('New Session', '', mode === 'cast' ? 'daily' : 'coding');
@@ -363,9 +420,63 @@ export function Sidebar({ activeId, onSelect }: Props) {
           }}
         />
       ))}
+      {/* Context menu */}
+      {ctxMenu && (
+        <div
+          ref={ctxRef}
+          style={{
+            position: 'fixed',
+            left: ctxMenu.x,
+            top: ctxMenu.y,
+            background: 'var(--c-surface)',
+            border: '1px solid var(--c-border)',
+            borderRadius: 'var(--r-md)',
+            boxShadow: 'var(--shadow-pop)',
+            padding: '4px',
+            zIndex: 100,
+            minWidth: 160,
+          }}
+        >
+          <button onClick={() => handleRenameSession(ctxMenu.id, ctxMenu.name)} style={ctxMenuItemStyle}>
+            重命名
+          </button>
+          <button onClick={() => handleExportSession(ctxMenu.id, ctxMenu.name)} style={ctxMenuItemStyle}>
+            导出
+          </button>
+          <div style={{ height: 1, background: 'var(--c-border)', margin: '4px 0' }} />
+          <button onClick={() => handleDeleteSession(ctxMenu.id, ctxMenu.name)} style={{ ...ctxMenuItemStyle, color: 'var(--c-danger)' }}>
+            删除
+          </button>
+        </div>
+      )}
+      {/* Draft protection confirm */}
+      {pendingSwitch && (
+        <ConfirmDialog
+          open
+          title="未发送的消息"
+          message="当前有未发送的消息，是否保存为草稿？"
+          confirmLabel="保存草稿"
+          cancelLabel="放弃"
+          onConfirm={confirmSwitchSave}
+          onCancel={confirmSwitchDiscard}
+        />
+      )}
     </nav>
   );
 }
+
+const ctxMenuItemStyle: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  padding: '6px 12px',
+  background: 'transparent',
+  border: 'none',
+  borderRadius: 'var(--r-sm)',
+  fontSize: 13,
+  color: 'var(--c-text)',
+  textAlign: 'left',
+  cursor: 'pointer',
+};
 
 /**
  * 顶部模式切换器：✱ Cast | </> Code

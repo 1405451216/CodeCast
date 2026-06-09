@@ -3,6 +3,7 @@ import { useAppStore } from '../store';
 import { useFirstTool } from '../lib/useFirstTool';
 import { copyToClipboard } from '../lib/clipboard';
 import { useDraft } from '../lib/useDraft';
+import { useResultHistory } from '../lib/useResultHistory';
 import { readPipedText, sendToPage, PIPELINE_TARGETS } from '../lib/pipeline';
 
 /* ====================================================================
@@ -215,9 +216,14 @@ export function CastEmailPage() {
   const [activeTemplate, setActiveTemplate] = useState<number | null>(null);
   const [customTemplates, setCustomTemplates] = useState<EmailTemplate[]>(loadCustomTemplates);
   const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const resultHistory = useResultHistory<string>(5);
+  const [editResult, setEditResult] = useState<string | null>(null);
+  const result = editResult ?? resultHistory.current ?? null;
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [inputHistory, setInputHistory] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('codecast-input-history:email') || '[]'); } catch { return []; }
+  });
 
   /* Load catalog on mount */
   useEffect(() => {
@@ -254,13 +260,15 @@ export function CastEmailPage() {
     }
     setGenerating(true);
     setError(null);
-    setResult(null);
+    setEditResult(null);
+    resultHistory.clear();
     setCopied(false);
 
     try {
       const args = JSON.stringify({ to, subject, body });
       const res = await invokeCastTool(emailToolName, args);
-      setResult(res);
+      resultHistory.push(res);
+      setEditResult(null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '生成失败，请重试';
       setError(msg);
@@ -437,17 +445,49 @@ export function CastEmailPage() {
         <div style={{ marginTop: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={S.sectionLabel}>预览</div>
-            {result && (
-              <button style={S.secondaryBtn} onClick={handleCopy}>
-                {copied ? '已复制' : '复制'}
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              {result && (
+                <button style={S.secondaryBtn} onClick={handleCopy}>
+                  {copied ? '已复制' : '复制'}
+                </button>
+              )}
+              {result && (
+                <button style={S.secondaryBtn} onClick={() => {
+                  const blob = new Blob([result], { type: 'text/plain;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `email-${new Date().toISOString().slice(0,19).replace(/[T:]/g,'-')}.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}>
+                  下载
+                </button>
+              )}
+            </div>
           </div>
           <div style={S.previewBox}>
             {generating && !result && (
               <span style={{ color: 'var(--c-textMute)' }}>正在生成邮件内容...</span>
             )}
-            {result}
+            {result !== null && (
+              <textarea
+                value={result}
+                onChange={(e) => setEditResult(e.target.value)}
+                style={{
+                  width: '100%',
+                  minHeight: 120,
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  color: 'var(--c-text)',
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                }}
+              />
+            )}
           </div>
         </div>
       )}

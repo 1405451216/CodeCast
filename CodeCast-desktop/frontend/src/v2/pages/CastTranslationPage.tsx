@@ -3,6 +3,7 @@ import { useAppStore } from '../store';
 import { useFirstTool } from '../lib/useFirstTool';
 import { copyToClipboard } from '../lib/clipboard';
 import { useDraft } from '../lib/useDraft';
+import { useResultHistory } from '../lib/useResultHistory';
 import { readPipedText, sendToPage, PIPELINE_TARGETS } from '../lib/pipeline';
 
 /* ------------------------------------------------------------------ */
@@ -52,7 +53,13 @@ export function CastTranslationPage() {
 
   const [direction, setDirection] = useDraft<Direction>('translation:dir', 'zh2en');
   const [source, setSource] = useDraft('translation:source', '');
-  const [result, setResult] = useState('');
+  const resultHistory = useResultHistory<string>(5);
+  const [resultLocal, setResultLocal] = useState('');
+  const result = resultHistory.current ?? resultLocal;
+  const setResult = (v: string) => {
+    setResultLocal(v);
+    if (v) resultHistory.push(v);
+  };
   const [invoking, setInvoking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -80,10 +87,8 @@ export function CastTranslationPage() {
       return DIRECTIONS[(idx + 1) % DIRECTIONS.length];
     });
     // Swap content: move result into source (if there is a result)
-    setResult((prev) => {
-      if (prev) setSource(prev);
-      return '';
-    });
+    if (result) setSource(result);
+    setResult('');
     setError(null);
     setCopied(false);
   }, []);
@@ -311,6 +316,32 @@ export function CastTranslationPage() {
                 onMouseLeave={hoverOff}
               >
                 {copied ? '已复制' : '复制'}
+              </button>
+            )}
+            {result && (
+              <button
+                onClick={() => {
+                  const blob = new Blob([result], { type: 'text/plain;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `translation-${new Date().toISOString().slice(0,19).replace(/[T:]/g,'-')}.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                style={{
+                  padding: '3px 10px',
+                  fontSize: 11,
+                  color: 'var(--c-textSub)',
+                  background: 'var(--c-surface)',
+                  border: '1px solid var(--c-border)',
+                  borderRadius: 'var(--r-md)',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={hoverOn}
+                onMouseLeave={hoverOff}
+              >
+                下载
               </button>
             )}
           </div>

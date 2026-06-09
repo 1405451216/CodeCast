@@ -35,13 +35,13 @@ function toUIMessages(raw: BackendMessage[], isStreaming: boolean): Message[] {
   return raw.map((m, i) => {
     const isLast = i === raw.length - 1;
     return {
-      id: `msg-${i}`,
+      id: (m as any).id || (m as any).timestamp || `msg-${i}`,
       role: m.role,
       content: m.content,
       reasoning: m.reasoning,
       toolCalls: m.tool_calls,
       isStreaming: isStreaming && isLast && m.role === 'assistant',
-      createdAt: Date.now(),
+      createdAt: (m as any).timestamp ? Number((m as any).timestamp) * 1000 : undefined,
     };
   });
 }
@@ -175,6 +175,18 @@ export function ChatPage({ sessionId, messages, isStreaming, model, thinking, on
     }
   }, [uiMessages, onSend]);
 
+  const handleDelete = useCallback((msg: Message) => {
+    // Remove message from local state by filtering it out
+    // Backend delete is optional - local removal provides immediate UX
+    const idx = uiMessages.findIndex(m => m.id === msg.id);
+    if (idx >= 0) {
+      // Use the messages prop (backend array) index mapping
+      const backendIdx = idx;
+      (window as any).__codecast_deleteMessage?.(backendIdx);
+    }
+    toast.show('消息已删除', 'success');
+  }, [uiMessages, toast]);
+
   return (
     <ChatArea>
       {searchOpen && (
@@ -234,6 +246,7 @@ export function ChatPage({ sessionId, messages, isStreaming, model, thinking, on
           isStreaming={isStreaming}
           onCopy={handleCopy}
           onEdit={handleEdit}
+          onDelete={handleDelete}
           onRegenerate={handleRegenerate}
           searchQuery={searchQuery}
           highlightMatchIdx={searchMatches.length > 0 && currentMatch < searchMatches.length ? searchMatches[currentMatch].index : -1}

@@ -3,9 +3,18 @@ import { useAppStore } from '../../store';
 import { Files } from '../../wails/adapter';
 import { FilePreviewModal } from './FilePreviewModal';
 
+const KNOWN_DIRS = new Set([
+  'node_modules', '.git', '.github', '.vscode', '.idea', 'dist', 'build',
+  'public', 'src', 'lib', 'bin', 'etc', 'var', 'tmp', 'temp', 'out',
+  'vendor', 'packages', 'apps', 'components', 'pages', 'utils', 'hooks',
+  'styles', 'assets', 'images', 'fonts', 'docs', 'test', 'tests', '__tests__',
+  'spec', 'scripts', 'config', 'configs', 'migrations', 'seeds',
+]);
+
 function isLikelyDir(name: string): boolean {
+  if (KNOWN_DIRS.has(name)) return true;
   if (!name.includes('.')) return true;
-  if (name.startsWith('.')) return true;
+  if (name.startsWith('.') && !name.includes('.', 1)) return true; // .git, .env
   if (/\.\w{1,5}$/.test(name)) return false;
   return true;
 }
