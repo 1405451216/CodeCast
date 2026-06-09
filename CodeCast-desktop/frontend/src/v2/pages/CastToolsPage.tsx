@@ -6,6 +6,7 @@ import { OrchestrationRunner } from '../components/orchestration/OrchestrationRu
 import { useDraft } from '../lib/useDraft';
 import { useResultHistory } from '../lib/useResultHistory';
 import { TopBar } from '../layout/TopBar';
+import { useI18n } from '../lib/useI18n';
 
 /* ====================================================================
  *  Styles
@@ -275,15 +276,16 @@ function truncate(text: string, max: number): string {
  * ==================================================================== */
 
 export function CastToolsPage() {
+  const t = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode') || '';
 
   const MODE_LABELS: Record<string, string> = {
-    review: '代码审查',
-    test: '生成测试',
-    refactor: '智能重构',
-    commit: '提交信息',
+    review: t.tools.codeReview,
+    test: t.tools.genTest,
+    refactor: t.tools.refactor,
+    commit: t.tools.commitMsg,
   };
 
   const {
@@ -326,14 +328,14 @@ export function CastToolsPage() {
   /* Derive categories list */
   const categories = useMemo(() => {
     const cats = Object.keys(castToolByCategory);
-    return ['全部', ...cats];
+    return [t.tools.all, ...cats];
   }, [castToolByCategory]);
 
   /* Filter tools based on search + category */
   const filteredTools = useMemo(() => {
     let tools = castTools;
 
-    if (activeCategory !== '全部') {
+    if (activeCategory !== t.tools.all) {
       tools = tools.filter((t) => t.category === activeCategory);
     }
 
@@ -372,7 +374,7 @@ export function CastToolsPage() {
     try {
       JSON.parse(argsInput);
     } catch {
-      setRunError('无效的 JSON 格式，请检查输入');
+      setRunError(t.tools.invalidJson);
       return;
     }
 
@@ -387,7 +389,7 @@ export function CastToolsPage() {
         refreshCastToolHistory(currentSessionId, 10);
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '运行失败，请重试';
+      const msg = e instanceof Error ? e.message : t.tools.runFailed;
       setRunError(msg);
     }
   }, [selectedTool, argsInput, invokeCastTool, currentSessionId, refreshCastToolHistory]);
@@ -402,17 +404,17 @@ export function CastToolsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--c-bg)' }}>
-      <TopBar onBack={() => navigate('/')} backLabel={MODE_LABELS[mode] || '工具箱'} />
+      <TopBar onBack={() => navigate('/')} backLabel={MODE_LABELS[mode] || t.tools.title} />
 
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px 32px', minHeight: 0, overscrollBehavior: 'contain' }}>
       <div style={S.wrap}>
 
-      <h2 style={S.title}>工具箱</h2>
+      <h2 style={S.title}>{t.tools.title}</h2>
 
       {/* Search input */}
       <input
         style={S.searchInput}
-        placeholder="搜索工具名称或描述..."
+        placeholder={t.tools.searchPlaceholder}
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />
@@ -432,12 +434,12 @@ export function CastToolsPage() {
 
       {/* Loading state */}
       {isLoading && (
-        <div style={S.emptyState}>正在加载工具列表...</div>
+        <div style={S.emptyState}>{t.tools.loading}</div>
       )}
 
       {/* Tool grid */}
       {!isLoading && filteredTools.length === 0 && (
-        <div style={S.emptyState}>没有找到匹配的工具</div>
+        <div style={S.emptyState}>{t.tools.noMatch}</div>
       )}
 
       {!isLoading && filteredTools.length > 0 && (
@@ -473,7 +475,7 @@ export function CastToolsPage() {
 
           {/* Args input */}
           <div style={{ marginBottom: 4 }}>
-            <div style={S.sectionLabel}>参数 (JSON)</div>
+            <div style={S.sectionLabel}>{t.tools.argsLabel}</div>
             <textarea
               style={S.textarea}
               value={argsInput}
@@ -496,7 +498,7 @@ export function CastToolsPage() {
             onClick={handleRun}
           >
             {castToolInvoking && <span style={S.spinner} />}
-            {castToolInvoking ? '运行中...' : '运行'}
+            {castToolInvoking ? t.tools.running : t.tools.run}
           </button>
 
           {/* Error */}
@@ -510,7 +512,7 @@ export function CastToolsPage() {
           {(runResult !== null || castToolInvoking) && (
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={S.sectionLabel}>结果</div>
+                <div style={S.sectionLabel}>{t.tools.result}</div>
                 {runResult && (
                   <button
                     onClick={async () => {
@@ -527,7 +529,7 @@ export function CastToolsPage() {
                       cursor: 'pointer',
                     }}
                   >
-                    复制
+                    {t.tools.copy}
                   </button>
                 )}
                 {runResult && (
@@ -551,13 +553,13 @@ export function CastToolsPage() {
                       cursor: 'pointer',
                     }}
                   >
-                    下载
+                    {t.tools.download}
                   </button>
                 )}
               </div>
               <div style={S.resultBox}>
                 {castToolInvoking && runResult === null
-                  ? '正在执行...'
+                  ? t.tools.executing
                   : runResult}
               </div>
             </div>
@@ -567,10 +569,10 @@ export function CastToolsPage() {
 
       {/* History section */}
       <div style={S.historySection}>
-        <h3 style={S.historyTitle}>最近调用</h3>
+        <h3 style={S.historyTitle}>{t.tools.recentInvocations}</h3>
 
         {recentHistory.length === 0 && (
-          <div style={S.emptyState}>暂无调用记录</div>
+          <div style={S.emptyState}>{t.tools.noHistory}</div>
         )}
 
         {recentHistory.map((inv: CastInvocation) => (
@@ -578,7 +580,7 @@ export function CastToolsPage() {
             <span style={S.historyToolName}>{inv.toolName}</span>
             <span style={S.historyDuration}>{inv.durationMs}ms</span>
             <span style={inv.isError ? S.errorBadge : S.okBadge}>
-              {inv.isError ? '失败' : '成功'}
+              {inv.isError ? t.tools.failed : t.tools.success}
             </span>
             <span style={S.historyResult}>
               {truncate(inv.result, 80)}

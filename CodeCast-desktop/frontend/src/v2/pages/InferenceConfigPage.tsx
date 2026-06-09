@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { InferenceConfig } from '../wails/adapter';
 import { ConfirmDialog } from '../components/primitives/ConfirmDialog';
 import { Breadcrumb } from '../components/primitives/Breadcrumb';
+import { useI18n } from '../lib/useI18n';
 
 // 定义简化的配置接口，不包含内部方法
 interface ConnectionCfg {
@@ -95,15 +96,15 @@ type InferenceSection =
   | 'plugins'
   | 'outbound';
 
-const SIDEBAR_ITEMS: { id: InferenceSection; label: string; keywords: string[] }[] = [
-  { id: 'connection', label: '连接', keywords: ['gateway', 'proxy', 'api', 'key', 'url', 'endpoint', 'model', 'TLS', 'SSL', '认证', 'timeout', '超时', '密钥', 'base URL', '端口', 'port'] },
-  { id: 'workspace', label: '工作区限制', keywords: ['workspace', 'folder', '工具', '禁用', 'Bash', 'Edit', 'Read', '登录', '目录', '路径', 'path', 'allowed', 'blocked'] },
-  { id: 'connectors', label: '连接器与扩展', keywords: ['connector', 'MCP', 'server', 'plugin', '扩展', '托管', 'managed', 'host', '服务器'] },
-  { id: 'diagnostics', label: '诊断与更新', keywords: ['diagnostic', 'update', 'test', '测试', '连接', '自动更新', 'health', '健康', '版本', 'version'] },
-  { id: 'usage', label: '使用限制', keywords: ['token', 'limit', 'cost', 'budget', '成本', '限制', '上下文', 'context', 'daily', 'monthly', '每日', '每月', '额度'] },
-  { id: 'appearance', label: '外观', keywords: ['theme', 'font', 'timestamp', 'markdown', '主题', '字体', '时间戳', '外观', '显示', 'render'] },
-  { id: 'plugins', label: '插件与技能', keywords: ['plugin', 'skill', 'tool', '插件', '技能', '工具', '文件夹', 'command', '命令'] },
-  { id: 'outbound', label: '出站要求', keywords: ['outbound', 'host', 'domain', 'proxy', '出站', '主机', '域名', 'allowlist', '白名单'] },
+const getSidebarItems = (t: ReturnType<typeof useI18n>): { id: InferenceSection; label: string; keywords: string[] }[] => [
+  { id: 'connection', label: t.inference.sidebarConnection, keywords: ['gateway', 'proxy', 'api', 'key', 'url', 'endpoint', 'model', 'TLS', 'SSL', 'timeout', 'base URL', 'port'] },
+  { id: 'workspace', label: t.inference.sidebarWorkspace, keywords: ['workspace', 'folder', 'Bash', 'Edit', 'Read', 'path', 'allowed', 'blocked'] },
+  { id: 'connectors', label: t.inference.sidebarConnectors, keywords: ['connector', 'MCP', 'server', 'plugin', 'managed', 'host'] },
+  { id: 'diagnostics', label: t.inference.sidebarDiagnostics, keywords: ['diagnostic', 'update', 'test', 'health', 'version'] },
+  { id: 'usage', label: t.inference.sidebarUsage, keywords: ['token', 'limit', 'cost', 'budget', 'context', 'daily', 'monthly'] },
+  { id: 'appearance', label: t.inference.sidebarAppearance, keywords: ['theme', 'font', 'timestamp', 'markdown', 'render'] },
+  { id: 'plugins', label: t.inference.sidebarPlugins, keywords: ['plugin', 'skill', 'tool', 'command'] },
+  { id: 'outbound', label: t.inference.sidebarOutbound, keywords: ['outbound', 'host', 'domain', 'proxy', 'allowlist'] },
 ];
 
 /* ---------- 主题感知颜色（CSS 变量） ---------- */
@@ -126,6 +127,7 @@ const C = {
 
 export function InferenceConfigPage() {
   const navigate = useNavigate();
+  const t = useI18n();
   const [active, setActive] = useState<InferenceSection>('connection');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -144,7 +146,7 @@ export function InferenceConfigPage() {
     setLoadError(null);
     InferenceConfig.get()
       .then((cfg) => { if (!cancelled) { setConfig(cfg); savedConfigRef.current = JSON.parse(JSON.stringify(cfg)); setLoading(false); } })
-      .catch((err) => { if (!cancelled) { const msg = err instanceof Error ? err.message : '加载失败'; setLoadError(msg); setLoading(false); } });
+      .catch((err) => { if (!cancelled) { const msg = err instanceof Error ? err.message : t.inference.loadError; setLoadError(msg); setLoading(false); } });
     return () => { cancelled = true; };
   }, []);
   useEffect(() => { loadConfig(); }, [loadConfig]);
@@ -157,10 +159,10 @@ export function InferenceConfigPage() {
     try {
       await InferenceConfig.save(config);
       savedConfigRef.current = JSON.parse(JSON.stringify(config));
-      setSaveMsg('已保存');
+      setSaveMsg(t.inference.saved);
       setTimeout(() => setSaveMsg(null), 2000);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '保存失败';
+      const msg = err instanceof Error ? err.message : t.inference.saveFailed;
       setSaveMsg(msg);
     } finally {
       setSaving(false);
@@ -209,10 +211,10 @@ export function InferenceConfigPage() {
       const cfg = await InferenceConfig.get();
       setConfig(cfg);
       savedConfigRef.current = JSON.parse(JSON.stringify(cfg));
-      setSaveMsg('已重置为默认值');
+      setSaveMsg(t.inference.resetSuccess);
       setTimeout(() => setSaveMsg(null), 2000);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '重置失败';
+      const msg = err instanceof Error ? err.message : t.inference.resetFailed;
       setSaveMsg(msg);
     } finally {
       setSaving(false);
@@ -222,7 +224,7 @@ export function InferenceConfigPage() {
   if (loading) {
     return (
       <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', background: C.bgPage }}>
-        <span style={{ fontSize: 13, color: C.textMuted }}>正在加载配置...</span>
+        <span style={{ fontSize: 13, color: C.textMuted }}>{t.inference.loading}</span>
       </div>
     );
   }
@@ -234,12 +236,12 @@ export function InferenceConfigPage() {
           <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.2"/>
           <path d="M8 4.5v4M8 10.5v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
-        <span style={{ fontSize: 14, color: C.text }}>{loadError || '配置加载失败'}</span>
+        <span style={{ fontSize: 14, color: C.text }}>{loadError || t.inference.loadError}</span>
         <button
           onClick={() => loadConfig()}
           style={{ padding: '8px 20px', background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 'var(--r-md)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
         >
-          重试
+          {t.inference.loadErrorRetry}
         </button>
       </div>
     );
@@ -257,7 +259,7 @@ export function InferenceConfigPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
-            onClick={() => navigate('/')}
+            onClick={handleDiscard}
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               width: 28, height: 28,
@@ -267,13 +269,13 @@ export function InferenceConfigPage() {
             }}
             onMouseEnter={(e) => (e.currentTarget as HTMLButtonElement).style.background = C.bgHover}
             onMouseLeave={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
-            title="返回"
+            title={t.inference.back}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-          <Breadcrumb items={[{ label: '设置', path: '/settings' }, { label: '推理配置' }]} />
+          <Breadcrumb items={[{ label: t.inference.breadcrumbSettings, path: '/settings' }, { label: t.inference.breadcrumbInference }]} />
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* CC Switch */}
@@ -282,7 +284,7 @@ export function InferenceConfigPage() {
             // Toggle a cc_mode flag in the config
             const next = (config as any).cc_mode === 'claude-code' ? 'codecast' : 'claude-code';
             setConfig({ ...(config as any), cc_mode: next });
-            setSaveMsg(`已切换到 ${next === 'claude-code' ? 'Claude Code' : 'CodeCast'} 模式`);
+            setSaveMsg(t.inference.ccSwitched(next === 'claude-code' ? 'Claude Code' : 'CodeCast'));
             setTimeout(() => setSaveMsg(null), 2000);
           }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: (config as any)?.cc_mode === 'claude-code' ? 'var(--c-accent)' : 'var(--c-success, #52c41a)' }} />
@@ -301,7 +303,7 @@ export function InferenceConfigPage() {
             a.click();
             URL.revokeObjectURL(url);
           }}>
-            导出
+            {t.inference.export}
             <ChevronIcon />
           </button>
         </div>
@@ -316,9 +318,9 @@ export function InferenceConfigPage() {
           background: C.bgSidebar,
           overflow: 'auto',
         }}>
-          <input type="text" placeholder="搜索设置" value={searchFilter} onChange={(e) => setSearchFilter(e.target.value)} style={searchInputStyle} />
+          <input type="text" placeholder={t.inference.search} value={searchFilter} onChange={(e) => setSearchFilter(e.target.value)} style={searchInputStyle} />
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {SIDEBAR_ITEMS.filter((it) => {
+            {getSidebarItems(t).filter((it) => {
               if (!searchFilter) return true;
               const q = searchFilter.toLowerCase();
               return it.label.toLowerCase().includes(q) || it.keywords.some(k => k.toLowerCase().includes(q));
@@ -362,30 +364,30 @@ export function InferenceConfigPage() {
         flexShrink: 0,
       }}>
         {saveMsg && (
-          <span style={{ fontSize: 12, color: saveMsg.includes('失败') ? 'var(--c-danger, #e55)' : 'var(--c-success, #52c41a)', marginRight: 'auto' }}>
+          <span style={{ fontSize: 12, color: saveMsg.includes(t.inference.saveFailed) ? 'var(--c-danger, #e55)' : 'var(--c-success, #52c41a)', marginRight: 'auto' }}>
             {saveMsg}
           </span>
         )}
-        <button onClick={handleReset} disabled={saving} style={{ ...footerBtnStyle(false), opacity: saving ? 0.5 : 1 }}>重置默认</button>
-        <button onClick={handleDiscard} style={footerBtnStyle(false)}>放弃更改</button>
-        <button onClick={handleSave} disabled={saving || !config} style={{ ...footerBtnStyle(true), opacity: saving ? 0.5 : 1 }}>
-          {saving ? '保存中...' : '保存更改'}
+        <button onClick={handleReset} disabled={saving} style={{ ...footerBtnStyle(false), opacity: saving ? 0.5 : 1 }}>{t.inference.reset}</button>
+        {isDirty && <button onClick={handleDiscard} style={footerBtnStyle(false)}>{t.inference.discard}</button>}
+        <button onClick={handleSave} disabled={saving || !config || !isDirty} style={{ ...footerBtnStyle(true), opacity: saving || !isDirty ? 0.5 : 1 }}>
+          {saving ? t.inference.saving : t.inference.save}
         </button>
       </footer>
       <ConfirmDialog
         open={confirmReset}
-        title="重置配置"
-        message="确定要将所有配置重置为默认值吗？此操作不可撤销，所有自定义设置将丢失。"
-        confirmLabel="重置"
+        title={t.inference.resetTitle}
+        message={t.inference.resetConfirm}
+        confirmLabel={t.inference.reset}
         onConfirm={() => void doReset()}
         onCancel={() => setConfirmReset(false)}
         danger
       />
       <ConfirmDialog
         open={confirmDiscard}
-        title="放弃未保存的更改"
-        message="您有未保存的配置更改。确定要放弃这些更改并离开吗？"
-        confirmLabel="放弃更改"
+        title={t.inference.discardTitle}
+        message={t.inference.discardConfirm}
+        confirmLabel={t.inference.discard}
         onConfirm={doDiscard}
         onCancel={() => setConfirmDiscard(false)}
         danger
@@ -399,6 +401,7 @@ export function InferenceConfigPage() {
  * ==================================================================== */
 
 function ConnectionSection({ config, onChange }: { config: InferenceCfgType; onChange: (c: InferenceCfgType) => void }) {
+  const t = useI18n();
   const [showKey, setShowKey] = useState(false);
   const [showConnMore, setShowConnMore] = useState(false);
   const [showModelMore, setShowModelMore] = useState(false);
@@ -419,15 +422,15 @@ function ConnectionSection({ config, onChange }: { config: InferenceCfgType; onC
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
       {/* ---- 连接标题 ---- */}
       <div>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: '0 0 6px' }}>连接</h2>
-        <p style={{ fontSize: 13, color: C.textDesc, margin: 0 }}>选择 Claude Desktop 发送推理请求的位置。</p>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: '0 0 6px' }}>{t.inference.connTitle}</h2>
+        <p style={{ fontSize: 13, color: C.textDesc, margin: 0 }}>{t.inference.connDesc}</p>
       </div>
 
       {/* 网关选择器 */}
       <div style={selectorRowStyle}>
         <GlobeIcon />
         <select value={conn.gateway_type} onChange={(e) => updateConn({ gateway_type: e.target.value })} style={gatewaySelectStyle}>
-          <option>网关</option>
+          <option>{t.inference.gateway}</option>
           <option>Anthropic API</option>
           <option>Azure OpenAI</option>
           <option>Ollama</option>
@@ -436,63 +439,63 @@ function ConnectionSection({ config, onChange }: { config: InferenceCfgType; onC
       </div>
 
       {/* ---- 网关凭据卡片 ---- */}
-      <Card title="网关 凭据"
-        action={<TestButton label="测试连接" />}
+      <Card title={t.inference.gatewayCredentials}
+        action={<TestButton label={t.inference.testConnection} />}
       >
-        <FieldRow label="凭据类型">
+        <FieldRow label={t.inference.credType}>
           <select value={conn.cred_type} onChange={(e) => updateConn({ cred_type: e.target.value })} style={fieldSelect}>
             <option>Static API key</option>
             <option>OAuth 2.0</option>
             <option>MCP Bearer Token</option>
           </select>
         </FieldRow>
-        <FieldDesc>选择凭据来源。设置后只使用该来源（不回退）。</FieldDesc>
+        <FieldDesc>{t.inference.credTypeDesc}</FieldDesc>
 
-        <FieldRow label="Gateway 基础 URL" required>
+        <FieldRow label={t.inference.baseUrl} required>
           <input value={conn.base_url} onChange={(e) => updateConn({ base_url: e.target.value })} style={fieldInput} />
         </FieldRow>
-        <FieldDesc>推理 Gateway 端点的完整 URL。</FieldDesc>
+        <FieldDesc>{t.inference.baseUrlDesc}</FieldDesc>
 
-        <FieldRow label="Gateway API 密钥" required lock>
+        <FieldRow label={t.inference.apiKey} required lock>
           <div style={{ position: 'relative', flex: 1 }}>
             <input type={showKey ? 'text' : 'password'} value={conn.api_key_enc || ''} onChange={(e) => updateConn({ api_key_enc: e.target.value })} style={{ ...fieldInput, paddingRight: 32 }} />
             <EyeToggle show={showKey} onToggle={() => setShowKey(!showKey)} />
           </div>
         </FieldRow>
 
-        <FieldRow label="Gateway 认证方案">
+        <FieldRow label={t.inference.authScheme}>
           <select value={conn.auth_scheme} onChange={(e) => updateConn({ auth_scheme: e.target.value })} style={fieldSelect}>
             <option>bearer</option>
             <option>basic</option>
             <option>custom</option>
           </select>
         </FieldRow>
-        <FieldDesc>网关凭据在线路上的发送方式（Authorization: Bearer 与 x-api-key 请求头）。</FieldDesc>
+        <FieldDesc>{t.inference.authSchemeDesc}</FieldDesc>
 
-        <FieldRow label="自定义推理请求头" lock>
+        <FieldRow label={t.inference.customHeaders} lock>
           <CustomHeadersEditor
             headers={conn.custom_headers || {}}
             onChange={(headers) => updateConn({ custom_headers: headers })}
           />
         </FieldRow>
-        <FieldDesc>发送到已配置提供商的每个推理请求上的额外 HTTP 请求头。可用于租户路由、组织 ID、Bedrock Guardrails 等。</FieldDesc>
+        <FieldDesc>{t.inference.customHeadersDesc}</FieldDesc>
 
         <LearnMore expanded={showConnMore} onToggle={() => setShowConnMore(!showConnMore)} />
       </Card>
 
       {/* ---- 模型区域 ---- */}
-      <Card title="模型"
-        action={<TestButton label="测试模型发现" />}
+      <Card title={t.inference.model}
+        action={<TestButton label={t.inference.testModelDiscovery} />}
       >
-        <FieldRow label="模型发现">
+        <FieldRow label={t.inference.modelDiscovery}>
           <ToggleSwitch checked={model.discover_enabled} onChange={(v) => updateModel({ discover_enabled: v })} />
         </FieldRow>
-        <FieldDesc>启动时从 http://127.0.0.1:15721/claude-desktop/v1/models 自动填充模型选择器。</FieldDesc>
+        <FieldDesc>{t.inference.modelDiscoveryDesc}</FieldDesc>
         <LearnMore expanded={showModelMore} onToggle={() => setShowModelMore(!showModelMore)} />
 
         <div style={{ marginTop: 16 }}>
-          <label style={{ fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 8, display: 'block' }}>模型列表</label>
-          <p style={{ fontSize: 12, color: C.textDesc, margin: '0 0 10px' }}>覆盖自动发现的模型列表。第一项为默认模型。</p>
+          <label style={{ fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 8, display: 'block' }}>{t.inference.modelList}</label>
+          <p style={{ fontSize: 12, color: C.textDesc, margin: '0 0 10px' }}>{t.inference.modelListDesc}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {(model.models || []).map((m: string) => (
               <ModelTag key={m} name={m} onRemove={() => updateModel({ models: (model.models || []).filter((x: string) => x !== m) })} />
@@ -510,7 +513,7 @@ function ConnectionSection({ config, onChange }: { config: InferenceCfgType; onC
                     }
                     if (e.key === 'Escape') { setNewModelName(''); setAddingModel(false); }
                   }}
-                  placeholder="输入模型名称，回车确认"
+                  placeholder={t.inference.modelInputPlaceholder}
                   style={{ ...fieldInput, flex: 1 }}
                 />
                 <button
@@ -521,14 +524,14 @@ function ConnectionSection({ config, onChange }: { config: InferenceCfgType; onC
                     }
                   }}
                   style={{ ...addBtnStyle, padding: '6px 12px' }}
-                >添加</button>
+                >{t.inference.add}</button>
                 <button
                   onClick={() => { setNewModelName(''); setAddingModel(false); }}
                   style={{ ...addBtnStyle, padding: '6px 12px' }}
-                >取消</button>
+                >{t.inference.cancel}</button>
               </div>
             ) : (
-              <AddButton label="添加" plain onClick={() => setAddingModel(true)} />
+              <AddButton label={t.inference.add} plain onClick={() => setAddingModel(true)} />
             )}
           </div>
         </div>
@@ -542,6 +545,7 @@ function ConnectionSection({ config, onChange }: { config: InferenceCfgType; onC
  * ==================================================================== */
 
 function WorkspaceSection({ config, onChange }: { config: InferenceCfgType; onChange: (c: InferenceCfgType) => void }) {
+  const t = useI18n();
   const ws = config.workspace;
   const [showWorkMore, setShowWorkMore] = useState(false);
 
@@ -551,52 +555,60 @@ function WorkspaceSection({ config, onChange }: { config: InferenceCfgType; onCh
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>工作区限制</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>{t.inference.sidebarWorkspace}</h2>
 
       {/* 功能界面 */}
-      <Card title="功能界面">
+      <Card title={t.inference.featureUI}>
         <FieldRow label="Cowork">
           <ToggleSwitch checked={ws.cowork_enabled} onChange={(v) => update({ cowork_enabled: v })} />
         </FieldRow>
-        <FieldDesc>启用 Cowork 标签页。Claude 会处理较长任务，例如研究、分析和文档。</FieldDesc>
+        <FieldDesc>{t.inference.coworkDesc}</FieldDesc>
 
-        <FieldRow label="代码">
+        <FieldRow label={t.inference.codeLabel}>
           <ToggleSwitch checked={ws.code_enabled} onChange={(v) => update({ code_enabled: v })} />
         </FieldRow>
-        <FieldDesc>启用 Code 标签页。Claude 会编写并运行代码。</FieldDesc>
+        <FieldDesc>{t.inference.codeDesc}</FieldDesc>
       </Card>
 
       {/* 通用限制 */}
-      <Card title="通用限制">
-        <p style={{ fontSize: 13, color: C.textDesc, margin: '0 0 18px' }}>无论启用哪些功能界面，这些限制都会生效。</p>
+      <Card title={t.inference.generalLimits}>
+        <p style={{ fontSize: 13, color: C.textDesc, margin: '0 0 18px' }}>{t.inference.generalLimitsDesc}</p>
 
-        <FieldRow label="允许的出站主机">
+        <FieldRow label={t.inference.allowedOutboundHosts}>
           <TagInput value={ws.allowed_hosts || '*'} onChange={(v) => update({ allowed_hosts: v })} />
         </FieldRow>
-        <FieldDesc>代理工具可从 Cowork 和 Code 标签页访问的主机名。也会显示在出站要求中。</FieldDesc>
+        <FieldDesc>{t.inference.allowedOutboundHostsDesc}</FieldDesc>
         <LearnMore expanded={showWorkMore} onToggle={() => setShowWorkMore(!showWorkMore)} />
 
-        <FieldRow label="允许的工作区文件夹">
+        <FieldRow label={t.inference.allowedWorkspaceFolder}>
           <div style={{ position: 'relative', flex: 1 }}>
             <input value={ws.workspace_folder || ''} onChange={(e) => update({ workspace_folder: e.target.value })} style={fieldInput} />
             <button
               type="button"
-              onClick={() => {
-                // Focus the input so user can type the path
-                const input = document.querySelector('input[value="' + (ws.workspace_folder || '') + '"]') as HTMLInputElement;
-                input?.focus();
-                input?.select();
+              onClick={async () => {
+                try {
+                  // Try native folder picker via Wails adapter
+                  const { Files } = await import('../wails/adapter');
+                  if (Files.selectFolder) {
+                    const folder = await Files.selectFolder();
+                    if (folder) update({ workspace_folder: folder });
+                    return;
+                  }
+                } catch { /* ignore */ }
+                // Fallback: prompt for path
+                const path = window.prompt('Workspace folder path:', ws.workspace_folder || '');
+                if (path !== null) update({ workspace_folder: path });
               }}
-              title="点击输入路径"
+              title={t.inference.selectFolder}
               style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <FolderIcon />
             </button>
           </div>
         </FieldRow>
-        <FieldDesc>用户可附加为工作区的文件夹。留空则不限制访问。</FieldDesc>
+        <FieldDesc>{t.inference.allowedWorkspaceFolderDesc}</FieldDesc>
 
-        <FieldRow label="禁用的内置工具">
+        <FieldRow label={t.inference.disabledBuiltinTools}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px' }}>
             {['Bash', 'Edit', 'Read', 'Glob', 'Grep'].map((tool) => {
               const disabled = (ws.disabled_tools || []).includes(tool);
@@ -620,17 +632,17 @@ function WorkspaceSection({ config, onChange }: { config: InferenceCfgType; onCh
             })}
           </div>
         </FieldRow>
-        <FieldDesc>从 Cowork 中移除的内置工具。</FieldDesc>
+        <FieldDesc>{t.inference.disabledBuiltinToolsDesc}</FieldDesc>
 
-        <FieldRow label="禁用 Claude.ai 登录">
+        <FieldRow label={t.inference.disableClaudeLogin}>
           <ToggleSwitch checked={ws.disable_login} onChange={(v) => update({ disable_login: v })} />
         </FieldRow>
-        <FieldDesc>用户在登录界面只会看到此提供商。登录 Claude.ai 的选项将被隐藏。</FieldDesc>
+        <FieldDesc>{t.inference.disableClaudeLoginDesc}</FieldDesc>
 
-        <FieldRow label="禁用 claude:// 深度链接处理">
+        <FieldRow label={t.inference.disableDeepLink}>
           <ToggleSwitch checked={ws.disable_deep_link} onChange={(v) => update({ disable_deep_link: v })} />
         </FieldRow>
-        <FieldDesc>阻止外部应用和网站通过 claude:// 链接打开 Cowork。</FieldDesc>
+        <FieldDesc>{t.inference.disableDeepLinkDesc}</FieldDesc>
       </Card>
     </div>
   );
@@ -641,6 +653,7 @@ function WorkspaceSection({ config, onChange }: { config: InferenceCfgType; onCh
  * ==================================================================== */
 
 function ConnectorsSection({ config, onChange }: { config: InferenceCfgType; onChange: (c: InferenceCfgType) => void }) {
+  const t = useI18n();
   const cn = config.connectors;
   const update = (patch: Partial<InferenceCfgType['connectors']>) => {
     onChange({ ...config, connectors: { ...cn, ...patch } });
@@ -648,32 +661,32 @@ function ConnectorsSection({ config, onChange }: { config: InferenceCfgType; onC
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>连接器与扩展</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>{t.inference.sidebarConnectors}</h2>
 
       {/* MCP 服务器 */}
-      <Card title="MCP 服务器">
-        <FieldRow label="托管的 MCP 服务器" lock>
-          <DropdownBtn label="添加服务器" />
+      <Card title={t.inference.mcpServers}>
+        <FieldRow label={t.inference.managedMcpServers} lock>
+          <DropdownBtn label={t.inference.addServer} />
         </FieldRow>
-        <FieldDesc>组织推送的 MCP 服务器：远程（HTTP/SSE）或本地（stdio 命令）。可能嵌入 Bearer 令牌。</FieldDesc>
+        <FieldDesc>{t.inference.managedMcpServersDesc}</FieldDesc>
 
-        <FieldRow label="允许用户添加 MCP 服务器">
+        <FieldRow label={t.inference.allowUserMcp}>
           <ToggleSwitch checked={cn.allow_user_mcp} onChange={(v) => update({ allow_user_mcp: v })} />
         </FieldRow>
-        <FieldDesc>通过开发者设置添加的本地 stdio 服务器。远程服务器来自上方托管列表，或来自组织管理员挂载到用户电脑上的插件。</FieldDesc>
+        <FieldDesc>{t.inference.allowUserMcpDesc}</FieldDesc>
       </Card>
 
       {/* 扩展 */}
-      <Card title="扩展">
-        <FieldRow label="允许桌面扩展">
+      <Card title={t.inference.extensions}>
+        <FieldRow label={t.inference.allowDesktopExt}>
           <ToggleSwitch checked={cn.allow_desktop_ext} onChange={(v) => update({ allow_desktop_ext: v })} />
         </FieldRow>
-        <FieldDesc>.dxt and .mcpb installs.</FieldDesc>
+        <FieldDesc>{t.inference.allowDesktopExtDesc}</FieldDesc>
 
-        <FieldRow label="要求扩展已签名">
+        <FieldRow label={t.inference.requireSigned}>
           <ToggleSwitch checked={cn.require_signed} onChange={(v) => update({ require_signed: v })} />
         </FieldRow>
-        <FieldDesc>拒绝未由受信任发布者签名的桌面扩展。</FieldDesc>
+        <FieldDesc>{t.inference.requireSignedDesc}</FieldDesc>
       </Card>
     </div>
   );
@@ -684,6 +697,7 @@ function ConnectorsSection({ config, onChange }: { config: InferenceCfgType; onC
  * ==================================================================== */
 
 function PluginsSection({ config, onChange }: { config: InferenceCfgType; onChange: (c: InferenceCfgType) => void }) {
+  const t = useI18n();
   const pl = config.plugins;
   const update = (patch: Partial<InferenceCfgType['plugins']>) => {
     onChange({ ...config, plugins: { ...pl, ...patch } });
@@ -691,11 +705,11 @@ function PluginsSection({ config, onChange }: { config: InferenceCfgType; onChan
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>插件与技能</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>{t.inference.sidebarPlugins}</h2>
 
       {/* 组织插件 */}
       <Card
-        title="组织插件"
+        title={t.inference.orgPlugins}
         action={
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -704,7 +718,7 @@ function PluginsSection({ config, onChange }: { config: InferenceCfgType; onChan
             color: C.textMuted, fontSize: 12,
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#999' }} />
-            未找到组织插件
+            {t.inference.noOrgPlugins}
           </span>
         }
       >
@@ -725,15 +739,15 @@ function PluginsSection({ config, onChange }: { config: InferenceCfgType; onChan
             fontFamily: 'inherit',
           }}>
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M6 6h4M6 8h4M6 10h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-            复制
+            {t.inference.copy}
           </button>
         </div>
 
         <p style={{ fontSize: 12, color: C.textDesc, margin: '0 0 16px', lineHeight: 1.6 }}>
-          使用设备管理工具将插件包挂载到此文件夹，Cowork 会在启动时加载它们。该文件夹为只读；你在下方设置的工具策略会保存在此配置中。
+          {t.inference.orgPluginsDesc}
         </p>
 
-        <AddButton label="添加服务器策略" />
+        <AddButton label={t.inference.addServerPolicy} />
       </Card>
     </div>
   );
@@ -744,6 +758,7 @@ function PluginsSection({ config, onChange }: { config: InferenceCfgType; onChan
  * ==================================================================== */
 
 function DiagnosticsSection({ config, onChange }: { config: InferenceCfgType; onChange: (c: InferenceCfgType) => void }) {
+  const t = useI18n();
   const diag = config.diagnostics;
   const update = (patch: Partial<InferenceCfgType['diagnostics']>) => {
     onChange({ ...config, diagnostics: { ...diag, ...patch } });
@@ -751,40 +766,40 @@ function DiagnosticsSection({ config, onChange }: { config: InferenceCfgType; on
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>诊断与更新</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>{t.inference.sidebarDiagnostics}</h2>
 
       {/* 日志 */}
-      <Card title="日志">
-        <FieldRow label="日志级别">
+      <Card title={t.inference.logs}>
+        <FieldRow label={t.inference.logLevel}>
           <select value={diag.log_level || 'Info'} onChange={(e) => update({ log_level: e.target.value })} style={inputStyle}>
             {['Debug', 'Info', 'Warn', 'Error'].map((l) => (
               <option key={l} value={l}>{l}</option>
             ))}
           </select>
         </FieldRow>
-        <FieldDesc>控制日志输出的详细程度。Debug 模式会产生大量日志，建议仅在排查问题时使用。</FieldDesc>
+        <FieldDesc>{t.inference.logLevelDesc}</FieldDesc>
         <div style={{ marginTop: 12 }}>
-          <button style={{ ...addBtnStyle }}>打开日志文件夹</button>
+          <button style={{ ...addBtnStyle }}>{t.inference.openLogFolder}</button>
         </div>
       </Card>
 
       {/* 遥测 */}
-      <Card title="遥测">
-        <FieldRow label="发送使用数据">
+      <Card title={t.inference.telemetry}>
+        <FieldRow label={t.inference.sendUsageData}>
           <ToggleSwitch checked={diag.enable_telemetry} onChange={(v) => update({ enable_telemetry: v })} />
-          <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{diag.enable_telemetry ? '已开启' : '已关闭'}</span>
+          <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{diag.enable_telemetry ? t.inference.enabled : t.inference.disabled}</span>
         </FieldRow>
-        <FieldDesc>匿名发送性能指标和错误频率数据，帮助改进产品。不包含任何个人或项目信息。</FieldDesc>
+        <FieldDesc>{t.inference.telemetryDesc}</FieldDesc>
       </Card>
 
       {/* 更新 */}
-      <Card title="更新">
-        <FieldRow label="自动检查更新">
+      <Card title={t.inference.updates}>
+        <FieldRow label={t.inference.autoCheckUpdates}>
           <ToggleSwitch checked={diag.auto_update ?? true} onChange={(v) => update({ auto_update: v })} />
-          <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{(diag.auto_update ?? true) ? '已开启' : '已关闭'}</span>
+          <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{(diag.auto_update ?? true) ? t.inference.enabled : t.inference.disabled}</span>
         </FieldRow>
         <div style={{ marginTop: 12 }}>
-          <button style={{ ...addBtnStyle }}>立即检查更新</button>
+          <button style={{ ...addBtnStyle }}>{t.inference.checkUpdatesNow}</button>
         </div>
       </Card>
     </div>
@@ -796,6 +811,7 @@ function DiagnosticsSection({ config, onChange }: { config: InferenceCfgType; on
  * ==================================================================== */
 
 function UsageSection({ config, onChange }: { config: InferenceCfgType; onChange: (c: InferenceCfgType) => void }) {
+  const t = useI18n();
   const usage = config.usage;
   const update = (patch: Partial<InferenceCfgType['usage']>) => {
     onChange({ ...config, usage: { ...usage, ...patch } });
@@ -803,11 +819,11 @@ function UsageSection({ config, onChange }: { config: InferenceCfgType; onChange
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>使用限制</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>{t.inference.sidebarUsage}</h2>
 
       {/* Token 限制 */}
-      <Card title="Token 限制">
-        <FieldRow label="每日 Token 上限">
+      <Card title={t.inference.tokenLimits}>
+        <FieldRow label={t.inference.dailyTokenLimit}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <input value={usage.daily_token_limit ? String(usage.daily_token_limit) : ''} onChange={(e) => update({ daily_token_limit: Number(e.target.value) || 0 })} placeholder="1000000" style={{ ...fieldInput, width: 140 }} />
             <select style={{ ...inputStyle, width: 70 }} defaultValue="tokens">
@@ -820,26 +836,26 @@ function UsageSection({ config, onChange }: { config: InferenceCfgType; onChange
       </Card>
 
       {/* 成本控制 */}
-      <Card title="成本控制">
-        <FieldRow label="每月成本上限 (USD)">
+      <Card title={t.inference.costControl}>
+        <FieldRow label={t.inference.monthlyCostLimit}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ fontSize: 14, color: C.textMuted }}>$</span>
             <input value={usage.monthly_cost_limit ? String(usage.monthly_cost_limit) : ''} onChange={(e) => update({ monthly_cost_limit: Number(e.target.value) || 0 })} placeholder="10.00" style={{ ...fieldInput, width: 120 }} />
           </div>
         </FieldRow>
-        <FieldDesc>超出成本上限后，推理请求将被暂停直到次日重置。</FieldDesc>
-        <FieldRow label="成本提醒阈值 (%)">
+        <FieldDesc>{t.inference.costControlDesc}</FieldDesc>
+        <FieldRow label={t.inference.costWarnThreshold}>
           <input value={usage.warn_threshold_pct ? String(usage.warn_threshold_pct) : ''} onChange={(e) => update({ warn_threshold_pct: Number(e.target.value) || 0 })} placeholder="80" style={{ ...fieldInput, width: 80 }} />
         </FieldRow>
-        <FieldDesc>当当日消耗达到阈值时弹窗提醒。</FieldDesc>
+        <FieldDesc>{t.inference.costWarnThresholdDesc}</FieldDesc>
       </Card>
 
       {/* 速率限制 */}
-      <Card title="速率限制">
-        <FieldRow label="并发会话数上限">
+      <Card title={t.inference.rateLimits}>
+        <FieldRow label={t.inference.concurrentSessions}>
           <input placeholder="5" style={{ ...fieldInput, width: 80 }} readOnly />
         </FieldRow>
-        <FieldDesc>同时运行的 Agent/对话数量上限。设置为 0 表示无限制。</FieldDesc>
+        <FieldDesc>{t.inference.concurrentSessionsDesc}</FieldDesc>
       </Card>
     </div>
   );
@@ -850,6 +866,7 @@ function UsageSection({ config, onChange }: { config: InferenceCfgType; onChange
  * ==================================================================== */
 
 function AppearanceSection({ config, onChange }: { config: InferenceCfgType; onChange: (c: InferenceCfgType) => void }) {
+  const t = useI18n();
   const app = config.appearance;
   const [showTimestamps, setShowTimestamps] = useState(true);
   const [renderMarkdown, setRenderMarkdown] = useState(true);
@@ -859,13 +876,13 @@ function AppearanceSection({ config, onChange }: { config: InferenceCfgType; onC
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>外观</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>{t.inference.sidebarAppearance}</h2>
 
       {/* 主题 */}
-      <Card title="主题">
-        <FieldRow label="模式">
+      <Card title={t.inference.theme}>
+        <FieldRow label={t.inference.mode}>
           <select value={app.theme || 'system'} onChange={(e) => update({ theme: e.target.value })} style={inputStyle}>
-            {['浅色', '深色', '跟随系统'].map((m) => (
+            {[t.inference.themeLight, t.inference.themeDark, t.inference.themeSystem].map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>
@@ -873,30 +890,30 @@ function AppearanceSection({ config, onChange }: { config: InferenceCfgType; onC
       </Card>
 
       {/* 字体 */}
-      <Card title="字体">
-        <FieldRow label="UI 字体大小">
+      <Card title={t.inference.fonts}>
+        <FieldRow label={t.inference.uiFontSize}>
           <select value={app.font_size || 'medium'} onChange={(e) => update({ font_size: e.target.value })} style={inputStyle}>
-            {['小', '中', '大'].map((s) => (
+            {[t.inference.sizeSmall, t.inference.sizeMedium, t.inference.sizeLarge].map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
         </FieldRow>
-        <FieldRow label="代码字号 (px)">
+        <FieldRow label={t.inference.codeFontSize}>
           <input value={app.code_font_size || ''} onChange={(e) => update({ code_font_size: e.target.value })} placeholder="13" style={{ ...fieldInput, width: 80 }} />
         </FieldRow>
       </Card>
 
       {/* 聊天界面 */}
-      <Card title="聊天界面">
-        <FieldRow label="显示时间戳">
+      <Card title={t.inference.chatUI}>
+        <FieldRow label={t.inference.showTimestamps}>
           <ToggleSwitch checked={showTimestamps} onChange={setShowTimestamps} />
-          <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{showTimestamps ? '显示' : '隐藏'}</span>
+          <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{showTimestamps ? t.inference.visible : t.inference.hidden}</span>
         </FieldRow>
-        <FieldRow label="Markdown 渲染">
+        <FieldRow label={t.inference.markdownRender}>
           <ToggleSwitch checked={renderMarkdown} onChange={setRenderMarkdown} />
-          <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{renderMarkdown ? '渲染' : '纯文本'}</span>
+          <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 8 }}>{renderMarkdown ? t.inference.rendered : t.inference.plainText}</span>
         </FieldRow>
-        <FieldDesc>启用后，代码块、表格、公式等内容将以 Markdown 格式渲染展示。</FieldDesc>
+        <FieldDesc>{t.inference.markdownRenderDesc}</FieldDesc>
       </Card>
     </div>
   );
@@ -907,6 +924,7 @@ function AppearanceSection({ config, onChange }: { config: InferenceCfgType; onC
  * ==================================================================== */
 
 function OutboundSection({ config, onChange }: { config: InferenceCfgType; onChange: (c: InferenceCfgType) => void }) {
+  const t = useI18n();
   const out = config.outbound;
   const update = (patch: Partial<InferenceCfgType['outbound']>) => {
     onChange({ ...config, outbound: { ...out, ...patch } });
@@ -914,49 +932,49 @@ function OutboundSection({ config, onChange }: { config: InferenceCfgType; onCha
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 'var(--page-max-width)' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>出站要求</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0 }}>{t.inference.sidebarOutbound}</h2>
 
       {/* 网络代理 */}
-      <Card title="网络代理">
-        <FieldRow label="HTTP 代理">
+      <Card title={t.inference.networkProxy}>
+        <FieldRow label={t.inference.httpProxy}>
           <input value={out.http_proxy || ''} onChange={(e) => update({ http_proxy: e.target.value })} placeholder="http://host:port" style={fieldInput} />
         </FieldRow>
-        <FieldRow label="不走代理的域名">
+        <FieldRow label={t.inference.noProxy}>
           <input value={out.no_proxy || ''} onChange={(e) => update({ no_proxy: e.target.value })} placeholder="localhost,127.0.0.1" style={fieldInput} />
         </FieldRow>
-        <FieldDesc>逗号分隔的域名列表，匹配的请求将绕过代理直接连接。</FieldDesc>
+        <FieldDesc>{t.inference.noProxyDesc}</FieldDesc>
       </Card>
 
       {/* TLS 设置 */}
-      <Card title="TLS 设置">
-        <FieldRow label="TLS 最小版本">
+      <Card title={t.inference.tlsSettings}>
+        <FieldRow label={t.inference.tlsMinVersion}>
           <select value={out.tls_min_version || '1.2'} onChange={(e) => update({ tls_min_version: e.target.value })} style={inputStyle}>
             {['1.2', '1.3'].map((v) => (
               <option key={v} value={v}>{v}</option>
             ))}
           </select>
         </FieldRow>
-        <FieldRow label="验证 TLS 证书">
+        <FieldRow label={t.inference.verifyTls}>
           <ToggleSwitch checked={out.verify_tls ?? true} onChange={(v) => update({ verify_tls: v })} />
         </FieldRow>
       </Card>
 
       {/* 超时 */}
-      <Card title="超时">
-        <FieldRow label="连接超时 (秒)">
+      <Card title={t.inference.timeouts}>
+        <FieldRow label={t.inference.connectTimeout}>
           <input value={out.connect_timeout ? String(out.connect_timeout) : ''} onChange={(e) => update({ connect_timeout: Number(e.target.value) || 0 })} placeholder="30" style={{ ...fieldInput, width: 100 }} />
         </FieldRow>
-        <FieldRow label="读取超时 (秒)">
+        <FieldRow label={t.inference.readTimeout}>
           <input value={out.read_timeout ? String(out.read_timeout) : ''} onChange={(e) => update({ read_timeout: Number(e.target.value) || 0 })} placeholder="120" style={{ ...fieldInput, width: 100 }} />
         </FieldRow>
       </Card>
 
       {/* 安全 */}
-      <Card title="安全">
-        <FieldRow label="允许的出站端口">
+      <Card title={t.inference.security}>
+        <FieldRow label={t.inference.allowedPorts}>
           <input value={out.allowed_ports || ''} onChange={(e) => update({ allowed_ports: e.target.value })} placeholder="443,80" style={fieldInput} />
         </FieldRow>
-        <FieldDesc>仅允许连接到列表中的端口。留空表示允许所有端口（不推荐）。</FieldDesc>
+        <FieldDesc>{t.inference.allowedPortsDesc}</FieldDesc>
       </Card>
     </div>
   );
@@ -1016,10 +1034,11 @@ function FieldDesc({ children }: { children: React.ReactNode }) {
 }
 
 function LearnMore({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  const t = useI18n();
   return (
     <div style={{ marginTop: 4 }}>
       <button onClick={onToggle} style={learnMoreBtnStyle}>
-        了解更多
+        {t.inference.learnMore}
         <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}>
           <path d="M4 6l4 4 4-4" stroke={C.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -1053,6 +1072,7 @@ function ToggleSwitch({ checked, onChange, label }: { checked: boolean; onChange
 }
 
 function TestButton({ label }: { label: string }) {
+  const t = useI18n();
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<'idle' | 'ok' | 'fail'>('idle');
 
@@ -1093,12 +1113,13 @@ function TestButton({ label }: { label: string }) {
         border: result !== 'idle' ? 'none' : '1.5px solid #999',
         background: result === 'ok' ? '#fff' : result === 'fail' ? '#fff' : 'transparent',
       }} />
-      {testing ? '测试中…' : result === 'ok' ? '连接成功' : result === 'fail' ? '连接失败' : label}
+      {testing ? t.inference.testing : result === 'ok' ? t.inference.testSuccess : result === 'fail' ? t.inference.testFailed : label}
     </button>
   );
 }
 
 function CustomHeadersEditor({ headers, onChange }: { headers: Record<string, string>; onChange: (h: Record<string, string>) => void }) {
+  const t = useI18n();
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
   const entries = Object.entries(headers);
@@ -1116,7 +1137,7 @@ function CustomHeadersEditor({ headers, onChange }: { headers: Record<string, st
               onChange(next);
             }}
             style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: '0 4px' }}
-            title="删除"
+            title={t.inference.remove}
           >×</button>
         </div>
       ))}
@@ -1143,7 +1164,7 @@ function CustomHeadersEditor({ headers, onChange }: { headers: Record<string, st
           }}
           style={{ padding: '3px 8px', fontSize: 12, background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
         >
-          添加
+          {t.inference.add}
         </button>
       </div>
     </div>
@@ -1216,6 +1237,7 @@ function ModelTag({ name, onRemove }: { name: string; onRemove: () => void }) {
 }
 
 function TagInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const i18n = useI18n();
   const [inputVal, setInputVal] = useState('');
   const tags = value.split(',').filter(Boolean);
 
@@ -1257,7 +1279,7 @@ function TagInput({ value, onChange }: { value: string; onChange: (v: string) =>
           }
         }}
         style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12, minWidth: 60, fontFamily: 'inherit', color: C.text }}
-        placeholder={tags.length === 0 ? '输入后按回车添加' : ''}
+        placeholder={tags.length === 0 ? i18n.inference.tagInputPlaceholder : ''}
       />
     </div>
   );

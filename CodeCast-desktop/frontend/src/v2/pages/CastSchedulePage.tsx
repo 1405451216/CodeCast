@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '../store';
+import { useI18n } from '../lib/useI18n';
 
 /* ====================================================================
  *  Types
@@ -33,6 +34,7 @@ function getStatusConfig(status: string | undefined) {
  * ==================================================================== */
 
 export function CastSchedulePage() {
+  const t = useI18n();
   const {
     loadCastTools,
     castToolByCategory,
@@ -213,13 +215,13 @@ export function CastSchedulePage() {
           }}
         >
           <span style={{ fontSize: 18, opacity: 0.7 }}>&#x1F4C5;</span>
-          日程管理
+          {t.schedule.title}
         </h2>
 
         {/* Available schedule tools indicator */}
         {scheduleTools.length > 0 && (
           <div style={{ marginBottom: 16, fontSize: 11, color: 'var(--c-textMute)' }}>
-            可用工具: {scheduleTools.map((t) => t.name).join(', ')}
+            {t.schedule.availableTools}: {scheduleTools.map((tool) => tool.name).join(', ')}
           </div>
         )}
 
@@ -241,7 +243,7 @@ export function CastSchedulePage() {
               margin: '0 0 14px',
             }}
           >
-            新建任务
+            {t.schedule.newTask}
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -257,14 +259,14 @@ export function CastSchedulePage() {
                   marginBottom: 4,
                 }}
               >
-                任务标题
+                {t.schedule.taskTitle}
               </label>
               <input
                 id="task-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="输入任务标题…"
+                placeholder={t.schedule.taskTitlePlaceholder}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -295,14 +297,14 @@ export function CastSchedulePage() {
                   marginBottom: 4,
                 }}
               >
-                任务描述
+                {t.schedule.taskDesc}
               </label>
               <textarea
                 id="task-desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="输入任务描述（可选）…"
+                placeholder={t.schedule.taskDescPlaceholder}
                 rows={3}
                 style={{
                   width: '100%',
@@ -336,7 +338,7 @@ export function CastSchedulePage() {
                   marginBottom: 4,
                 }}
               >
-                截止日期
+                {t.schedule.dueDate}
               </label>
               <input
                 id="task-due"
@@ -373,7 +375,7 @@ export function CastSchedulePage() {
                   color: 'var(--c-danger, #dc2626)',
                 }}
               >
-                添加失败: {addError}
+                {t.schedule.addFailed(addError)}
               </div>
             )}
             {addSuccess && (
@@ -387,7 +389,7 @@ export function CastSchedulePage() {
                   color: '#15803d',
                 }}
               >
-                任务已添加
+                {t.schedule.taskAdded}
               </div>
             )}
             {actionError && (
@@ -425,7 +427,7 @@ export function CastSchedulePage() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {castToolInvoking ? '添加中…' : '添加任务'}
+                {castToolInvoking ? t.schedule.adding : t.schedule.addTask}
               </button>
 
               {listTool && (
@@ -457,7 +459,7 @@ export function CastSchedulePage() {
                     e.currentTarget.style.borderColor = 'var(--c-border)';
                   }}
                 >
-                  {loadingTasks ? '加载中…' : '刷新列表'}
+                  {loadingTasks ? t.schedule.loading : t.schedule.refreshList}
                 </button>
               )}
 
@@ -468,7 +470,7 @@ export function CastSchedulePage() {
                   marginLeft: 4,
                 }}
               >
-                Ctrl+Enter 快速提交
+                {t.schedule.quickSubmit}
               </span>
             </div>
           </div>
@@ -492,7 +494,7 @@ export function CastSchedulePage() {
                 margin: 0,
               }}
             >
-              任务列表
+              {t.schedule.taskList}
               {parsedTasks.length > 0 && (
                 <span
                   style={{
@@ -532,7 +534,7 @@ export function CastSchedulePage() {
                   marginRight: 8,
                 }}
               />
-              加载中…
+              {t.schedule.loading}
             </div>
           )}
 
@@ -566,9 +568,9 @@ export function CastSchedulePage() {
                 <circle cx="26" cy="21" r="4" stroke="currentColor" strokeWidth="1.3" />
                 <path d="M26 19v4M24 21h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
               </svg>
-              <span>暂无日程任务</span>
+              <span>{t.schedule.noTasks}</span>
               <span style={{ fontSize: 12, marginTop: 4 }}>
-                使用上方表单添加新任务
+                {t.schedule.noTasksHint}
               </span>
             </div>
           )}
@@ -671,7 +673,7 @@ export function CastSchedulePage() {
                       {updateTool && (
                         <button
                           onClick={() => void handleToggleStatus(task, idx)}
-                          title="切换状态"
+                          title={t.schedule.toggleStatus}
                           style={{
                             padding: '4px 8px',
                             background: 'transparent',
@@ -682,17 +684,17 @@ export function CastSchedulePage() {
                             cursor: 'pointer',
                           }}
                         >
-                          切换
+                          {t.schedule.switch}
                         </button>
                       )}
                       {deleteTool && (
                         <button
                           onClick={() => {
-                            if (window.confirm(`确定要删除任务「${task.title || task.name || '未命名'}」吗？`)) {
+                            if (window.confirm(t.schedule.deleteConfirm(String(task.title || task.name || '未命名')))) {
                               void handleDeleteTask(task, idx);
                             }
                           }}
-                          title="删除任务"
+                          title={t.schedule.deleteTask}
                           style={{
                             padding: '4px 8px',
                             background: 'transparent',
@@ -703,7 +705,7 @@ export function CastSchedulePage() {
                             cursor: 'pointer',
                           }}
                         >
-                          删除
+                          {t.schedule.delete}
                         </button>
                       )}
                     </div>
@@ -730,7 +732,7 @@ export function CastSchedulePage() {
                   padding: '4px 0',
                 }}
               >
-                原始返回数据
+                {t.schedule.rawData}
               </summary>
               <pre
                 style={{

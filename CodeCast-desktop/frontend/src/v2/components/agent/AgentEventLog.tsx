@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../store';
+import { useI18n } from '../../lib/useI18n';
 import type { AgentEventLogEntry } from '../../store/slices/agentSlice';
 
 const LABEL: Record<AgentEventLogEntry['_type'], string> = {
@@ -34,6 +35,7 @@ function fmtTime(ts: number): string {
 }
 
 export function AgentEventLog() {
+  const t = useI18n();
   const log = useAppStore((s) => s.agentEventLog);
   const clear = useAppStore((s) => s.clearAgentEventLog);
   const [open, setOpen] = useState(true);
@@ -88,7 +90,7 @@ export function AgentEventLog() {
               <path d="m4 3 2 3-2 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
-          事件流
+          {t.agentEventLog.title}
           <span style={{ color: 'var(--c-textMute)', fontWeight: 400, marginLeft: 4 }}>
             ({log.length})
           </span>
@@ -96,7 +98,7 @@ export function AgentEventLog() {
         {log.length > 0 && (
           <button
             onClick={clear}
-            title="清空事件流"
+            title={t.agentEventLog.clearTitle}
             style={{
               background: 'transparent',
               border: 'none',
@@ -106,7 +108,7 @@ export function AgentEventLog() {
               padding: '2px 6px',
             }}
           >
-            清空
+            {t.agentEventLog.clear}
           </button>
         )}
       </div>
@@ -124,7 +126,7 @@ export function AgentEventLog() {
           }}
         >
           {log.length === 0 ? (
-            <div style={{ color: 'var(--c-textMute)' }}>暂无事件</div>
+            <div style={{ color: 'var(--c-textMute)' }}>{t.agentEventLog.noEvents}</div>
           ) : (
             log.map((e, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>

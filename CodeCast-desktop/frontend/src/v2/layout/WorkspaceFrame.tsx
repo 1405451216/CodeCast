@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { useI18n } from '../lib/useI18n';
 
 interface Props {
   top: ReactNode;
@@ -24,6 +25,7 @@ interface Props {
  * 拖拽分栏线可调整 Sidebar 宽度，实现三段式左右拉动
  */
 export function WorkspaceFrame({ top, sidebar, chat, rightPanel, bottom, drawer, drawerOpen, sidebarOpen = true, onToggleSidebar }: Props) {
+  const t = useI18n();
   const COLLAPSED_WIDTH = 48;
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     // 从 localStorage 恢复或使用 CSS 变量默认值
@@ -112,7 +114,7 @@ export function WorkspaceFrame({ top, sidebar, chat, rightPanel, bottom, drawer,
       {/* 侧边栏 */}
       <div
         role="navigation"
-        aria-label="主导航"
+        aria-label={t.workspace.mainNav}
         style={{
           gridArea: 'side',
           borderRight: 'none',
@@ -126,8 +128,8 @@ export function WorkspaceFrame({ top, sidebar, chat, rightPanel, bottom, drawer,
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0', gap: 4 }}>
             <button
               onClick={onToggleSidebar}
-              aria-label="展开侧边栏"
-              title="展开侧边栏 (Ctrl+B)"
+              aria-label={t.workspace.expandSidebar}
+              title={t.workspace.expandSidebarTitle}
               style={{
                 width: 32,
                 height: 32,
@@ -139,12 +141,52 @@ export function WorkspaceFrame({ top, sidebar, chat, rightPanel, bottom, drawer,
                 borderRadius: 'var(--r-md)',
                 color: 'var(--c-textMute)',
                 cursor: 'pointer',
+                transition: 'background var(--dur-fast) var(--ease)',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--c-surface-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M10 3l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
+            <div style={{ width: 24, height: 1, background: 'var(--c-border)', margin: '4px 0' }} />
+            {['chat', 'writing', 'translation', 'knowledge'].map((icon) => (
+              <button
+                key={icon}
+                onClick={onToggleSidebar}
+                title={icon === 'chat' ? t.workspace.chat : icon === 'writing' ? t.workspace.writing : icon === 'translation' ? t.workspace.translation : t.workspace.knowledge}
+                style={{
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: 'var(--r-md)',
+                  color: 'var(--c-textMute)',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  transition: 'background var(--dur-fast) var(--ease)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--c-surface-hover)'; e.currentTarget.style.color = 'var(--c-text)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--c-textMute)'; }}
+              >
+                {icon === 'chat' && (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 3.67 2.67 3 3.5 3h9c.83 0 1.5.67 1.5 1.5v6c0 .83-.67 1.5-1.5 1.5H6.5L3.5 14v-2H3.5C2.67 12 2 11.33 2 10.5v-6Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /></svg>
+                )}
+                {icon === 'writing' && (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="m10.5 2.5 3 3-8 8H2.5v-3l8-8Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /></svg>
+                )}
+                {icon === 'translation' && (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4h6M5 4v7M3 11h4M8 4l3.5 7M14 11H8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                )}
+                {icon === 'knowledge' && (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 3h5l2 2h5v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /></svg>
+                )}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -190,7 +232,7 @@ export function WorkspaceFrame({ top, sidebar, chat, rightPanel, bottom, drawer,
       {/* 主内容区 */}
       <div
         role="main"
-        aria-label="主内容"
+        aria-label={t.workspace.mainContent}
         style={{
           gridArea: 'chat',
           position: 'relative',

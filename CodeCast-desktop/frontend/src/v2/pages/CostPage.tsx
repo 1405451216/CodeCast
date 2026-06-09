@@ -15,17 +15,18 @@ import { Button } from '../components/primitives/Button';
 import { TopBar } from '../layout/TopBar';
 import { ConfirmDialog } from '../components/primitives/ConfirmDialog';
 import { Breadcrumb } from '../components/primitives/Breadcrumb';
+import { useI18n } from '../lib/useI18n';
 
-function CostPageFallback({ error }: { error: Error }) {
+function CostPageFallback({ error, t }: { error: Error; t: ReturnType<typeof useI18n> }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--c-bg)' }}>
-      <TopBar onBack={() => window.location.reload()} backLabel="成本" />
+      <TopBar onBack={() => window.location.reload()} backLabel={t.cost.backLabel} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
         <div style={{ textAlign: 'center', color: 'var(--c-textSub)', fontSize: 13 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--c-text)', marginBottom: 8 }}>页面加载出错</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--c-text)', marginBottom: 8 }}>{t.cost.pageError}</div>
           <div style={{ marginBottom: 12 }}>{error.message}</div>
           <button onClick={() => window.location.reload()} style={{ padding: '6px 16px', background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>
-            重新加载
+            {t.cost.reload}
           </button>
         </div>
       </div>
@@ -33,10 +34,10 @@ function CostPageFallback({ error }: { error: Error }) {
   );
 }
 
-class CostErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+class CostErrorBoundary extends React.Component<{ children: React.ReactNode; t: ReturnType<typeof useI18n> }, { error: Error | null }> {
   state = { error: null };
   static getDerivedStateFromError(err: Error) { return { error: err }; }
-  render() { return this.state.error ? <CostPageFallback error={this.state.error} /> : this.props.children; }
+  render() { return this.state.error ? <CostPageFallback error={this.state.error} t={this.props.t} /> : this.props.children; }
 }
 
 const FMT_USD = (n: number) =>
@@ -46,6 +47,7 @@ const FMT_USD = (n: number) =>
 
 export function CostPage() {
   const navigate = useNavigate();
+  const t = useI18n();
   const {
     costSummary,
     budgetConfig,
@@ -122,18 +124,25 @@ export function CostPage() {
     });
   }, [budgetConfig, updateBudget]);
 
+  const timeRangeLabels: Record<string, string> = {
+    today: t.cost.today,
+    week: t.cost.week,
+    month: t.cost.month,
+    all: t.cost.all,
+  };
+
   return (
-    <CostErrorBoundary>
+    <CostErrorBoundary t={t}>
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--c-bg)' }}>
-      <TopBar onBack={() => navigate('/')} backLabel="成本" />
+      <TopBar onBack={() => navigate('/')} backLabel={t.cost.backLabel} />
 
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px 32px', minHeight: 0, overscrollBehavior: 'contain' }}>
         <div style={{ maxWidth: 'var(--page-max-width)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <Breadcrumb items={[{ label: '设置', path: '/settings' }, { label: '成本' }]} />
+          <Breadcrumb items={[{ label: t.cost.settings, path: '/settings' }, { label: t.cost.backLabel }]} />
           {/* Time range filter */}
           <section>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: 'var(--c-textMute)' }}>时间范围:</span>
+              <span style={{ fontSize: 12, color: 'var(--c-textMute)' }}>{t.cost.timeRange}</span>
               {(['today', 'week', 'month', 'all'] as const).map((r) => (
                 <button
                   key={r}
@@ -149,7 +158,7 @@ export function CostPage() {
                     transition: 'all var(--dur-fast) var(--ease)',
                   }}
                 >
-                  {{ today: '今日', week: '本周', month: '本月', all: '全部' }[r]}
+                  {timeRangeLabels[r]}
                 </button>
               ))}
               <div style={{ flex: 1 }} />
@@ -172,22 +181,22 @@ export function CostPage() {
                   borderRadius: 'var(--r-md)', color: 'var(--c-textSub)', cursor: 'pointer',
                 }}
               >
-                导出 CSV
+                {t.cost.exportCsv}
               </button>
             </div>
           </section>
 
           {/* Headline totals */}
           <section>
-            <h2 style={S.h2}>成本概览</h2>
+            <h2 style={S.h2}>{t.cost.overview}</h2>
             <div style={S.card}>
-              <Row label="总成本" value={costSummary ? FMT_USD(costSummary.totalCostUSD) : '—'} mono />
-              <Row label="本会话成本" value={costSummary ? FMT_USD(costSummary.sessionCostUSD) : '—'} mono />
+              <Row label={t.cost.totalCost} value={costSummary ? FMT_USD(costSummary.totalCostUSD) : '—'} mono />
+              <Row label={t.cost.sessionCost} value={costSummary ? FMT_USD(costSummary.sessionCostUSD) : '—'} mono />
               <Row
-                label="预算状态"
+                label={t.cost.budgetStatus}
                 value={
                   costSummary?.budgetExceeded
-                    ? <span style={{ color: 'var(--c-danger)' }}>已超出</span>
+                    ? <span style={{ color: 'var(--c-danger)' }}>{t.cost.budgetExceeded}</span>
                     : budgetConfig
                       ? `≤ ${FMT_USD(budgetConfig.maxCostUSD)}`
                       : '—'
@@ -195,14 +204,14 @@ export function CostPage() {
               />
               {costSummary && costSummary.totalCostUSD > 0 && (
                 <Row
-                  label="月末预估"
+                  label={t.cost.monthEndEstimate}
                   value={(() => {
                     const now = new Date();
                     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
                     const dayOfMonth = now.getDate();
                     const dailyAvg = costSummary.totalCostUSD / Math.max(1, dayOfMonth);
                     const projected = dailyAvg * daysInMonth;
-                    return `~${FMT_USD(projected)} (日均 ${FMT_USD(dailyAvg)})`;
+                    return `~${FMT_USD(projected)} (${t.cost.dailyAvg} ${FMT_USD(dailyAvg)})`;
                   })()}
                   mono
                 />
@@ -210,10 +219,10 @@ export function CostPage() {
             </div>
           </section>
           <section>
-            <h2 style={S.h2}>按模型 token 拆分</h2>
+            <h2 style={S.h2}>{t.cost.byModelToken}</h2>
             <div style={S.card}>
               {modelRows.length === 0 ? (
-                <div style={S.empty}>{costLoading ? '加载中…' : '暂无数据'}</div>
+                <div style={S.empty}>{costLoading ? t.cost.loading : t.cost.noData}</div>
               ) : (
                 <>
                   {modelRows.map((r) => (
@@ -226,7 +235,7 @@ export function CostPage() {
                   ))}
                   {/* Simple bar chart */}
                   <div style={{ padding: '12px 16px', borderTop: '1px solid var(--c-divider)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--c-textMute)', marginBottom: 8 }}>Token 分布</div>
+                    <div style={{ fontSize: 11, color: 'var(--c-textMute)', marginBottom: 8 }}>{t.cost.tokenDistribution}</div>
                     {(() => {
                       const maxTokens = Math.max(...modelRows.map(r => r.tokens));
                       return modelRows.slice(0, 6).map((r) => (
@@ -257,11 +266,11 @@ export function CostPage() {
 
           {/* Budget control */}
           <section>
-            <h2 style={S.h2}>预算控制</h2>
+            <h2 style={S.h2}>{t.cost.budgetControl}</h2>
             <div style={S.card}>
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid var(--c-divider)' }}>
                 <label htmlFor="limit" style={{ flex: 1, fontSize: 13, color: 'var(--c-text)' }}>
-                  预算上限 (USD)
+                  {t.cost.budgetLimit}
                 </label>
                 <input
                   id="limit"
@@ -274,20 +283,20 @@ export function CostPage() {
                   onClick={handleApplyLimit}
                   disabled={costLoading}
                 >
-                  应用
+                  {t.cost.apply}
                 </Button>
               </div>
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid var(--c-divider)' }}>
                 <div style={{ flex: 1, fontSize: 13, color: 'var(--c-text)' }}>
-                  强制执行 {budgetConfig?.enforcementEnabled ? '已开启' : '已关闭'}
+                  {t.cost.enforcement} {budgetConfig?.enforcementEnabled ? t.cost.enforcementOn : t.cost.enforcementOff}
                 </div>
                 <Button variant="secondary" onClick={handleToggleEnforcement}>
-                  {budgetConfig?.enforcementEnabled ? '关闭' : '开启'}
+                  {budgetConfig?.enforcementEnabled ? t.cost.turnOff : t.cost.turnOn}
                 </Button>
               </div>
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid var(--c-divider)' }}>
                 <label style={{ flex: 1, fontSize: 13, color: 'var(--c-text)' }}>
-                  告警阈值 (%)
+                  {t.cost.alertThreshold}
                 </label>
                 <input
                   type="range"
@@ -311,14 +320,14 @@ export function CostPage() {
 
           {/* Reset */}
           <section>
-            <h2 style={S.h2}>重置</h2>
+            <h2 style={S.h2}>{t.cost.resetSection}</h2>
             <div style={S.card}>
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1, fontSize: 12, color: 'var(--c-textSub)' }}>
-                  重置将清空累计成本数据,不可撤销。
+                  {t.cost.resetWarning}
                 </div>
                 <Button variant="danger" onClick={() => setConfirmReset(true)}>
-                  重置成本
+                  {t.cost.resetCost}
                 </Button>
               </div>
             </div>
@@ -328,11 +337,11 @@ export function CostPage() {
     </div>
       <ConfirmDialog
         open={confirmReset}
-        title="确认重置"
-        message="此操作将清除所有费用数据，不可恢复。确定继续吗？"
+        title={t.cost.resetConfirmTitle}
+        message={t.cost.resetConfirmMsg}
         danger
-        confirmLabel="重置"
-        cancelLabel="取消"
+        confirmLabel={t.cost.resetConfirmLabel}
+        cancelLabel={t.cost.cancel}
         onConfirm={handleReset}
         onCancel={() => setConfirmReset(false)}
       />

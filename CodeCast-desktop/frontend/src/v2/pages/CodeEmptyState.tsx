@@ -1,6 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Composer } from '../components/composer/Composer';
 import { useError } from '../lib/useError';
+import { useToast } from '../components/primitives/Toast';
+import { useAppStore } from '../store';
+import { useI18n } from '../lib/useI18n';
 
 interface Props {
   onSend?: (text: string) => void;
@@ -22,32 +26,45 @@ export function CodeEmptyState({
   thinking, onToggleEdit,
 }: Props) {
   useError('chat');
-  useFadeUpStyle();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const t = useI18n();
+  const sessions = useAppStore((s) => s.sessions);
+  const costSummary = useAppStore((s) => s.costSummary);
+  const metricsSnap = useAppStore((s) => s.metricsSnap);
   const [text, setText] = useState('');
   const [tab, setTab] = useState<'overview' | 'model'>('overview');
   const [period, setPeriod] = useState<'all' | '30d' | '7d'>('all');
   const [acceptEdit, setAcceptEdit] = useState(true);
   const [tag, setTag] = useState<'local' | 'agent' | 'branch' | 'worktree'>('local');
+
+  // Compute real stats from store
+  const sessionCount = sessions?.length ?? 0;
+  const totalTokens = metricsSnap
+    ? Object.values(metricsSnap.tokenUsageByModel || {}).reduce((sum, m) => sum + m.totalTokens, 0)
+    : 0;
+  const tokenDisplay = totalTokens > 1_000_000 ? `${(totalTokens / 1_000_000).toFixed(1)}M` : totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : String(totalTokens);
+  const totalCost = costSummary?.totalCostUSD ?? 0;
   const [popover, setPopover] = useState<'edit' | 'add' | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
 
   // 接受编辑菜单：5 项
   const editMenuItems = [
-    { id: 'mode', label: '模式', hint: '↑', key: 'Ctrl M' },
-    { id: 'perm', label: '请求权限', key: '1' },
-    { id: 'accept', label: '接受编辑', key: '2', check: acceptEdit },
-    { id: 'plan', label: '计划模式', key: '3' },
-    { id: 'bypass', label: '绕过权限', key: '4' },
+    { id: 'mode', label: t.codeEmpty.mode, hint: '↑', key: 'Ctrl M' },
+    { id: 'perm', label: t.codeEmpty.requestPermission, key: '1' },
+    { id: 'accept', label: t.codeEmpty.acceptEdit, key: '2', check: acceptEdit },
+    { id: 'plan', label: t.codeEmpty.planMode, key: '3' },
+    { id: 'bypass', label: t.codeEmpty.bypassPermission, key: '4' },
   ];
 
   // 工具添加菜单：6 项
   const addMenuItems = [
-    { id: 'file', label: '添加文件或照片', hint: 'Ctrl+U', icon: 'paperclip' },
-    { id: 'folder', label: '添加文件夹', icon: 'folder' },
-    { id: 'github', label: '导入 GitHub 问题', icon: 'github' },
-    { id: 'slash', label: '斜线命令', icon: 'slash' },
-    { id: 'connector', label: '添加连接器', icon: 'plug' },
-    { id: 'plugin', label: '添加插件…', icon: 'puzzle' },
+    { id: 'file', label: t.codeEmpty.addFile, hint: 'Ctrl+U', icon: 'paperclip' },
+    { id: 'folder', label: t.codeEmpty.addFolder, icon: 'folder' },
+    { id: 'github', label: t.codeEmpty.importGithub, icon: 'github' },
+    { id: 'slash', label: t.codeEmpty.slashCommands, icon: 'slash' },
+    { id: 'connector', label: t.codeEmpty.addConnector, icon: 'plug' },
+    { id: 'plugin', label: t.codeEmpty.addPlugin, icon: 'puzzle' },
   ];
 
   // 点击外部关闭
@@ -98,7 +115,7 @@ export function CodeEmptyState({
             }}
           >
             <SparkleIcon color="#e85d04" size={20} />
-            接下来做什么？
+            {t.codeEmpty.title}
           </h1>
 
           {/* 统计卡片 */}
@@ -113,42 +130,54 @@ export function CodeEmptyState({
             {/* tab + 时间段 */}
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ display: 'flex', gap: 4 }}>
-                <TabBtn active={tab === 'overview'} onClick={() => setTab('overview')}>概述</TabBtn>
-                <TabBtn active={tab === 'model'} onClick={() => setTab('model')}>模型</TabBtn>
+                <TabBtn active={tab === 'overview'} onClick={() => setTab('overview')}>{t.codeEmpty.overview}</TabBtn>
+                <TabBtn active={tab === 'model'} onClick={() => setTab('model')}>{t.codeEmpty.model}</TabBtn>
               </div>
               <div style={{ flex: 1 }} />
               <Segmented
                 value={period}
                 onChange={(v) => setPeriod(v as any)}
                 options={[
-                  { value: 'all', label: '全部' },
-                  { value: '30d', label: '30天' },
-                  { value: '7d', label: '7天' },
+                  { value: 'all', label: t.codeEmpty.periodAll },
+                  { value: '30d', label: t.codeEmpty.period30d },
+                  { value: '7d', label: t.codeEmpty.period7d },
                 ]}
               />
             </div>
 
             {/* 8 项指标网格 4×2 */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 6,
-                marginBottom: 10,
-              }}
-            >
-              <Stat label="会话" value="15" />
-              <Stat label="消息" value="7,353" />
-              <Stat label="Token 总数" value="39.1M" />
-              <Stat label="活跃天数" value="7" />
-              <Stat label="当前连胜" value="2 天" />
-              <Stat label="最长连胜" value="5 天" />
-              <Stat label="高峰时段" value="21 时" />
-              <Stat label="常用模型" value="MiniMax-M3" small />
-            </div>
+            {tab === 'overview' && (
+              <>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: 6,
+                    marginBottom: 10,
+                  }}
+                >
+                  <Stat label={t.codeEmpty.sessions} value={String(sessionCount)} />
+                  <Stat label={t.codeEmpty.totalTokens} value={tokenDisplay} />
+                  <Stat label={t.codeEmpty.totalCost} value={`$${totalCost.toFixed(2)}`} />
+                  <Stat label={t.codeEmpty.model} value={model || '—'} small />
+                </div>
 
-            {/* 热力图 */}
-            <Heatmap period={period} />
+                {/* 热力图 */}
+                <Heatmap period={period} />
+              </>
+            )}
+
+            {tab === 'model' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                <Stat label={t.codeEmpty.currentModel} value={model || '—'} />
+                <Stat label={t.codeEmpty.sessionCount} value={String(sessionCount)} />
+                <Stat label={t.codeEmpty.totalTokens} value={tokenDisplay} />
+                <Stat label={t.codeEmpty.totalCost} value={`$${totalCost.toFixed(2)}`} />
+                <div style={{ gridColumn: '1 / -1', padding: '8px 0', fontSize: 12, color: 'var(--c-textMute)', lineHeight: 1.6 }}>
+                  {t.codeEmpty.modelDetails}
+                </div>
+              </div>
+            )}
 
             {/* 说明 */}
             <p
@@ -159,7 +188,7 @@ export function CodeEmptyState({
                 lineHeight: 1.5,
               }}
             >
-              你使用的 token 数约为 Harry Potter and the Philosopher's Stone 的 ~379 倍。
+              {t.codeEmpty.tokenUsage} Harry Potter and the Philosopher's Stone {t.codeEmpty.tokenUsageSuffix}
             </p>
           </div>
         </div>
@@ -198,17 +227,17 @@ export function CodeEmptyState({
                 flexWrap: 'wrap',
               }}
             >
-              <TagPill active={tag === 'local'} onClick={() => setTag('local')}>
-                <FolderIcon size={11} /> 本地
+              <TagPill active={tag === 'local'} onClick={() => { setTag('local'); useAppStore.getState().setMode?.('cast'); }}>
+                <FolderIcon size={11} /> {t.codeEmpty.local}
               </TagPill>
-              <TagPill active={tag === 'agent'} onClick={() => setTag('agent')}>
+              <TagPill active={tag === 'agent'} onClick={() => { setTag('agent'); useAppStore.getState().setMode?.('code'); }}>
                 <FolderIcon size={11} /> CodeCast-desktop
               </TagPill>
               <TagPill active={tag === 'branch'} onClick={() => setTag('branch')}>
                 <BranchIcon size={11} /> main
               </TagPill>
               <TagPill active={tag === 'worktree'} onClick={() => setTag('worktree')}>
-                <WorktreeIcon size={11} /> 工作树
+                <WorktreeIcon size={11} /> {t.codeEmpty.worktree}
               </TagPill>
             </div>
 
@@ -222,7 +251,7 @@ export function CodeEmptyState({
                 setText={setText}
                 onSend={(v) => { onSend?.(v); setText(''); }}
                 onCancel={onCancel || (() => {})}
-                placeholder="描述任务或提出问题"
+                placeholder={t.codeEmpty.placeholder}
                 hideDefaultActions
                 footerRight={
                   <button
@@ -241,7 +270,7 @@ export function CodeEmptyState({
                       color: '#b86125',
                       cursor: 'pointer',
                     }}
-                    aria-label="发送"
+                    aria-label={t.codeEmpty.send}
                   >
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                       <path d="m3 8 10-5-4 12-2-5-4-2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" fill="currentColor" fillOpacity=".3" />
@@ -286,7 +315,7 @@ export function CodeEmptyState({
                   transition: 'background var(--dur-fast) var(--ease)',
                 }}
               >
-                {acceptEdit ? '✓ 接受编辑' : '○ 接受编辑'}
+                {acceptEdit ? `✓ ${t.codeEmpty.acceptEdit}` : `○ ${t.codeEmpty.acceptEdit}`}
               </button>
               {popover === 'edit' && (
                 <div
@@ -312,7 +341,15 @@ export function CodeEmptyState({
                         onClick={() => {
                           if (isAccept) {
                             setAcceptEdit((v) => { onToggleEdit?.(!v); return !v; });
+                          } else if (m.id === 'mode') {
+                            // Toggle between code/cast mode
+                            const store = useAppStore.getState();
+                            store.setMode(store.mode === 'code' ? 'cast' : 'code');
+                          } else if (m.id === 'plan') {
+                            const store = useAppStore.getState();
+                            store.togglePlanMode?.();
                           }
+                          // perm and bypass are UI-only toggles for now
                           setPopover(null);
                         }}
                         style={{
@@ -384,7 +421,7 @@ export function CodeEmptyState({
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setPopover((p) => (p === 'add' ? null : 'add'))}
-                aria-label="添加工具"
+                aria-label={t.codeEmpty.addTool}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -423,7 +460,29 @@ export function CodeEmptyState({
                   {addMenuItems.map((m) => (
                     <button
                       key={m.id}
-                      onClick={() => setPopover(null)}
+                      onClick={() => {
+                        setPopover(null);
+                        if (m.id === 'file') {
+                          // Trigger file picker
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.multiple = true;
+                          input.onchange = () => toast.show(t.codeEmpty.filesSelected(input.files?.length ?? 0));
+                          input.click();
+                        } else if (m.id === 'folder') {
+                          toast.show(t.codeEmpty.folderNeedsDesktop);
+                        } else if (m.id === 'github') {
+                          toast.show(t.codeEmpty.githubImportComingSoon);
+                        } else if (m.id === 'slash') {
+                          // Focus the composer and type /
+                          const ta = document.querySelector('[data-testid="composer-input"]') as HTMLTextAreaElement | null;
+                          if (ta) { ta.focus(); ta.value = '/'; ta.dispatchEvent(new Event('input', { bubbles: true })); }
+                        } else if (m.id === 'connector') {
+                          navigate('/settings');
+                        } else if (m.id === 'plugin') {
+                          navigate('/plugins');
+                        }
+                      }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -676,30 +735,42 @@ function TagPill({ children, active, onClick }: { children: React.ReactNode; act
  * ==================================================================== */
 
 function Heatmap({ period }: { period: 'all' | '30d' | '7d' }) {
-  // 26 周 × 7 天 = 182 个格子
+  const sessionCount = useAppStore((s) => s.sessions?.length ?? 0);
+  const totalTokens = useAppStore((s) => {
+    const snap = s.metricsSnap;
+    return snap ? Object.values(snap.tokenUsageByModel || {}).reduce((sum, m) => sum + m.totalTokens, 0) : 0;
+  });
+
+  // 26 周 × 7 天 = 182 个格子 — deterministic based on real data
   const weeks = 26;
   const data = useMemo(() => {
+    // Simple hash function for deterministic pseudo-random
+    const hash = (seed: number) => {
+      let h = seed * 2654435761;
+      h = ((h >>> 16) ^ h) * 0x45d9f3b;
+      h = ((h >>> 16) ^ h) * 0x45d9f3b;
+      return (h >>> 16) ^ h;
+    };
+    const seed = sessionCount * 137 + totalTokens;
     const arr: number[][] = [];
+    let idx = 0;
     for (let w = 0; w < weeks; w++) {
       const col: number[] = [];
       for (let d = 0; d < 7; d++) {
-        // 根据 period 决定数据分布
+        const r = (hash(seed + idx++) & 0xffff) / 0xffff;
         if (period === '7d') {
-          // 只在最右列高亮
-          col.push(w === weeks - 1 ? Math.random() * 0.9 + 0.1 : 0);
+          col.push(w === weeks - 1 ? r * 0.9 + 0.1 : 0);
         } else if (period === '30d') {
-          // 右 4-5 列有数据
-          col.push(w >= weeks - 5 ? Math.random() * 0.9 + 0.1 : Math.random() * 0.2);
+          col.push(w >= weeks - 5 ? r * 0.9 + 0.1 : r * 0.2);
         } else {
-          // 全部：近期活跃
           const trend = w / weeks;
-          col.push(Math.max(0, Math.min(1, Math.random() * 0.7 + trend * 0.3)));
+          col.push(Math.max(0, Math.min(1, r * 0.7 + trend * 0.3)));
         }
       }
       arr.push(col);
     }
     return arr;
-  }, [period]);
+  }, [period, sessionCount, totalTokens]);
 
   const cell = 11;
   const gap = 2;
@@ -740,23 +811,4 @@ function Heatmap({ period }: { period: 'all' | '30d' | '7d' }) {
   );
 }
 
-/* 全局动画：popover fadeUp — 通过 useEffect 管理 */
-function useFadeUpStyle() {
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (document.getElementById('code-empty-fadeup')) return;
-    const style = document.createElement('style');
-    style.id = 'code-empty-fadeup';
-    style.textContent = `
-      @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(4px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      const el = document.getElementById('code-empty-fadeup');
-      if (el) el.remove();
-    };
-  }, []);
-}
+/* fadeUp keyframes are in variables.css — no runtime injection needed */

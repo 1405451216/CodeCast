@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, type KeyboardEvent } from 'react';
 import { useAppStore } from '../../store';
+import { useI18n } from '../../lib/useI18n';
 import { Button } from '../primitives/Button';
 import { SlashCommandMenu } from './SlashCommandMenu';
 import { AttachmentList, type Attachment } from './AttachmentList';
@@ -26,6 +27,10 @@ export interface ComposerProps {
   hideDefaultActions?: boolean;
   /** 隐藏默认模型选择器+发送按钮 */
   hideDefaultFooter?: boolean;
+  /** 自定义 textarea 样式（覆盖默认） */
+  textareaStyle?: React.CSSProperties;
+  /** 自定义外层容器样式 */
+  containerStyle?: React.CSSProperties;
 }
 
 const I = {
@@ -71,9 +76,11 @@ export function Composer({
   sessionId, model, thinking, onSend, onCancel, isStreaming,
   attachments = [], onRemoveAttachment,
   text: controlledText, setText: controlledSetText,
-  placeholder = '发消息 · ⌘⇧P 切换 Plan 模式',
+  placeholder,
   footerLeft, footerRight, hideDefaultActions, hideDefaultFooter,
+  textareaStyle, containerStyle,
 }: ComposerProps) {
+  const t = useI18n();
   const [localText, setLocalText] = useLocalOrControlled(controlledText, controlledSetText);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -105,7 +112,13 @@ export function Composer({
   };
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    // Ctrl+Enter / Cmd+Enter also sends
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      send();
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       send();
     }
@@ -120,6 +133,7 @@ export function Composer({
         borderRadius: 'var(--r-input)',
         boxShadow: 'var(--shadow-md)',
         transition: 'border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease)',
+        ...containerStyle,
       }}
       onFocus={(e) => {
         (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--c-borderStrong)';
@@ -136,11 +150,12 @@ export function Composer({
       <AttachmentList items={attachments} onRemove={onRemoveAttachment || (() => {})} />
       <textarea
         ref={taRef}
-        aria-label="消息输入"
+        aria-label={t.composer.inputLabel}
+        data-testid="composer-input"
         value={localText}
         onChange={(e) => (controlledSetText ?? setLocalText)(e.target.value)}
         onKeyDown={onKey}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t.composer.placeholder}
         rows={1}
         style={{
           display: 'block',
@@ -154,6 +169,7 @@ export function Composer({
           lineHeight: 1.55,
           color: 'var(--c-text)',
           fontFamily: 'var(--font-sans)',
+          ...textareaStyle,
         }}
       />
       {/* 左侧 +/- 按钮组 / 自定义内容 */}
@@ -170,10 +186,10 @@ export function Composer({
         {footerLeft ?? (
           !hideDefaultActions && (
             <>
-              <RoundIconBtn aria-label="添加附件" title="添加附件">
+              <RoundIconBtn aria-label={t.composer.addAttachment} title={t.composer.addAttachment}>
                 {I.plus}
               </RoundIconBtn>
-              <RoundIconBtn aria-label="工具" title="工具">
+              <RoundIconBtn aria-label={t.composer.tools} title={t.composer.tools}>
                 {I.minus}
               </RoundIconBtn>
             </>
@@ -198,7 +214,7 @@ export function Composer({
               <Button
                 variant="primary"
                 onClick={send}
-                aria-label="发送"
+                aria-label={t.composer.sendLabel}
                 style={{
                   width: 32,
                   height: 32,
@@ -215,7 +231,7 @@ export function Composer({
                 <Button
                   variant="ghost"
                   onClick={onCancel}
-                  aria-label="取消"
+                  aria-label={t.composer.cancelLabel}
                   style={{
                     width: 32,
                     height: 32,

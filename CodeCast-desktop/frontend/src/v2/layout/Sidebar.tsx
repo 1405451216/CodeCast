@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import { useAppStore, type AppMode } from '../store';
 import { useError } from '../lib/useError';
+import { useI18n } from '../lib/useI18n';
 import { ConfirmDialog } from '../components/primitives/ConfirmDialog';
 
 interface NavItem {
@@ -129,6 +131,7 @@ interface Props {
 
 export function Sidebar({ activeId, onSelect }: Props) {
   useError('session'); useError('project');
+  const t = useI18n();
   const navigate = useNavigate();
   const mode = useAppStore((s) => s.mode);
   const setMode = useAppStore((s) => s.setMode);
@@ -160,7 +163,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
 
   const handleRenameSession = useCallback((id: string, currentName: string) => {
     setCtxMenu(null);
-    const newName = window.prompt('重命名会话:', currentName);
+    const newName = window.prompt(t.sidebar.rename + ':', currentName);
     if (newName && newName.trim() && newName !== currentName) {
       renameSession(id, newName.trim());
     }
@@ -168,7 +171,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
 
   const handleDeleteSession = useCallback((id: string, name: string) => {
     setCtxMenu(null);
-    if (window.confirm(`确定要删除会话「${name}」吗？此操作不可撤销。`)) {
+    if (window.confirm(t.sidebar.deleteConfirm(name))) {
       deleteSession(id);
       if (id === useAppStore.getState().currentSessionId) {
         navigate('/');
@@ -198,7 +201,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
 
   const doSessionSwitch = useCallback((id: string) => {
     // Check for unsent text in composer
-    const ta = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息输入"]');
+    const ta = document.querySelector<HTMLTextAreaElement>('textarea[data-testid="composer-input"]');
     if (ta && ta.value.trim()) {
       // Show confirm dialog
       setPendingSwitch(id);
@@ -216,7 +219,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
   const confirmSwitchSave = useCallback(() => {
     if (!pendingSwitch) return;
     // Save draft for current session
-    const ta = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息输入"]');
+    const ta = document.querySelector<HTMLTextAreaElement>('textarea[data-testid="composer-input"]');
     const currentId = useAppStore.getState().currentSessionId;
     if (ta && ta.value.trim() && currentId) {
       try { sessionStorage.setItem(`codecast-composer-draft:${currentId}`, ta.value); } catch { /* ignore */ }
@@ -275,11 +278,11 @@ export function Sidebar({ activeId, onSelect }: Props) {
           {
             id: 'new',
             label: '',
-            items: [{ id: 'new', label: '新建任务', icon: I.plus, onClick: handleCreateSession }],
+            items: [{ id: 'new', label: t.sidebar.newTask, icon: I.plus, onClick: handleCreateSession }],
           },
           {
             id: 'projects',
-            label: '项目',
+            label: t.sidebar.projects,
             collapsible: true,
             defaultOpen: true,
             items: projects.map((p) => ({
@@ -291,36 +294,36 @@ export function Sidebar({ activeId, onSelect }: Props) {
           },
           {
             id: 'scheduled',
-            label: '计划任务',
+            label: t.sidebar.scheduled,
             collapsible: true,
             defaultOpen: true,
             items: [],
           },
           {
             id: 'artifacts',
-            label: '实时 Artifacts',
+            label: t.sidebar.artifacts,
             collapsible: true,
             items: [],
           },
           {
             id: 'custom',
-            label: '自定义',
+            label: t.sidebar.custom,
             collapsible: true,
             defaultOpen: true,
             items: [
-              { id: 'c-writing', label: '写作助手', icon: I.pen, onClick: () => navigate('/cast/writing') },
-              { id: 'c-translation', label: '中英互译', icon: I.globe, onClick: () => navigate('/cast/translation') },
-              { id: 'c-knowledge', label: '知识库', icon: I.book, onClick: () => navigate('/cast/knowledge') },
-              { id: 'c-schedule', label: '日程', icon: I.calendar, onClick: () => navigate('/cast/schedule') },
-              { id: 'c-email', label: '邮件草稿', icon: I.envelope, onClick: () => navigate('/cast/email') },
-              { id: 'c-tools', label: '工具箱', icon: I.wrench, onClick: () => navigate('/cast/tools') },
-              { id: 'c-cost', label: '成本', icon: I.cost, onClick: () => navigate('/cost') },
-              { id: 'c-plugins', label: '插件', icon: I.puzzle, onClick: () => navigate('/plugins') },
+              { id: 'c-writing', label: t.cast.writing, icon: I.pen, onClick: () => navigate('/cast/writing') },
+              { id: 'c-translation', label: t.cast.translation, icon: I.globe, onClick: () => navigate('/cast/translation') },
+              { id: 'c-knowledge', label: t.cast.knowledge, icon: I.book, onClick: () => navigate('/cast/knowledge') },
+              { id: 'c-schedule', label: t.cast.schedule, icon: I.calendar, onClick: () => navigate('/cast/schedule') },
+              { id: 'c-email', label: t.sidebar.emailDraft, icon: I.envelope, onClick: () => navigate('/cast/email') },
+              { id: 'c-tools', label: t.sidebar.toolbox, icon: I.wrench, onClick: () => navigate('/cast/tools') },
+              { id: 'c-cost', label: 'Cost', icon: I.cost, onClick: () => navigate('/cost') },
+              { id: 'c-plugins', label: 'Plugins', icon: I.puzzle, onClick: () => navigate('/plugins') },
             ],
           },
           {
             id: 'recent',
-            label: '最近使用',
+            label: t.sidebar.recent,
             collapsible: true,
             defaultOpen: true,
             items: [
@@ -334,7 +337,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
               })),
               ...(hiddenCount > 0 && !showAllSessions ? [{
                 id: 'show-all',
-                label: `查看全部 ${allMatchingSessions.length} 个会话`,
+                label: t.sidebar.showAll(allMatchingSessions.length),
                 icon: I.recent,
                 onClick: () => setShowAllSessions(true),
               }] : []),
@@ -345,35 +348,35 @@ export function Sidebar({ activeId, onSelect }: Props) {
           {
             id: 'new',
             label: '',
-            items: [{ id: 'new-session', label: '新会话', icon: I.plus, onClick: handleCreateSession }],
+            items: [{ id: 'new-session', label: t.sidebar.newSession, icon: I.plus, onClick: handleCreateSession }],
           },
           {
             id: 'custom',
-            label: '自定义',
+            label: t.sidebar.custom,
             collapsible: true,
             defaultOpen: true,
             items: [
               {
-                id: 'c-review', label: '代码审查', icon: I.custom,
+                id: 'c-review', label: 'Code Review', icon: I.custom,
                 onClick: () => { navigate('/cast/tools?mode=review'); },
               },
               {
-                id: 'c-test', label: '生成测试', icon: I.custom,
+                id: 'c-test', label: 'Generate Tests', icon: I.custom,
                 onClick: () => { navigate('/cast/tools?mode=test'); },
               },
               {
-                id: 'c-refactor', label: '智能重构', icon: I.custom,
+                id: 'c-refactor', label: 'Refactor', icon: I.custom,
                 onClick: () => { navigate('/cast/tools?mode=refactor'); },
               },
               {
-                id: 'c-commit', label: '提交信息', icon: I.custom,
+                id: 'c-commit', label: 'Commit Message', icon: I.custom,
                 onClick: () => { navigate('/cast/tools?mode=commit'); },
               },
             ],
           },
           {
             id: 'recent',
-            label: '最近使用',
+            label: t.sidebar.recent,
             collapsible: true,
             defaultOpen: true,
             items: [
@@ -387,7 +390,7 @@ export function Sidebar({ activeId, onSelect }: Props) {
               })),
               ...(hiddenCount > 0 && !showAllSessions ? [{
                 id: 'show-all',
-                label: `查看全部 ${allMatchingSessions.length} 个会话`,
+                label: t.sidebar.showAll(allMatchingSessions.length),
                 icon: I.recent,
                 onClick: () => setShowAllSessions(true),
               }] : []),
@@ -438,14 +441,14 @@ export function Sidebar({ activeId, onSelect }: Props) {
           }}
         >
           <button onClick={() => handleRenameSession(ctxMenu.id, ctxMenu.name)} style={ctxMenuItemStyle}>
-            重命名
+            {t.sidebar.rename}
           </button>
           <button onClick={() => handleExportSession(ctxMenu.id, ctxMenu.name)} style={ctxMenuItemStyle}>
-            导出
+            {t.sidebar.exportSession}
           </button>
           <div style={{ height: 1, background: 'var(--c-border)', margin: '4px 0' }} />
           <button onClick={() => handleDeleteSession(ctxMenu.id, ctxMenu.name)} style={{ ...ctxMenuItemStyle, color: 'var(--c-danger)' }}>
-            删除
+            {t.sidebar.delete}
           </button>
         </div>
       )}
@@ -453,10 +456,10 @@ export function Sidebar({ activeId, onSelect }: Props) {
       {pendingSwitch && (
         <ConfirmDialog
           open
-          title="未发送的消息"
-          message="当前有未发送的消息，是否保存为草稿？"
-          confirmLabel="保存草稿"
-          cancelLabel="放弃"
+          title={t.sidebar.unsentMessage}
+          message={t.sidebar.unsentMessageConfirm}
+          confirmLabel={t.sidebar.saveDraft}
+          cancelLabel={t.sidebar.discard}
           onConfirm={confirmSwitchSave}
           onCancel={confirmSwitchDiscard}
         />
@@ -628,7 +631,44 @@ function SidebarGroup({
           {group.label}
         </button>
       )}
-      {open && (
+      {open && group.items.length > 20 && (
+        <Virtuoso
+          style={{ height: Math.min(group.items.length * 36, 300) }}
+          totalCount={group.items.length}
+          itemContent={(idx) => {
+            const item = group.items[idx];
+            return (
+              <button
+                onClick={() => onItem(item)}
+                onContextMenu={item.onContext}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  padding: '6px 12px 6px 22px',
+                  background: item.active ? 'var(--c-accentSoft)' : 'transparent',
+                  color: item.active ? 'var(--c-accentText)' : 'var(--c-text)',
+                  border: 'none',
+                  fontSize: 13,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--r-sm)',
+                  fontFamily: 'inherit',
+                  transition: 'background var(--dur-fast) var(--ease)',
+                }}
+                onMouseEnter={(e) => { if (!item.active) e.currentTarget.style.background = 'var(--c-surface-hover)'; }}
+                onMouseLeave={(e) => { if (!item.active) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span style={{ display: 'inline-flex', color: item.active ? 'var(--c-accent)' : 'var(--c-textMute)', flexShrink: 0 }}>{item.icon}</span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                {item.badge && <span style={{ fontSize: 10, color: 'var(--c-accent)', fontWeight: 600 }}>{item.badge}</span>}
+              </button>
+            );
+          }}
+        />
+      )}
+      {open && group.items.length <= 20 && (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {group.items.map((item) => (
             <li key={item.id}>

@@ -4,6 +4,7 @@ import { useFirstTool } from '../lib/useFirstTool';
 import { copyToClipboard } from '../lib/clipboard';
 import { useDraft } from '../lib/useDraft';
 import { useResultHistory } from '../lib/useResultHistory';
+import { useI18n } from '../lib/useI18n';
 
 /* ====================================================================
  *  Types
@@ -23,6 +24,7 @@ interface Episode {
  * ==================================================================== */
 
 export function CastKnotePage() {
+  const t = useI18n();
   const knowledge = useFirstTool('knowledge');
   const {
     invokeCastTool,
@@ -37,6 +39,17 @@ export function CastKnotePage() {
 
   const [query, setQuery] = useDraft('knote:query', '');
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
+  const [inputHistory, setInputHistory] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('codecast-input-history:knote') || '[]'); } catch { return []; }
+  });
+  const pushInputHistory = useCallback((val: string) => {
+    if (!val.trim()) return;
+    setInputHistory(prev => {
+      const next = [val, ...prev.filter(v => v !== val)].slice(0, 10);
+      try { localStorage.setItem('codecast-input-history:knote', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   const resultHistory = useResultHistory<string>(5);
   const [retrieveResultLocal, setRetrieveResultLocal] = useState<string | null>(null);
   const retrieveResult = resultHistory.current ?? retrieveResultLocal;
@@ -71,8 +84,9 @@ export function CastKnotePage() {
   /* ---------- Handlers ---------- */
 
   const handleSearch = useCallback(() => {
+    pushInputHistory(query);
     searchMemory(query);
-  }, [query, searchMemory]);
+  }, [query, searchMemory, pushInputHistory]);
 
   const handleRetrieve = useCallback(async () => {
     if (!knowledge.tool) return;
@@ -145,7 +159,7 @@ export function CastKnotePage() {
           }}
         >
           <span style={{ fontSize: 18, opacity: 0.7 }}>&#x1F4DA;</span>
-          知识库
+          {t.knote.title}
         </h2>
 
         {/* Search bar */}
@@ -180,7 +194,7 @@ export function CastKnotePage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="搜索知识库条目…  Enter 搜索 / Escape 清除"
+              placeholder={t.knote.searchPlaceholder}
               style={{
                 width: '100%',
                 padding: '9px 12px 9px 32px',
@@ -221,7 +235,7 @@ export function CastKnotePage() {
               e.currentTarget.style.borderColor = 'var(--c-border)';
             }}
           >
-            搜索
+            {t.knote.search}
           </button>
           <button
             onClick={handleRetrieve}
@@ -241,7 +255,7 @@ export function CastKnotePage() {
               transition: 'all var(--dur-fast) var(--ease)',
             }}
           >
-            {localInvoking ? '检索中…' : '检索'}
+            {localInvoking ? t.knote.retrieving : t.knote.retrieve}
           </button>
           <button
             onClick={() => setShowNewEntry(!showNewEntry)}
@@ -258,7 +272,7 @@ export function CastKnotePage() {
               whiteSpace: 'nowrap',
             }}
           >
-            + 新建
+            {t.knote.newEntry}
           </button>
         </div>
 
@@ -268,13 +282,13 @@ export function CastKnotePage() {
             <input
               value={newEntryTitle}
               onChange={(e) => setNewEntryTitle(e.target.value)}
-              placeholder="条目标题"
+              placeholder={t.knote.entryTitle}
               style={{ width: '100%', padding: '6px 10px', marginBottom: 8, border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', fontSize: 13, background: 'var(--c-bg)', color: 'var(--c-text)', outline: 'none' }}
             />
             <textarea
               value={newEntryContent}
               onChange={(e) => setNewEntryContent(e.target.value)}
-              placeholder="条目内容…"
+              placeholder={t.knote.entryContent}
               rows={4}
               style={{ width: '100%', padding: '6px 10px', marginBottom: 8, border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', fontSize: 13, background: 'var(--c-bg)', color: 'var(--c-text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
             />
@@ -292,13 +306,13 @@ export function CastKnotePage() {
                 }}
                 style={{ padding: '6px 14px', background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer' }}
               >
-                保存
+                {t.knote.save}
               </button>
               <button
                 onClick={() => { setShowNewEntry(false); setNewEntryTitle(''); setNewEntryContent(''); }}
                 style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer', color: 'var(--c-textMute)' }}
               >
-                取消
+                {t.knote.cancel}
               </button>
             </div>
           </div>
@@ -317,7 +331,7 @@ export function CastKnotePage() {
             }}
           >
             <span>
-              搜索 &ldquo;{searchQuery}&rdquo; — 匹配 {recallResults.length} / {episodes.length} 条
+              搜索 &ldquo;{searchQuery}&rdquo; — {t.knote.searchResults(recallResults.length, episodes.length)}
             </span>
             <button
               onClick={() => { setQuery(''); searchMemory(''); }}
@@ -331,7 +345,7 @@ export function CastKnotePage() {
                 cursor: 'pointer',
               }}
             >
-              清除
+              {t.knote.clear}
             </button>
           </div>
         )}
@@ -339,7 +353,7 @@ export function CastKnotePage() {
         {/* Available knowledge tools (small indicator) */}
         {knowledge.tools.length > 0 && (
           <div style={{ marginBottom: 12, fontSize: 11, color: 'var(--c-textMute)' }}>
-            可用工具: {knowledge.tools.map((t) => t.name).join(', ')}
+            {t.knote.availableTools}: {knowledge.tools.map((tool) => tool.name).join(', ')}
           </div>
         )}
       </div>
@@ -349,7 +363,7 @@ export function CastKnotePage() {
         <div style={{ maxWidth: 'var(--page-max-width)', margin: '0 auto' }}>
 
           {/* Loading state */}
-          {(memoryLoading || knowledge.loading) && displayItems.length === 0 && (
+          {(localInvoking || knowledge.loading) && displayItems.length === 0 && (
             <div
               style={{
                 display: 'flex',
@@ -372,12 +386,12 @@ export function CastKnotePage() {
                   marginRight: 8,
                 }}
               />
-              加载中…
+              {t.knote.loading}
             </div>
           )}
 
           {/* Empty state */}
-          {!memoryLoading && !knowledge.loading && displayItems.length === 0 && (
+          {!localInvoking && !knowledge.loading && displayItems.length === 0 && (
             <div
               style={{
                 display: 'flex',
@@ -400,9 +414,9 @@ export function CastKnotePage() {
                 <rect x="6" y="4" width="28" height="32" rx="3" stroke="currentColor" strokeWidth="1.6" />
                 <path d="M12 12h16M12 18h12M12 24h14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
               </svg>
-              <span>暂无知识库条目</span>
+              <span>{t.knote.noEntries}</span>
               <span style={{ fontSize: 12, marginTop: 4 }}>
-                {searchQuery ? '尝试不同的搜索关键词' : '知识库为空，请先添加条目'}
+                {searchQuery ? t.knote.noEntriesSearchHint : t.knote.noEntriesHint}
               </span>
             </div>
           )}
@@ -523,7 +537,7 @@ export function CastKnotePage() {
                   cursor: 'pointer',
                 }}
               >
-                加载更多（{displayItems.length - pageSize} 条）
+                {t.knote.loadMore(displayItems.length - pageSize)}
               </button>
             </div>
           )}
@@ -571,7 +585,7 @@ export function CastKnotePage() {
                       cursor: 'pointer',
                     }}
                   >
-                    {copied ? '已复制' : '复制'}
+                    {copied ? t.knote.copied : t.knote.copy}
                   </button>
                   <button
                     onClick={() => {
@@ -594,7 +608,7 @@ export function CastKnotePage() {
                       cursor: 'pointer',
                     }}
                   >
-                    下载
+                    {t.knote.download}
                   </button>
                   <button
                     onClick={() => setSelectedEpisode(null)}
@@ -608,7 +622,7 @@ export function CastKnotePage() {
                       cursor: 'pointer',
                     }}
                   >
-                    关闭
+                    {t.knote.close}
                   </button>
                 </div>
               </div>
@@ -647,7 +661,7 @@ export function CastKnotePage() {
                 {selectedEpisode.content ||
                   selectedEpisode.text ||
                   selectedEpisode.summary ||
-                  '无详细内容'}
+                  t.knote.noContent}
               </div>
 
               {/* Raw fields (for any extra fields on the episode) */}
@@ -667,7 +681,7 @@ export function CastKnotePage() {
                       userSelect: 'none',
                     }}
                   >
-                    原始数据
+                    {t.knote.rawData}
                   </summary>
                   <pre
                     style={{
@@ -717,7 +731,7 @@ export function CastKnotePage() {
                     color: retrieveError ? 'var(--c-danger, #dc2626)' : 'var(--c-text)',
                   }}
                 >
-                  {retrieveError ? '检索失败' : '检索结果'}
+                  {retrieveError ? t.knote.retrieveFailed : t.knote.retrieveResult}
                 </span>
                 <button
                   onClick={async () => {
@@ -733,7 +747,7 @@ export function CastKnotePage() {
                     cursor: 'pointer',
                   }}
                 >
-                  复制
+                  {t.knote.copy}
                 </button>
                 <button
                   onClick={() => { setRetrieveResult(null); setRetrieveError(null); }}
@@ -747,7 +761,7 @@ export function CastKnotePage() {
                     cursor: 'pointer',
                   }}
                 >
-                  关闭
+                  {t.knote.close}
                 </button>
               </div>
               <pre

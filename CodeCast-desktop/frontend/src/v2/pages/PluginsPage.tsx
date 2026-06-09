@@ -11,17 +11,18 @@ import { TopBar } from '../layout/TopBar';
 import { Files } from '../wails/adapter';
 import { ConfirmDialog } from '../components/primitives/ConfirmDialog';
 import { Breadcrumb } from '../components/primitives/Breadcrumb';
+import { useI18n } from '../lib/useI18n';
 
-function PluginPageFallback({ error }: { error: Error }) {
+function PluginPageFallback({ error, t }: { error: Error; t: ReturnType<typeof useI18n> }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--c-bg)' }}>
-      <TopBar onBack={() => window.location.reload()} backLabel="插件" />
+      <TopBar onBack={() => window.location.reload()} backLabel={t.plugins.backLabel} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
         <div style={{ textAlign: 'center', color: 'var(--c-textSub)', fontSize: 13 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--c-text)', marginBottom: 8 }}>页面加载出错</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--c-text)', marginBottom: 8 }}>{t.plugins.pageError}</div>
           <div style={{ marginBottom: 12 }}>{error.message}</div>
           <button onClick={() => window.location.reload()} style={{ padding: '6px 16px', background: 'var(--c-accent)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>
-            重新加载
+            {t.plugins.reload}
           </button>
         </div>
       </div>
@@ -29,14 +30,15 @@ function PluginPageFallback({ error }: { error: Error }) {
   );
 }
 
-class PluginErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+class PluginErrorBoundary extends React.Component<{ children: React.ReactNode; t: ReturnType<typeof useI18n> }, { error: Error | null }> {
   state = { error: null };
   static getDerivedStateFromError(err: Error) { return { error: err }; }
-  render() { return this.state.error ? <PluginPageFallback error={this.state.error} /> : this.props.children; }
+  render() { return this.state.error ? <PluginPageFallback error={this.state.error} t={this.props.t} /> : this.props.children; }
 }
 
 export function PluginsPage() {
   const navigate = useNavigate();
+  const t = useI18n();
   const {
     plugins,
     pluginStatus,
@@ -80,12 +82,12 @@ export function PluginsPage() {
     try {
       await loadPlugin(path.trim());
       setPath('');
-      setSuccessMsg('插件加载成功');
+      setSuccessMsg(t.plugins.loadSuccess);
       setTimeout(() => setSuccessMsg(null), 2500);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
-  }, [path, loadPlugin]);
+  }, [path, loadPlugin, t.plugins.loadSuccess]);
 
   const handleUnload = useCallback(async (id: string) => {
     setConfirmUnload(id);
@@ -97,40 +99,40 @@ export function PluginsPage() {
     setSuccessMsg(null);
     try {
       await unloadPlugin(confirmUnload);
-      setSuccessMsg('插件已卸载');
+      setSuccessMsg(t.plugins.unloadSuccess);
       setTimeout(() => setSuccessMsg(null), 2500);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     } finally {
       setConfirmUnload(null);
     }
-  }, [confirmUnload, unloadPlugin]);
+  }, [confirmUnload, unloadPlugin, t.plugins.unloadSuccess]);
 
   return (
-    <PluginErrorBoundary>
+    <PluginErrorBoundary t={t}>
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--c-bg)' }}>
-      <TopBar onBack={() => navigate('/')} backLabel="插件" />
+      <TopBar onBack={() => navigate('/')} backLabel={t.plugins.backLabel} />
 
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px 32px', minHeight: 0, overscrollBehavior: 'contain' }}>
         <div style={{ maxWidth: 'var(--page-max-width)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <Breadcrumb items={[{ label: '设置', path: '/settings' }, { label: '插件' }]} />
+          <Breadcrumb items={[{ label: t.plugins.settings, path: '/settings' }, { label: t.plugins.backLabel }]} />
 
           {/* Status section */}
           <section>
-            <h2 style={S.h2}>运行时状态</h2>
+            <h2 style={S.h2}>{t.plugins.runtimeStatus}</h2>
             <div style={S.card}>
-              <Row label="已加载插件" value={String(pluginStatus?.loadedPlugins ?? plugins.length)} />
-              <Row label="插件总量" value={String(plugins.length)} mono />
+              <Row label={t.plugins.loadedCount} value={String(pluginStatus?.loadedPlugins ?? plugins.length)} />
+              <Row label={t.plugins.totalCount} value={String(plugins.length)} mono />
             </div>
           </section>
 
           {/* Load new plugin */}
           <section>
-            <h2 style={S.h2}>加载新插件</h2>
+            <h2 style={S.h2}>{t.plugins.loadNew}</h2>
             <div style={S.card}>
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--c-divider)' }}>
                 <label htmlFor="plugin-path" style={{ flex: 1, fontSize: 13, color: 'var(--c-text)' }}>
-                  插件路径
+                  {t.plugins.pluginPath}
                 </label>
                 <input
                   id="plugin-path"
@@ -140,14 +142,14 @@ export function PluginsPage() {
                   style={{ ...S.input, flex: 1, minWidth: 200 }}
                 />
                 <button onClick={() => void handleSelectFolder()} style={S.secondaryBtn}>
-                  浏览
+                  {t.plugins.browse}
                 </button>
                 <button
                   onClick={() => void handleLoad()}
                   style={S.primaryBtn}
                   disabled={!path.trim() || pluginLoading}
                 >
-                  加载
+                  {t.plugins.load}
                 </button>
               </div>
               {actionError && (
@@ -166,19 +168,19 @@ export function PluginsPage() {
           {/* Loaded list */}
           <section>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 }}>
-              <h2 style={S.h2}>已加载</h2>
+              <h2 style={S.h2}>{t.plugins.loadedSection}</h2>
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索插件…"
+                placeholder={t.plugins.searchPlaceholder}
                 style={{ padding: '4px 10px', fontSize: 12, border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', background: 'var(--c-surface)', color: 'var(--c-text)', outline: 'none', width: 180 }}
               />
             </div>
             <div style={S.card}>
               {pluginLoading && plugins.length === 0 ? (
-                <div style={S.empty}>加载中…</div>
+                <div style={S.empty}>{t.plugins.loading}</div>
               ) : filteredPlugins.length === 0 ? (
-                <div style={S.empty}>{searchQuery ? '无匹配插件' : '暂无插件'}</div>
+                <div style={S.empty}>{searchQuery ? t.plugins.noMatch : t.plugins.noPlugins}</div>
               ) : (
                 filteredPlugins.map((p) => (
                   <div
@@ -199,7 +201,7 @@ export function PluginsPage() {
                           background: p.loaded ? 'var(--c-success, #4caf50)' : 'var(--c-border)',
                           color: p.loaded ? '#fff' : 'var(--c-textMute)',
                         }}>
-                          {p.loaded ? '已加载' : '未加载'}
+                          {p.loaded ? t.plugins.loaded : t.plugins.notLoaded}
                         </span>
                       </div>
                       {p.description && (
@@ -218,7 +220,7 @@ export function PluginsPage() {
                       onClick={() => void handleUnload(p.id)}
                       style={S.secondaryBtn}
                     >
-                      卸载
+                      {t.plugins.unload}
                     </button>
                   </div>
                 ))
@@ -230,9 +232,9 @@ export function PluginsPage() {
     </div>
       <ConfirmDialog
         open={confirmUnload !== null}
-        title="卸载插件"
-        message="确定要卸载该插件吗？卸载后相关功能将不可用。"
-        confirmLabel="卸载"
+        title={t.plugins.unloadDialogTitle}
+        message={t.plugins.unloadConfirmMsg}
+        confirmLabel={t.plugins.unload}
         onConfirm={() => void doUnload()}
         onCancel={() => setConfirmUnload(null)}
         danger

@@ -7,7 +7,9 @@
 
 import { useState, useCallback } from 'react';
 import { useAppStore } from '../../store';
+import { useI18n } from '../../lib/useI18n';
 import type { AppState } from '../../store';
+import type { I18nData } from '../../lib/useI18n';
 
 type WorkflowKey = 'codeReview' | 'refactoring' | 'testPipeline' | 'parallelAnalysis';
 
@@ -19,14 +21,18 @@ interface WorkflowDef {
   inputPlaceholder: string;
 }
 
-const WORKFLOWS: WorkflowDef[] = [
-  { key: 'codeReview',       title: '代码审查',     description: '扫描代码并报告 issues / 改进建议',  inputLabel: '粘贴代码',     inputPlaceholder: 'function foo() {...}' },
-  { key: 'refactoring',      title: '重构建议',     description: '生成更清晰 / 更高效的重构版本',    inputLabel: '粘贴代码',     inputPlaceholder: 'function bar() {...}' },
-  { key: 'testPipeline',     title: '生成测试',     description: '为代码生成单元测试 / 集成测试',   inputLabel: '粘贴代码',     inputPlaceholder: 'function baz() {...}' },
-  { key: 'parallelAnalysis', title: '并行分析',     description: '并行多角度分析(性能 / 风格 / 安全)', inputLabel: '输入内容',   inputPlaceholder: '任意文本、代码或设计文档' },
-];
+function getWorkflows(t: I18nData): WorkflowDef[] {
+  return [
+    { key: 'codeReview',       title: t.orchestration.codeReview,       description: t.orchestration.codeReviewDesc,  inputLabel: t.orchestration.pasteCode,     inputPlaceholder: 'function foo() {...}' },
+    { key: 'refactoring',      title: t.orchestration.refactoring,      description: t.orchestration.refactoringDesc, inputLabel: t.orchestration.pasteCode,     inputPlaceholder: 'function bar() {...}' },
+    { key: 'testPipeline',     title: t.orchestration.testPipeline,     description: t.orchestration.testPipelineDesc, inputLabel: t.orchestration.pasteCode,   inputPlaceholder: 'function baz() {...}' },
+    { key: 'parallelAnalysis', title: t.orchestration.parallelAnalysis, description: t.orchestration.parallelAnalysisDesc, inputLabel: t.orchestration.inputContent, inputPlaceholder: t.orchestration.parallelPlaceholder },
+  ];
+}
 
 export function OrchestrationRunner() {
+  const t = useI18n();
+  const WORKFLOWS = getWorkflows(t);
   const orchestrationLoading = useAppStore((s) => s.orchestrationLoading);
   const lastResult = useAppStore((s: AppState) => s.lastResult);
   const runCodeReview = useAppStore((s: AppState) => s.runCodeReview);
@@ -62,7 +68,7 @@ export function OrchestrationRunner() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-text)', margin: 0 }}>
-        Orchestration Workflows
+        {t.orchestration.title}
       </h3>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
@@ -117,7 +123,7 @@ export function OrchestrationRunner() {
                   cursor: !value.trim() || isRunning || !currentSessionId ? 'not-allowed' : 'pointer',
                 }}
               >
-                {runningKey === wf.key ? '执行中…' : '运行'}
+                {runningKey === wf.key ? t.orchestration.running : t.orchestration.run}
               </button>
             </div>
           );
@@ -133,7 +139,7 @@ export function OrchestrationRunner() {
             borderRadius: 'var(--r-md)',
           }}
         >
-          <div style={{ fontSize: 12, color: 'var(--c-textSub)', marginBottom: 6 }}>最近结果</div>
+          <div style={{ fontSize: 12, color: 'var(--c-textSub)', marginBottom: 6 }}>{t.orchestration.lastResult}</div>
           <pre
             style={{
               margin: 0,

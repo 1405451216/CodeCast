@@ -4,6 +4,7 @@
 // Large files (>100KB) are truncated with a "Load full" button.
 import { useState, useEffect } from 'react';
 import { Files } from '../../wails/adapter';
+import { useI18n } from '../../lib/useI18n';
 
 const TRUNCATE_THRESHOLD = 100 * 1024; // 100KB
 
@@ -13,6 +14,7 @@ interface FilePreviewModalProps {
 }
 
 export function FilePreviewModal({ path, onClose }: FilePreviewModalProps) {
+  const t = useI18n();
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +130,7 @@ export function FilePreviewModal({ path, onClose }: FilePreviewModalProps) {
         {/* Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
           {loading ? (
-            <div style={{ color: 'var(--c-textMute)', fontSize: 13 }}>加载中…</div>
+            <div style={{ color: 'var(--c-textMute)', fontSize: 13 }}>{t.filePreview.loading}</div>
           ) : error ? (
             <div style={{ color: 'var(--c-error, #ef4444)', fontSize: 13 }}>{error}</div>
           ) : (
@@ -163,7 +165,7 @@ export function FilePreviewModal({ path, onClose }: FilePreviewModalProps) {
                       cursor: 'pointer',
                     }}
                   >
-                    加载完整文件
+                    {t.filePreview.loadFullFile}
                   </button>
                 </div>
               )}

@@ -1,4 +1,5 @@
 import { useEffect, useCallback, type ReactNode } from 'react';
+import { useI18n } from '../../lib/useI18n';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -67,12 +68,16 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = '确认',
-  cancelLabel = '取消',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   danger = false,
 }: ConfirmDialogProps) {
+  const t = useI18n();
+  const resolvedConfirmLabel = confirmLabel ?? t.common.confirm;
+  const resolvedCancelLabel = cancelLabel ?? t.common.cancel;
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel();
@@ -109,10 +114,10 @@ export function ConfirmDialog({
         <p style={messageStyle}>{message}</p>
         <div style={actionsRow}>
           <button style={cancelBtnStyle} onClick={onCancel}>
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button style={confirmBtnStyle} onClick={onConfirm}>
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </button>
         </div>
       </div>

@@ -4,11 +4,13 @@
 // Dismissed once per session via sessionStorage.
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../../store';
+import { useI18n } from '../../lib/useI18n';
 import { Button } from '../primitives/Button';
 
 const DISMISS_KEY = 'codecast_update_banner_dismissed';
 
 export function UpdateBanner() {
+  const t = useI18n();
   const { updateInfo, currentVersion, downloadUpdate, openReleasePage } = useAppStore();
   const [dismissed, setDismissed] = useState(() => {
     try { return sessionStorage.getItem(DISMISS_KEY) === 'true'; }
@@ -50,17 +52,17 @@ export function UpdateBanner() {
       }}
     >
       <span style={{ flex: 1 }}>
-        发现新版本 v{updateInfo.version}: {updateInfo.title}
+        {t.update.newVersion(updateInfo.version, updateInfo.title)}
       </span>
       <Button variant="primary" onClick={handleDownload}>
-        下载
+        {t.update.download}
       </Button>
       <Button
         variant="secondary"
         onClick={openReleasePage}
         style={{ background: 'transparent', color: 'var(--c-warning-text, #92400e)', borderColor: 'var(--c-warning-border, #f59e0b)', boxShadow: 'none' }}
       >
-        查看
+        {t.update.view}
       </Button>
       <button
         onClick={handleDismiss}

@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useError } from '../lib/useError';
+import { useI18n } from '../lib/useI18n';
 import { useAppStore } from '../store';
+import { Composer } from '../components/composer/Composer';
 
 interface Props {
   onSend?: (text: string) => void;
@@ -11,48 +13,21 @@ interface Props {
 }
 
 /**
- * Cast 模式空状态 — 按4个区域精确还原截图设计
- *
- * 区域1: 居中大标题 ✱ 先把清单上的一件事做完 + 副标题
- * 区域2: 大圆角输入框 (placeholder: 技能类型/, 内置左下+ 右下↑)
- * 区域3: 底部左侧 📁 项目工作区
- * 区域4: 底部右侧 MiniMax-M3 (1M 上下文) ▼
+ * Cast 模式空状态 — 复用 Composer 组件，保持居中大标题 + 底部栏设计
  */
 export function CastEmptyState({ onSend, onNavigate, model, thinking, onCancel }: Props) {
   useError('chat');
+  const t = useI18n();
   const [text, setText] = useState('');
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
-  const modelDropdownRef = useRef<HTMLDivElement | null>(null);
-  const taRef = useRef<HTMLTextAreaElement>(null);
   const configs = useAppStore((s) => s.configs);
   const setCurrent = useAppStore((s) => s.setCurrent);
+  const currentSessionId = useAppStore((s) => s.currentSessionId) || '';
 
-  // Auto-resize textarea
-  useEffect(() => {
-    const ta = taRef.current;
-    if (!ta) return;
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
-  }, [text]);
-
-  // Close model dropdown on outside click / Escape
-  useEffect(() => {
-    if (!modelDropdownOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
-        setModelDropdownOpen(false);
-      }
-    };
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setModelDropdownOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onEsc);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onEsc);
-    };
-  }, [modelDropdownOpen]);
+  const handleSend = (v: string) => {
+    onSend?.(v);
+    setText('');
+  };
 
   return (
     <div
@@ -110,7 +85,7 @@ export function CastEmptyState({ onSend, onNavigate, model, thinking, onCancel }
           }}
         >
           <span style={{ fontSize: 24, color: '#e85d04' }}>✱</span>
-          先把清单上的一件事做完
+          {t.empty.title}
         </h1>
         <p
           style={{
@@ -121,115 +96,60 @@ export function CastEmptyState({ onSend, onNavigate, model, thinking, onCancel }
             lineHeight: 1.6,
           }}
         >
-          了解如何安全使用 Cowork
+          {t.empty.subtitle}
         </p>
 
-        {/* ====== 区域2: 大圆角输入框 ====== */}
+        {/* ====== 区域2: Composer 复用 ====== */}
         <div style={{ width: '100%', marginTop: 32 }}>
-          <div
-            style={{
-              position: 'relative',
-              background: 'var(--c-surface)',
-              border: '1px solid var(--c-border)',
+          <Composer
+            sessionId={currentSessionId}
+            model={model || '—'}
+            thinking={thinking || false}
+            onSend={handleSend}
+            onCancel={onCancel || (() => {})}
+            text={text}
+            setText={setText}
+            placeholder={t.empty.title}
+            hideDefaultActions={false}
+            hideDefaultFooter
+            containerStyle={{
               borderRadius: '20px 20px 0 0',
               boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04)',
-              transition: 'border-color .15s ease, box-shadow .15s ease',
             }}
-            onFocus={(e) => {
-              (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--c-borderStrong)';
-              (e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 0 3px rgba(232,93,4,.12), 0 4px 16px rgba(0,0,0,.08)';
+            textareaStyle={{
+              padding: '28px 56px 28px 20px',
+              fontSize: 15,
+              lineHeight: 1.6,
+              minHeight: 120,
             }}
-            onBlur={(e) => {
-              (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--c-border)';
-              (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04)';
-            }}
-            tabIndex={0}
-          >
-            <textarea
-              ref={taRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  if (text.trim()) { onSend?.(text.trim()); setText(''); }
-                }
-              }}
-              placeholder="今天我能为你提供什么帮助吗？"
-              rows={1}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '28px 56px 28px 20px',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                resize: 'none',
-                fontSize: 15,
-                lineHeight: 1.6,
-                color: 'var(--c-text)',
-                fontFamily: 'var(--font-sans)',
-                minHeight: 120,
-                textAlign: 'left',
-              }}
-            />
-            {/* 左下 + 按钮 */}
-            <button
-              disabled
-              style={{
-                position: 'absolute',
-                left: 16,
-                bottom: 18,
-                width: 30,
-                height: 30,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'transparent',
-                border: '1px solid var(--c-border)',
-                borderRadius: 8,
-                color: 'var(--c-textMute)',
-                cursor: 'not-allowed',
-                opacity: 0.5,
-              }}
-              title="即将推出"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
-            {/* 右下 ↑ 发送按钮 */}
-            <button
-              onClick={() => {
-                if (text.trim()) { onSend?.(text.trim()); setText(''); }
-              }}
-              disabled={!text.trim()}
-              style={{
-                position: 'absolute',
-                right: 16,
-                bottom: 18,
-                width: 36,
-                height: 36,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: text.trim() ? '#f0d9cc' : 'var(--c-bgSub)',
-                border: 'none',
-                borderRadius: 8,
-                color: text.trim() ? '#b86125' : 'var(--c-textMute)',
-                cursor: text.trim() ? 'pointer' : 'not-allowed',
-                opacity: text.trim() ? 1 : 0.5,
-              }}
-              aria-label="发送"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="m3 8 10-5-4 12-2-5-4-2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" fill="currentColor" fillOpacity=".3" />
-              </svg>
-            </button>
-          </div>
+            footerRight={
+              <button
+                onClick={() => { if (text.trim()) handleSend(text); }}
+                disabled={!text.trim()}
+                style={{
+                  width: 36,
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: text.trim() ? '#f0d9cc' : 'var(--c-bgSub)',
+                  border: 'none',
+                  borderRadius: 8,
+                  color: text.trim() ? '#b86125' : 'var(--c-textMute)',
+                  cursor: text.trim() ? 'pointer' : 'not-allowed',
+                  opacity: text.trim() ? 1 : 0.5,
+                }}
+                aria-label={t.composer.send}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="m3 8 10-5-4 12-2-5-4-2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" fill="currentColor" fillOpacity=".3" />
+                </svg>
+              </button>
+            }
+          />
         </div>
 
-        {/* ====== 区域3 + 区域4: 底部一行（背景色与输入框区分） ====== */}
+        {/* ====== 区域3 + 区域4: 底部一行 ====== */}
         <div
           style={{
             display: 'flex',
@@ -246,7 +166,7 @@ export function CastEmptyState({ onSend, onNavigate, model, thinking, onCancel }
         >
           {/* 区域3: 项目工作区 */}
           <button
-            disabled
+            onClick={() => onNavigate?.('/settings')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -257,20 +177,19 @@ export function CastEmptyState({ onSend, onNavigate, model, thinking, onCancel }
               borderRadius: 8,
               color: 'var(--c-textMute)',
               fontSize: 12,
-              cursor: 'not-allowed',
-              opacity: 0.6,
+              cursor: 'pointer',
               transition: 'background .15s ease',
             }}
-            title="即将推出"
-            >
+            title={t.empty.projectWorkspace}
+          >
             <svg width={13} height={13} viewBox="0 0 16 16" fill="none">
               <path d="M2 4.5C2 3.67 2.67 3 3.5 3h2.59c.46 0 .9.18 1.22.5L8 4.18c.32.32.76.5 1.22.5h3.28c.83 0 1.5.67 1.5 1.5v6.32c0 .83-.67 1.5-1.5 1.5h-10c-.83 0-1.5-.67-1.5-1.5V4.5Z" stroke="currentColor" strokeWidth="1.2" />
             </svg>
-            项目工作区
+            {t.empty.projectWorkspace}
           </button>
 
           {/* 区域4: 模型选择器 */}
-          <div ref={modelDropdownRef} style={{ position: 'relative' }}>
+          <div style={{ position: 'relative' }}>
             <button
               onClick={() => setModelDropdownOpen((v) => !v)}
               style={{
@@ -289,8 +208,8 @@ export function CastEmptyState({ onSend, onNavigate, model, thinking, onCancel }
               onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,.04)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
-              <span style={{ fontFamily: 'var(--font-mono)' }}>{model || 'MiniMax-M3'}</span>
-              <span style={{ color: 'var(--c-textMute)', fontSize: 11 }}>({thinking ? '思考' : '1M'} 上下文)</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{model || '—'}</span>
+              <span style={{ color: 'var(--c-textMute)', fontSize: 11 }}>({thinking ? t.empty.thinking : '1M'} {t.empty.context})</span>
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: .5, transform: modelDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}>
                 <path d="m3 4 2 2 2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -308,8 +227,8 @@ export function CastEmptyState({ onSend, onNavigate, model, thinking, onCancel }
                 padding: 4,
                 zIndex: 50,
               }}>
-                {(configs && configs.length > 0 ? configs : [{ name: 'MiniMax-M3' }]).map((cfg: any) => {
-                  const isActive = (model || 'MiniMax-M3') === cfg.name;
+                {(configs && configs.length > 0 ? configs : [{ name: '—' }]).map((cfg: any) => {
+                  const isActive = (model || '—') === cfg.name;
                   return (
                     <button
                       key={cfg.name}

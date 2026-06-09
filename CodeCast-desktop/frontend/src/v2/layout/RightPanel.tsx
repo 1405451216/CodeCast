@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../store';
+import { useI18n } from '../lib/useI18n';
 import type { AgentInfo } from '../wails/types';
 import { AgentEventLog } from '../components/agent/AgentEventLog';
 
@@ -51,6 +52,7 @@ interface Step {
  *  - 展开后：进度 / 工作文件夹 / 上下文
  */
 export function RightPanel() {
+  const t = useI18n();
   const [open, setOpen] = useState(false);
   const currentProject = useAppStore((s) => s.currentProject);
   const agents = useAppStore((s) => s.agents) as AgentInfo[] | undefined;
@@ -84,7 +86,7 @@ export function RightPanel() {
     return (
       <button
         onClick={() => setOpen(true)}
-        title="打开进度 / 工作文件夹 / 上下文"
+        title={t.rightPanel.openProgressTitle}
         style={{
           position: 'absolute',
           top: 12,
@@ -144,7 +146,7 @@ export function RightPanel() {
         <div style={{ flex: 1 }} />
         <button
           onClick={() => setOpen(false)}
-          aria-label="折叠面板"
+          aria-label={t.rightPanel.collapsePanel}
           style={{
             width: 24,
             height: 24,
@@ -166,7 +168,7 @@ export function RightPanel() {
       </div>
 
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <Section icon={I.progress} title="进度" defaultOpen>
+        <Section icon={I.progress} title={t.rightPanel.progress} defaultOpen>
           {steps.length > 0 ? (
           <ol style={{ listStyle: 'none', margin: 0, padding: 0, fontSize: 12 }}>
             {steps.map((s) => (
@@ -218,7 +220,7 @@ export function RightPanel() {
 
         <AgentEventLog />
 
-        <Section icon={I.folder} title="工作文件夹">
+        <Section icon={I.folder} title={t.rightPanel.workFolder}>
           <div
             style={{
               fontFamily: 'var(--font-mono)',
@@ -234,14 +236,14 @@ export function RightPanel() {
           </div>
         </Section>
 
-        <Section icon={I.context} title="上下文">
+        <Section icon={I.context} title={t.rightPanel.context}>
           <div style={{ fontSize: 12, color: 'var(--c-textSub)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
-              <span>已用 token</span>
+              <span>{t.rightPanel.usedToken}</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{totalTokens > 0 ? `~ ${tokenDisplay}` : '—'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
-              <span>窗口</span>
+              <span>{t.rightPanel.window}</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{maxContextDisplay}</span>
             </div>
             <div

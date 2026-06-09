@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { useToast } from '../components/primitives/Toast';
 import { GitHub } from '../wails/adapter';
+import { useI18n } from '../lib/useI18n';
 
 interface GatewayItem {
   id: string;
@@ -92,6 +93,7 @@ export function BottomBar() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const closeTimer = useRef<number | null>(null);
   const navigate = useNavigate();
+  const t = useI18n();
 
   // Escape to close settings panel
   useEffect(() => {
@@ -143,9 +145,9 @@ export function BottomBar() {
           return;
         }
       }
-      toast.show('登录超时，请重试', 'warn');
+      toast.show(t.bottombar.loginTimeout, 'warn');
     } catch (err: any) {
-      toast.show(`登录失败: ${err?.message || err}`, 'danger');
+      toast.show(t.bottombar.loginFailed(err?.message || err), 'danger');
     } finally {
       setGitHubLoading(false);
     }
@@ -156,9 +158,9 @@ export function BottomBar() {
     try {
       await GitHub.logout();
       clearGitHubAuth();
-      toast.show('已注销 GitHub', 'success');
+      toast.show(t.bottombar.logoutSuccess, 'success');
     } catch (err: any) {
-      toast.show(`注销失败: ${err?.message || err}`, 'danger');
+      toast.show(t.bottombar.logoutFailed(err?.message || err), 'danger');
     }
   };
 
@@ -184,43 +186,43 @@ export function BottomBar() {
 
   // Current language from settings
   const currentLang = (settings as Record<string, unknown> | null)?.language as string | undefined;
-  const currentLangLabel = currentLang === 'en-US' ? 'English' : '中文';
+  const currentLangLabel = currentLang === 'en-US' ? 'English' : t.bottombar.langLabelZh;
 
   const langChildren = [
-    { id: 'zh-CN', label: '简体中文', onClick: () => { updateKey('language', 'zh-CN'); toast.show('语言已切换为简体中文', 'success'); } },
+    { id: 'zh-CN', label: t.bottombar.langOptionZh, onClick: () => { updateKey('language', 'zh-CN'); toast.show(t.bottombar.langSwitchedZh, 'success'); } },
     { id: 'en-US', label: 'English (United States)', onClick: () => { updateKey('language', 'en-US'); toast.show('Language switched to English', 'success'); } },
   ];
 
   const items: GatewayItem[] = [
-    { id: 'settings', label: '设置', desc: '主题、快捷键、API Key', icon: I.settings, onClick: () => { setOpen(false); navigate('/settings'); } },
+    { id: 'settings', label: t.bottombar.settings, desc: t.bottombar.settingsDesc, icon: I.settings, onClick: () => { setOpen(false); navigate('/settings'); } },
     {
-      id: 'lang', label: '语言', icon: I.lang,
+      id: 'lang', label: t.bottombar.language, icon: I.lang,
       // 有子菜单的项：点击不关闭面板，由 hover 触发子菜单
       onClick: () => {},
       right: <span style={{ color: 'var(--c-textMute)', display: 'inline-flex', fontSize: 11, gap: 4 }}>{currentLangLabel}{I.chevronRight}</span>,
       children: langChildren,
     },
-    { id: 'reasoning', label: '推理配置', icon: I.brain, onClick: () => { setOpen(false); navigate('/inference'); },
+    { id: 'reasoning', label: t.bottombar.reasoning, icon: I.brain, onClick: () => { setOpen(false); navigate('/inference'); },
       right: <span style={{ fontSize: 11, color: 'var(--c-textMute)' }}>{thinking ? 'On' : 'Off'}</span>,
     },
-    { id: 'changelog', label: '查看更新日志', icon: I.history, onClick: () => {
+    { id: 'changelog', label: t.bottombar.changelog, icon: I.history, onClick: () => {
       setOpen(false);
       checkUpdate().then(() => {
         const info = useAppStore.getState().updateInfo;
         if (info && info.version !== currentVersion) {
-          toast.show(`最新版本 v${info.version}: ${info.title}`, 'success');
+          toast.show(t.bottombar.latestVersion(info.version, info.title), 'success');
         } else {
-          toast.show(`当前 v${currentVersion || '…'} 已是最新`, 'info');
+          toast.show(t.bottombar.alreadyLatest(currentVersion || '…'), 'info');
         }
       });
     } },
     {
-      id: 'about', label: '关于 CodeCast', icon: I.info, onClick: () => { setOpen(false); window.open('https://codecast.cloud', '_blank'); },
+      id: 'about', label: t.bottombar.about, icon: I.info, onClick: () => { setOpen(false); window.open('https://codecast.cloud', '_blank'); },
     },
     {
       id: 'github',
-      label: githubUser ? githubUser.login : '使用 GitHub 登录',
-      desc: githubUser ? `已连接为 ${githubUser.name || githubUser.login}` : '使用 GitHub 账号登录',
+      label: githubUser ? githubUser.login : t.bottombar.githubLogin,
+      desc: githubUser ? t.bottombar.githubConnected(githubUser.name || githubUser.login) : t.bottombar.githubLoginDesc,
       icon: githubUser
         ? (
           <img src={githubUser.avatar_url} alt={githubUser.login} style={{ width: 18, height: 18, borderRadius: '50%' }} />
@@ -267,7 +269,7 @@ export function BottomBar() {
       >
         {/* Connection status indicator */}
         <span
-          title={connected ? '已连接到后端' : '未连接到后端'}
+          title={connected ? t.bottombar.connected : t.bottombar.disconnected}
           style={{
             width: 7,
             height: 7,
@@ -295,7 +297,7 @@ export function BottomBar() {
           onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'transparent'; }}
         >
           {I.gateway}
-          <span>设置</span>
+          <span>{t.bottombar.settings}</span>
           <span style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform var(--dur-fast) var(--ease)', display: 'inline-flex' }}>
             {I.chevron}
           </span>
@@ -326,7 +328,7 @@ export function BottomBar() {
             color: thinking ? 'var(--c-accent)' : 'var(--c-text)',
             transition: 'color var(--dur-fast) var(--ease)',
           }}
-          title={thinking ? 'Plan 模式: 开启 (⌘⇧P 关闭)' : 'Plan 模式: 关闭 (⌘⇧P 开启)'}
+          title={thinking ? t.bottombar.planModeOn : t.bottombar.planModeOff}
         >
           Plan: {thinking ? 'On' : 'Off'}
         </button>
@@ -357,7 +359,7 @@ export function BottomBar() {
             }}
           >
             <div style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--c-textMute)', padding: '6px 10px 4px' }}>
-              设置
+              {t.bottombar.settings}
             </div>
             {items.map((it) => {
               const hasChildren = !!it.children?.length;

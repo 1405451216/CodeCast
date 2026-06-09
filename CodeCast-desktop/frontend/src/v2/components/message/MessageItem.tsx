@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { Popover } from '../primitives/Popover';
 import { copyToClipboard } from '../../lib/clipboard';
+import { useI18n } from '../../lib/useI18n';
 
 export interface Message {
   id?: string;
@@ -89,6 +90,7 @@ const I = {
  *  - 助手消息右上 ⓘ Popover 菜单
  */
 export function MessageItem({ message, onCopy, onEdit, onDelete, onRegenerate, onPreview, onDiff, onTerminal, onBackground, onPlan }: Props) {
+  const t = useI18n();
   const [now, setNow] = useState(() => Date.now());
   const [hovered, setHovered] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -118,8 +120,8 @@ export function MessageItem({ message, onCopy, onEdit, onDelete, onRegenerate, o
         {hovered && (
           <button
             onClick={handleCopy}
-            aria-label="复制消息"
-            title="复制"
+            aria-label={t.chat.copyMessage}
+            title={t.chat.copyTitle}
             style={{
               width: 28,
               height: 28,
@@ -145,8 +147,8 @@ export function MessageItem({ message, onCopy, onEdit, onDelete, onRegenerate, o
         {hovered && onEdit && (
           <button
             onClick={onEdit}
-            aria-label="编辑消息"
-            title="编辑"
+            aria-label={t.chat.editMessage}
+            title={t.chat.editTitle}
             style={{
               width: 28,
               height: 28,
@@ -167,8 +169,8 @@ export function MessageItem({ message, onCopy, onEdit, onDelete, onRegenerate, o
         {hovered && onDelete && (
           <button
             onClick={onDelete}
-            aria-label="删除消息"
-            title="删除"
+            aria-label={t.chat.deleteMessage}
+            title={t.chat.deleteTitle}
             style={{
               width: 28,
               height: 28,
@@ -186,20 +188,27 @@ export function MessageItem({ message, onCopy, onEdit, onDelete, onRegenerate, o
             {I.delete}
           </button>
         )}
-        <div
-          style={{
-            maxWidth: '70%',
-            padding: '10px 14px',
-            background: 'var(--c-bubble-user)',
-            color: 'var(--c-bubble-userText)',
-            borderRadius: 'var(--r-xl)',
-            fontSize: 14,
-            lineHeight: 1.55,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {message.content}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+          <div
+            style={{
+              maxWidth: '100%',
+              padding: '10px 14px',
+              background: 'var(--c-bubble-user)',
+              color: 'var(--c-bubble-userText)',
+              borderRadius: 'var(--r-xl)',
+              fontSize: 14,
+              lineHeight: 1.55,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {message.content}
+          </div>
+          {message.createdAt && hovered && (
+            <span style={{ fontSize: 10, color: 'var(--c-textMute)', opacity: 0.7, paddingRight: 4 }}>
+              {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -221,7 +230,7 @@ export function MessageItem({ message, onCopy, onEdit, onDelete, onRegenerate, o
         <Popover
           trigger={
             <button
-              aria-label="消息操作"
+              aria-label={t.chat.messageOps}
               style={{
                 width: 26,
                 height: 26,
@@ -249,15 +258,15 @@ export function MessageItem({ message, onCopy, onEdit, onDelete, onRegenerate, o
           }
         >
           <div style={{ fontSize: 13, padding: '4px', minWidth: 180 }}>
-            <MenuItem icon={copied ? I.check : I.copyIcon} label={copied ? '已复制' : '复制'} onClick={handleCopy} />
+            <MenuItem icon={copied ? I.check : I.copyIcon} label={copied ? t.chat.copied : t.chat.copyTitle} onClick={handleCopy} />
             <div style={{ height: 1, background: 'var(--c-border)', margin: '4px 0' }} />
-            <MenuItem icon={I.preview} label="预览" onClick={onPreview} />
-            <MenuItem icon={I.diff} label="差异" onClick={onDiff} />
-            <MenuItem icon={I.term} label="终端" onClick={onTerminal} />
-            <MenuItem icon={I.bg} label="Background tasks" onClick={onBackground} />
-            <MenuItem icon={I.plan} label="计划" onClick={onPlan} />
+            <MenuItem icon={I.preview} label={t.chat.preview} onClick={onPreview} />
+            <MenuItem icon={I.diff} label={t.chat.diff} onClick={onDiff} />
+            <MenuItem icon={I.term} label={t.chat.terminal} onClick={onTerminal} />
+            <MenuItem icon={I.bg} label={t.chat.backgroundTasks} onClick={onBackground} />
+            <MenuItem icon={I.plan} label={t.chat.plan} onClick={onPlan} />
             <div style={{ height: 1, background: 'var(--c-border)', margin: '4px 0' }} />
-            <MenuItem icon={I.delete} label="删除" onClick={onDelete} />
+            <MenuItem icon={I.delete} label={t.chat.deleteTitle} onClick={onDelete} />
           </div>
         </Popover>
       </div>

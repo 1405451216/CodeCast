@@ -5,12 +5,15 @@ import { copyToClipboard } from '../lib/clipboard';
 import { useDraft } from '../lib/useDraft';
 import { useResultHistory } from '../lib/useResultHistory';
 import { sendToPage, PIPELINE_TARGETS } from '../lib/pipeline';
+import { useI18n } from '../lib/useI18n';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                         */
 /* ------------------------------------------------------------------ */
 
-const BUILTIN_PRESETS = ['润色', '扩写', '缩写', '正式', '口语'] as const;
+function getBuiltinPresets(t: ReturnType<typeof useI18n>): string[] {
+  return [t.writing.presetPolish, t.writing.presetExpand, t.writing.presetCondense, t.writing.presetFormal, t.writing.presetCasual];
+}
 
 function loadCustomPresets(): string[] {
   try { return JSON.parse(localStorage.getItem('codecast-writing-presets') || '[]'); } catch { return []; }
@@ -46,13 +49,15 @@ const navBtnStyle: React.CSSProperties = {
 /* ------------------------------------------------------------------ */
 
 export function CastWritingPage() {
+  const t = useI18n();
   const writing = useFirstTool('writing');
   const invokeCastTool = useAppStore((s) => s.invokeCastTool);
 
   const [input, setInput] = useDraft('writing:input', '');
-  const [style, setStyle] = useDraft<string>('writing:style', '润色');
+  const builtinPresets = getBuiltinPresets(t);
+  const [style, setStyle] = useDraft<string>('writing:style', builtinPresets[0]);
   const [customPresets, setCustomPresets] = useState<string[]>(loadCustomPresets);
-  const allPresets = [...BUILTIN_PRESETS, ...customPresets];
+  const allPresets = [...builtinPresets, ...customPresets];
   const resultHistory = useResultHistory<string>(5);
   const result = resultHistory.current || '';
   const [invoking, setInvoking] = useState(false);
@@ -72,7 +77,7 @@ export function CastWritingPage() {
     const trimmed = input.trim();
     if (!trimmed || invoking) return;
     if (!writing.tool) {
-      setError('暂无可用的写作工具');
+      setError(t.writing.noTool);
       return;
     }
 
@@ -90,7 +95,7 @@ export function CastWritingPage() {
       const res = await invokeCastTool(writing.tool.name, argsJSON);
       resultHistory.push(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '生成失败，请重试');
+      setError(e instanceof Error ? e.message : t.writing.generateFailed);
     } finally {
       setInvoking(false);
     }
@@ -120,7 +125,7 @@ export function CastWritingPage() {
           letterSpacing: -0.3,
         }}
       >
-        写作助手
+        {t.writing.title}
       </h2>
 
       {/* Tool availability hint */}
@@ -133,7 +138,7 @@ export function CastWritingPage() {
             fontFamily: 'var(--font-mono)',
           }}
         >
-          已加载 {writing.tools.length} 个写作工具
+          {t.writing.toolsLoaded(writing.tools.length)}
         </p>
       )}
 
@@ -145,7 +150,7 @@ export function CastWritingPage() {
             style={{ fontSize: 11, padding: '2px 6px', background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 'var(--r-sm)', color: 'var(--c-textMute)', cursor: 'pointer' }}
             defaultValue=""
           >
-            <option value="" disabled>最近使用…</option>
+            <option value="" disabled>{t.writing.recentUsed}</option>
             {inputHistory.map((h, i) => (
               <option key={i} value={h}>{h.slice(0, 60)}{h.length > 60 ? '…' : ''}</option>
             ))}
@@ -163,7 +168,7 @@ export function CastWritingPage() {
             void handleGenerate();
           }
         }}
-        placeholder="输入需要处理的内容…"
+        placeholder={t.writing.inputPlaceholder}
         style={{
           display: 'block',
           width: '100%',
@@ -225,7 +230,7 @@ export function CastWritingPage() {
         })}
         <button
           onClick={() => {
-            const name = window.prompt('自定义风格名称:');
+            const name = window.prompt(t.writing.customStylePrompt);
             if (name && name.trim() && !allPresets.includes(name.trim())) {
               const updated = [...customPresets, name.trim()];
               setCustomPresets(updated);
@@ -239,7 +244,7 @@ export function CastWritingPage() {
             borderRadius: 'var(--r-md)', cursor: 'pointer',
           }}
         >
-          + 自定义
+          {t.writing.custom}
         </button>
       </div>
 
@@ -262,7 +267,7 @@ export function CastWritingPage() {
             opacity: invoking ? 0.75 : 1,
           }}
         >
-          {invoking ? '生成中…' : '生成'}
+          {invoking ? t.writing.generating : t.writing.generate}
         </button>
       </div>
 
@@ -270,7 +275,7 @@ export function CastWritingPage() {
       {error && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 0', padding: '8px 12px', background: 'rgba(231,76,60,0.08)', border: '1px solid var(--c-danger)', borderRadius: 'var(--r-md)' }}>
           <span style={{ flex: 1, fontSize: 13, color: 'var(--c-danger)' }}>{error}</span>
-          <button onClick={() => void handleGenerate()} style={{ fontSize: 11, padding: '2px 8px', background: 'transparent', border: '1px solid var(--c-danger)', borderRadius: 'var(--r-sm)', color: 'var(--c-danger)', cursor: 'pointer' }}>重试</button>
+          <button onClick={() => void handleGenerate()} style={{ fontSize: 11, padding: '2px 8px', background: 'transparent', border: '1px solid var(--c-danger)', borderRadius: 'var(--r-sm)', color: 'var(--c-danger)', cursor: 'pointer' }}>{t.writing.retry}</button>
           <button onClick={() => setError(null)} style={{ fontSize: 14, background: 'transparent', border: 'none', color: 'var(--c-danger)', cursor: 'pointer', padding: '0 4px' }}>×</button>
         </div>
       )}
@@ -296,15 +301,15 @@ export function CastWritingPage() {
                 letterSpacing: 0.5,
               }}
             >
-              输出结果 {resultHistory.count > 1 && `(v${resultHistory.count})`}
+              {t.writing.output} {resultHistory.count > 1 && `(v${resultHistory.count})`}
             </span>
 
             <div style={{ display: 'flex', gap: 4 }}>
               {resultHistory.canGoBack && (
-                <button onClick={resultHistory.goBack} style={navBtnStyle} title="上一个版本">←</button>
+                <button onClick={resultHistory.goBack} style={navBtnStyle} title={t.writing.prevVersion}>←</button>
               )}
               {resultHistory.canGoForward && (
-                <button onClick={resultHistory.goForward} style={navBtnStyle} title="下一个版本">→</button>
+                <button onClick={resultHistory.goForward} style={navBtnStyle} title={t.writing.nextVersion}>→</button>
               )}
 
               {result && (
@@ -327,8 +332,8 @@ export function CastWritingPage() {
                 }}
               >
                 {copied ? (
-                  <><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg> 已复制</>
-                ) : '复制'}
+                  <><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg> {t.writing.copied}</>
+                ) : t.writing.copy}
               </button>
             )}
             {result && (
@@ -343,9 +348,9 @@ export function CastWritingPage() {
                   URL.revokeObjectURL(url);
                 }}
                 style={navBtnStyle}
-                title="保存为文件"
+                title={t.writing.save}
               >
-                保存
+                {t.writing.save}
               </button>
             )}
             {result && (
@@ -360,9 +365,9 @@ export function CastWritingPage() {
                 }}
                 style={{ ...navBtnStyle, appearance: 'none' as any, paddingRight: 20 }}
                 defaultValue=""
-                title="发送到其他页面"
+                title={t.writing.sendTo}
               >
-                <option value="" disabled>发送到…</option>
+                <option value="" disabled>{t.writing.sendTo}</option>
                 {PIPELINE_TARGETS.filter(t => t.path !== '/cast/writing').map(t => (
                   <option key={t.path} value={t.path}>{t.label}</option>
                 ))}
@@ -371,18 +376,18 @@ export function CastWritingPage() {
             </div>
           </div>
 
-          <div
-            contentEditable={!invoking}
-            suppressContentEditableWarning
-            onBlur={(e) => {
-              // Update the result in history when user edits
-              const newText = e.currentTarget.innerText;
-              if (newText !== result && resultHistory.current) {
-                // We can't directly update history, but we update the copy text
-                // The user can use "复制" to get their edited version
+          <textarea
+            value={invoking ? t.writing.processing : result}
+            onChange={(e) => {
+              if (!invoking) {
+                // Push edited result into history
+                resultHistory.push(e.target.value);
               }
             }}
+            readOnly={invoking}
             style={{
+              display: 'block',
+              width: '100%',
               padding: 14,
               minHeight: 120,
               background: 'var(--c-surface)',
@@ -390,21 +395,17 @@ export function CastWritingPage() {
               borderRadius: 'var(--r-md)',
               fontSize: 14,
               lineHeight: 1.7,
-              color: 'var(--c-text)',
+              color: invoking ? 'var(--c-textMute)' : 'var(--c-text)',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
               boxSizing: 'border-box',
               outline: 'none',
+              resize: 'vertical',
               cursor: invoking ? 'default' : 'text',
+              fontFamily: 'inherit',
               transition: 'border-color var(--dur-fast) var(--ease)',
             }}
-          >
-            {invoking ? (
-              <span style={{ color: 'var(--c-textMute)' }}>正在处理…</span>
-            ) : (
-              result
-            )}
-          </div>
+          />
         </div>
       )}
     </div>

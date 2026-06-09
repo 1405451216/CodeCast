@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../lib/useI18n';
 
 interface Crumb {
   label: string;
@@ -6,9 +7,10 @@ interface Crumb {
 }
 
 export function Breadcrumb({ items }: { items: Crumb[] }) {
+  const t = useI18n();
   const navigate = useNavigate();
   return (
-    <nav aria-label="面包屑导航" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--c-textMute)', marginBottom: 16 }}>
+    <nav aria-label={t.breadcrumb.ariaLabel} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--c-textMute)', marginBottom: 16 }}>
       {items.map((item, i) => (
         <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {i > 0 && <span style={{ opacity: 0.4 }}>/</span>}

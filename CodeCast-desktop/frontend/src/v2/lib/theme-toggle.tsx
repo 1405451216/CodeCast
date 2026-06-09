@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getStoredTheme, setStoredTheme } from '../design/theme';
+import { useI18n } from './useI18n';
 type Theme = 'light' | 'dark' | 'system';
 
 export function ThemeToggle() {
+  const t = useI18n();
   const [theme, setTheme] = useState<Theme>(getStoredTheme());
   useEffect(() => { setStoredTheme(theme); }, [theme]);
 
@@ -40,8 +42,8 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme((t) => (t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light'))}
-      aria-label={`主题: ${theme === 'light' ? '浅色' : theme === 'dark' ? '深色' : '跟随系统'}`}
-      title={`主题: ${theme === 'light' ? '浅色' : theme === 'dark' ? '深色' : '跟随系统'}`}
+      aria-label={t.themeToggle.ariaLabel(t.themeToggle[theme])}
+      title={t.themeToggle.ariaLabel(t.themeToggle[theme])}
       style={{
         width: 32,
         height: 32,

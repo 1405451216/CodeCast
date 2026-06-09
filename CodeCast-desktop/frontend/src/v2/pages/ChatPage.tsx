@@ -6,6 +6,7 @@ import type { Message } from '../components/message/MessageItem';
 import type { Message as BackendMessage } from '../wails/types';
 import { copyToClipboard } from '../lib/clipboard';
 import { useToast } from '../components/primitives/Toast';
+import { useI18n } from '../lib/useI18n';
 
 const searchBtnStyle: React.CSSProperties = {
   width: 24,
@@ -31,11 +32,19 @@ interface Props {
   onCancel: () => void;
 }
 
+/** Simple stable hash for message content (djb2) */
+function hashStr(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
 function toUIMessages(raw: BackendMessage[], isStreaming: boolean): Message[] {
   return raw.map((m, i) => {
     const isLast = i === raw.length - 1;
+    const fallback = `msg-${m.role}-${hashStr(m.content?.slice(0, 64) || String(i))}-${i}`;
     return {
-      id: (m as any).id || (m as any).timestamp || `msg-${i}`,
+      id: (m as any).id || (m as any).timestamp || fallback,
       role: m.role,
       content: m.content,
       reasoning: m.reasoning,
@@ -47,6 +56,7 @@ function toUIMessages(raw: BackendMessage[], isStreaming: boolean): Message[] {
 }
 
 export function ChatPage({ sessionId, messages, isStreaming, model, thinking, onSend, onCancel }: Props) {
+  const t = useI18n();
   const uiMessages = useMemo(() => toUIMessages(messages, isStreaming), [messages, isStreaming]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -153,13 +163,13 @@ export function ChatPage({ sessionId, messages, isStreaming, model, thinking, on
   // Message operation callbacks
   const handleCopy = useCallback(async (msg: Message) => {
     const ok = await copyToClipboard(msg.content);
-    if (ok) toast.show('已复制', 'success');
-    else toast.show('复制失败', 'danger');
+    if (ok) toast.show(t.chat.copied, 'success');
+    else toast.show(t.chat.copyFailed, 'danger');
   }, [toast]);
 
   const handleEdit = useCallback((msg: Message) => {
     // Fill the composer with the message text for editing
-    const ta = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息输入"]');
+    const ta = document.querySelector<HTMLTextAreaElement>('textarea[data-testid="composer-input"]');
     if (ta) {
       ta.value = msg.content;
       ta.focus();
@@ -184,7 +194,7 @@ export function ChatPage({ sessionId, messages, isStreaming, model, thinking, on
       const backendIdx = idx;
       (window as any).__codecast_deleteMessage?.(backendIdx);
     }
-    toast.show('消息已删除', 'success');
+    toast.show(t.chat.messageDeleted, 'success');
   }, [uiMessages, toast]);
 
   return (
@@ -211,7 +221,7 @@ export function ChatPage({ sessionId, messages, isStreaming, model, thinking, on
               if (e.key === 'Enter') { e.shiftKey ? goPrevMatch() : goNextMatch(); }
               if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery(''); }
             }}
-            placeholder="搜索消息..."
+            placeholder={t.chat.searchMessages}
             style={{
               flex: 1,
               border: 'none',
@@ -223,16 +233,16 @@ export function ChatPage({ sessionId, messages, isStreaming, model, thinking, on
           />
           {searchQuery && (
             <span style={{ fontSize: 12, color: 'var(--c-textMute)', whiteSpace: 'nowrap' }}>
-              {searchMatches.length > 0 ? `${currentMatch + 1}/${searchMatches.length}` : '无匹配'}
+              {searchMatches.length > 0 ? `${currentMatch + 1}/${searchMatches.length}` : t.chat.noMatch}
             </span>
           )}
-          <button onClick={goPrevMatch} disabled={searchMatches.length === 0} aria-label="上一个" style={{ ...searchBtnStyle, opacity: searchMatches.length ? 1 : 0.4 }}>
+          <button onClick={goPrevMatch} disabled={searchMatches.length === 0} aria-label={t.chat.prev} style={{ ...searchBtnStyle, opacity: searchMatches.length ? 1 : 0.4 }}>
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 10l4-4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
-          <button onClick={goNextMatch} disabled={searchMatches.length === 0} aria-label="下一个" style={{ ...searchBtnStyle, opacity: searchMatches.length ? 1 : 0.4 }}>
+          <button onClick={goNextMatch} disabled={searchMatches.length === 0} aria-label={t.chat.next} style={{ ...searchBtnStyle, opacity: searchMatches.length ? 1 : 0.4 }}>
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
-          <button onClick={() => { setSearchOpen(false); setSearchQuery(''); }} aria-label="关闭搜索" style={searchBtnStyle}>×</button>
+          <button onClick={() => { setSearchOpen(false); setSearchQuery(''); }} aria-label={t.chat.closeSearch} style={searchBtnStyle}>×</button>
         </div>
       )}
       <div
@@ -254,7 +264,7 @@ export function ChatPage({ sessionId, messages, isStreaming, model, thinking, on
         {showScrollBtn && (
           <button
             onClick={() => scrollToBottom(true)}
-            aria-label="滚动到底部"
+            aria-label={t.chat.scrollToBottom}
             style={{
               position: 'sticky',
               bottom: 12,
@@ -305,7 +315,7 @@ export function ChatPage({ sessionId, messages, isStreaming, model, thinking, on
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <rect x="3" y="3" width="10" height="10" rx="1" fill="currentColor"/>
             </svg>
-            停止生成
+            {t.chat.stopGeneration}
           </button>
         </div>
       )}

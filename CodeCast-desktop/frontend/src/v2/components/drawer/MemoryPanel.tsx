@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAppStore } from '../../store';
 import { useError } from '../../lib/useError';
+import { useI18n } from '../../lib/useI18n';
 
 export function MemoryPanel() {
   useError('memory');
+  const t = useI18n();
   const { stats, memoryLoading, recallResults, searchQuery, refreshMemory, searchMemory } = useAppStore();
   const [query, setQuery] = useState('');
 
@@ -28,12 +30,12 @@ export function MemoryPanel() {
   return (
     <div style={{ padding: 8, fontSize: 12, color: 'var(--c-textMute)' }}>
       <div style={{ marginBottom: 4, fontWeight: 500, color: 'var(--c-text)' }}>
-        Memory {memoryLoading && <span style={{ color: 'var(--c-textMute)', fontWeight: 400 }}>(loading…)</span>}
+        {t.drawer.memory.title} {memoryLoading && <span style={{ color: 'var(--c-textMute)', fontWeight: 400 }}>({t.drawer.memory.loading})</span>}
       </div>
-      <div>Episodes: {stats.totalEpisodes}</div>
-      <div>Size: {sizeStr}</div>
+      <div>{t.drawer.memory.episodes}: {stats.totalEpisodes}</div>
+      <div>{t.drawer.memory.size}: {sizeStr}</div>
       <div style={{ marginTop: 4, fontSize: 10, color: 'var(--c-textMute)', fontStyle: 'italic' }}>
-        本地搜索 · 在已加载的 {stats.totalEpisodes} 条记录中过滤
+        {t.drawer.memory.localSearch} · {t.drawer.memory.localSearchDesc(stats.totalEpisodes)}
       </div>
 
       {/* Search input */}
@@ -42,7 +44,7 @@ export function MemoryPanel() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="搜索 memory…"
+          placeholder={t.drawer.memory.search}
           style={{
             flex: 1, padding: '3px 8px',
             background: 'var(--c-bgSub)', border: '1px solid var(--c-border)',
@@ -58,7 +60,7 @@ export function MemoryPanel() {
             borderRadius: 'var(--r-sm)', color: 'var(--c-textSub)', fontSize: 11, cursor: 'pointer',
           }}
         >
-          搜索
+          {t.drawer.memory.searchBtn}
         </button>
         {searchQuery && (
           <button
@@ -68,7 +70,7 @@ export function MemoryPanel() {
               background: 'transparent', border: '1px solid var(--c-border)',
               borderRadius: 'var(--r-sm)', color: 'var(--c-textMute)', fontSize: 11, cursor: 'pointer',
             }}
-            title="清除搜索"
+            title={t.drawer.memory.clearSearch}
           >
             ✕
           </button>
@@ -78,7 +80,7 @@ export function MemoryPanel() {
       {/* Search results summary */}
       {searchQuery && (
         <div style={{ marginTop: 4, fontSize: 11, color: 'var(--c-textMute)' }}>
-          匹配 {recallResults.length} / {stats.totalEpisodes} 条
+          {t.drawer.memory.matchCount(recallResults.length, stats.totalEpisodes)}
         </div>
       )}
 
@@ -102,7 +104,7 @@ export function MemoryPanel() {
           ))}
           {recallResults.length > 20 && (
             <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--c-textMute)', textAlign: 'center' }}>
-              还有 {recallResults.length - 20} 条结果…
+              {t.drawer.memory.moreResults(recallResults.length - 20)}
             </div>
           )}
         </div>
@@ -116,7 +118,7 @@ export function MemoryPanel() {
           borderRadius: 'var(--r-sm)', color: 'var(--c-textSub)', fontSize: 11, cursor: 'pointer',
         }}
       >
-        Refresh
+        {t.drawer.memory.refresh}
       </button>
     </div>
   );

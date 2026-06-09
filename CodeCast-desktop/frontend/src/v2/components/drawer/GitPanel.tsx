@@ -1,9 +1,13 @@
 import { useAppStore } from '../../store';
 import { useError } from '../../lib/useError';
+import { useI18n } from '../../lib/useI18n';
 
 export function GitPanel() {
   useError('git');
+  const t = useI18n();
   const { status, gitLoading, refreshGit } = useAppStore();
+  // Show dirty files from status if available
+  const changedFiles: Array<{ path: string; status: string }> = (status as any)?.files ?? [];
 
   if (gitLoading) {
     return <div style={{ padding: 8, fontSize: 12, color: 'var(--c-textMute)' }}>Loading…</div>;
@@ -20,11 +24,22 @@ export function GitPanel() {
             borderRadius: 'var(--r-sm)', color: 'var(--c-textSub)', fontSize: 11, cursor: 'pointer',
           }}
         >
-          Refresh
+          {t.drawer.git.refresh}
         </button>
       </div>
     );
   }
+
+  const statusIcon = (s: string) => {
+    switch (s) {
+      case 'modified': return { color: 'var(--c-warn, #e8a835)', label: 'M' };
+      case 'added': return { color: 'var(--c-success, #4caf50)', label: 'A' };
+      case 'deleted': return { color: 'var(--c-danger, #e74c3c)', label: 'D' };
+      case 'renamed': return { color: 'var(--c-accent)', label: 'R' };
+      case 'untracked': return { color: 'var(--c-textMute)', label: '?' };
+      default: return { color: 'var(--c-textMute)', label: '?' };
+    }
+  };
 
   return (
     <div style={{ padding: 8, fontSize: 12, color: 'var(--c-textMute)' }}>
@@ -37,20 +52,20 @@ export function GitPanel() {
             borderRadius: 'var(--r-sm)', color: 'var(--c-textMute)', fontSize: 10, cursor: 'pointer',
           }}
         >
-          刷新
+          {t.drawer.git.refresh}
         </button>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span>分支:</span>
+        <span>{t.drawer.git.branch}:</span>
         <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-text)' }}>{status.branch}</span>
       </div>
       <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span>状态:</span>
+        <span>{t.drawer.git.status}:</span>
         <span style={{
           display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
           background: status.dirty ? 'var(--c-warn, #e8a835)' : 'var(--c-success, #4caf50)',
         }} />
-        <span>{status.dirty ? '有未提交的更改' : '工作区干净'}</span>
+        <span>{status.dirty ? t.drawer.git.dirty : t.drawer.git.clean}</span>
       </div>
       {(status.ahead > 0 || status.behind > 0) && (
         <div style={{ marginTop: 2 }}>
@@ -58,7 +73,23 @@ export function GitPanel() {
           {status.behind > 0 && <span style={{ color: 'var(--c-warn)' }}>↓{status.behind} behind</span>}
         </div>
       )}
-      <div style={{ marginTop: 2 }}>已启用: {status.enabled ? '是' : '否'}</div>
+      {changedFiles.length > 0 && (
+        <div style={{ marginTop: 6, borderTop: '1px solid var(--c-border)', paddingTop: 6 }}>
+          <div style={{ fontWeight: 500, marginBottom: 4, color: 'var(--c-text)' }}>{t.drawer.git.changedFiles(changedFiles.length)}</div>
+          <div style={{ maxHeight: 200, overflow: 'auto' }}>
+            {changedFiles.map((f, i) => {
+              const si = statusIcon(f.status);
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
+                  <span style={{ color: si.color, fontWeight: 600, fontSize: 10, width: 12, textAlign: 'center' }}>{si.label}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--c-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.path}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <div style={{ marginTop: 2 }}>{t.drawer.git.enabled}: {status.enabled ? t.drawer.git.yes : t.drawer.git.no}</div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useI18n } from '../../lib/useI18n';
 import hljs from 'highlight.js/lib/core';
 import typescript from 'highlight.js/lib/languages/typescript';
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -17,6 +18,7 @@ hljs.registerLanguage('python', python);
 
 interface Props { code: string; language?: string }
 export function CodeBlock({ code, language = 'plaintext' }: Props) {
+  const t = useI18n();
   const [copied, setCopied] = useState(false);
   let highlighted = code;
   try {
@@ -28,7 +30,7 @@ export function CodeBlock({ code, language = 'plaintext' }: Props) {
     <div style={{ display: 'flex', alignItems: 'center', padding: '4px 8px', borderBottom: '1px solid var(--c-border)', fontSize: 11, color: 'var(--c-textMute)' }}>
       <span>{language}</span>
       <div style={{ flex: 1 }} />
-      <button type="button" onClick={async () => { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer' }}>{copied ? '✓ 已复制' : 'Copy'}</button>
+      <button type="button" onClick={async () => { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer' }}>{copied ? `✓ ${t.common.copied}` : 'Copy'}</button>
     </div>
     <pre style={{ margin: 0, padding: 12, fontSize: 13, overflow: 'auto' }}>
       <code className={`hljs language-${language}`} dangerouslySetInnerHTML={{ __html: highlighted }} />

@@ -5,6 +5,7 @@ import { copyToClipboard } from '../lib/clipboard';
 import { useDraft } from '../lib/useDraft';
 import { useResultHistory } from '../lib/useResultHistory';
 import { readPipedText, sendToPage, PIPELINE_TARGETS } from '../lib/pipeline';
+import { useI18n } from '../lib/useI18n';
 
 /* ====================================================================
  *  Types
@@ -20,43 +21,45 @@ interface EmailTemplate {
  *  Templates
  * ==================================================================== */
 
-const BUILTIN_TEMPLATES: EmailTemplate[] = [
-  {
-    label: '工作汇报',
-    subject: '工作汇报 — [日期]',
-    body: '您好，\n\n以下是本周的工作汇报：\n\n1. 已完成：\n   - \n\n2. 进行中：\n   - \n\n3. 下周计划：\n   - \n\n如有疑问请随时沟通。\n\n此致',
-  },
-  {
-    label: '会议邀请',
-    subject: '会议邀请 — [主题]',
-    body: '您好，\n\n诚邀您参加以下会议：\n\n主题：\n时间：\n地点/链接：\n议程：\n  1. \n  2. \n\n请提前准备相关材料，期待您的参加。\n\n此致',
-  },
-  {
-    label: '感谢信',
-    subject: '感谢您的支持与帮助',
-    body: '您好，\n\n非常感谢您在 [事项] 中给予的大力支持与帮助。\n\n[具体感谢内容]\n\n期待今后有更多合作的机会。\n\n此致敬礼',
-  },
-  {
-    label: '询问',
-    subject: '关于 [主题] 的咨询',
-    body: '您好，\n\n我有一些关于 [主题] 的问题，希望能得到您的解答：\n\n1. \n2. \n\n方便的话请告知您的看法，感谢您的时间。\n\n此致',
-  },
-  {
-    label: '跟进',
-    subject: '跟进：[主题]',
-    body: '您好，\n\n我想跟进一下之前关于 [主题] 的沟通。\n\n[跟进内容]\n\n如有任何更新，请随时告知。\n\n此致',
-  },
-  {
-    label: '道歉',
-    subject: '关于 [事项] 的致歉',
-    body: '您好，\n\n对于 [事项] 给您带来的不便，我深表歉意。\n\n[具体情况说明]\n\n我们已采取以下措施确保不再发生：\n\n1. \n2. \n\n感谢您的理解与支持。\n\n此致',
-  },
-  {
-    label: '推荐/介绍',
-    subject: '推荐：[人名/产品]',
-    body: '您好，\n\n我想向您推荐 [人名/产品]，原因如下：\n\n[推荐理由]\n\n如您有兴趣，我可以安排进一步沟通。\n\n此致',
-  },
-];
+function getBuiltinTemplates(t: ReturnType<typeof useI18n>): EmailTemplate[] {
+  return [
+    {
+      label: t.email.templateWorkReport,
+      subject: t.email.templateWorkReportSubject,
+      body: t.email.templateWorkReportBody,
+    },
+    {
+      label: t.email.templateMeetingInvite,
+      subject: t.email.templateMeetingInviteSubject,
+      body: t.email.templateMeetingInviteBody,
+    },
+    {
+      label: t.email.templateThankYou,
+      subject: t.email.templateThankYouSubject,
+      body: t.email.templateThankYouBody,
+    },
+    {
+      label: t.email.templateInquiry,
+      subject: t.email.templateInquirySubject,
+      body: t.email.templateInquiryBody,
+    },
+    {
+      label: t.email.templateFollowUp,
+      subject: t.email.templateFollowUpSubject,
+      body: t.email.templateFollowUpBody,
+    },
+    {
+      label: t.email.templateApology,
+      subject: t.email.templateApologySubject,
+      body: t.email.templateApologyBody,
+    },
+    {
+      label: t.email.templateRecommend,
+      subject: t.email.templateRecommendSubject,
+      body: t.email.templateRecommendBody,
+    },
+  ];
+}
 
 function loadCustomTemplates(): EmailTemplate[] {
   try {
@@ -204,6 +207,7 @@ const S = {
  * ==================================================================== */
 
 export function CastEmailPage() {
+  const t = useI18n();
   const email = useFirstTool('email');
   const invokeCastTool = useAppStore((s) => s.invokeCastTool);
 
@@ -240,10 +244,11 @@ export function CastEmailPage() {
   const emailToolName = email.tool?.name;
 
   /* Template selection handler */
-  const allTemplates = [...BUILTIN_TEMPLATES, ...customTemplates];
+  const builtinTemplates = getBuiltinTemplates(t);
+  const allTemplates = [...builtinTemplates, ...customTemplates];
   const handleSelectTemplate = useCallback((index: number) => {
     if (subject.trim() || body.trim()) {
-      if (!window.confirm('应用模板将替换当前的邮件内容，确定继续吗？')) return;
+      if (!window.confirm(t.email.confirmReplaceTemplate)) return;
     }
     setActiveTemplate(index);
     const tpl = allTemplates[index];
@@ -255,7 +260,7 @@ export function CastEmailPage() {
   const handleGenerate = useCallback(async () => {
     if (!subject.trim() && !body.trim()) return;
     if (!emailToolName) {
-      setError('暂无可用的邮件工具');
+      setError(t.email.noTool);
       return;
     }
     setGenerating(true);
@@ -270,7 +275,7 @@ export function CastEmailPage() {
       resultHistory.push(res);
       setEditResult(null);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '生成失败，请重试';
+      const msg = e instanceof Error ? e.message : t.email.generateFailed;
       setError(msg);
     } finally {
       setGenerating(false);
@@ -291,20 +296,20 @@ export function CastEmailPage() {
     !generating && email.available && (subject.trim().length > 0 || body.trim().length > 0);
 
   const emailValid = !to.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim());
-  const emailError = to.trim() && !emailValid ? '请输入有效的邮箱地址' : null;
+  const emailError = to.trim() && !emailValid ? t.email.invalidEmail : null;
 
   return (
     <div style={S.wrap}>
-      <h2 style={S.title}>邮件草稿</h2>
+      <h2 style={S.title}>{t.email.title}</h2>
 
       {/* Template selector */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={S.sectionLabel}>快速模板</div>
+          <div style={S.sectionLabel}>{t.email.quickTemplates}</div>
           {subject.trim() && (
             <button
               onClick={() => {
-                const name = window.prompt('模板名称:');
+                const name = window.prompt(t.email.templateNamePrompt);
                 if (name && name.trim()) {
                   const newTpl = { label: name.trim(), subject, body };
                   const updated = [...customTemplates, newTpl];
@@ -313,22 +318,22 @@ export function CastEmailPage() {
                 }
               }}
               style={{ fontSize: 11, color: 'var(--c-accent)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
-              title="将当前内容保存为模板"
+              title={t.email.saveAsTemplate}
             >
-              + 保存为模板
+              + {t.email.saveAsTemplate}
             </button>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[...BUILTIN_TEMPLATES, ...customTemplates].map((tpl, i) => (
+          {[...builtinTemplates, ...customTemplates].map((tpl, i) => (
             <span
               key={tpl.label + i}
               style={S.templateChip(activeTemplate === i)}
               onClick={() => handleSelectTemplate(i)}
-              onContextMenu={i >= BUILTIN_TEMPLATES.length ? (e) => {
+              onContextMenu={i >= builtinTemplates.length ? (e) => {
                 e.preventDefault();
-                if (window.confirm(`删除自定义模板「${tpl.label}」？`)) {
-                  const ci = i - BUILTIN_TEMPLATES.length;
+                if (window.confirm(t.email.deleteTemplateConfirm(tpl.label))) {
+                  const ci = i - builtinTemplates.length;
                   const updated = customTemplates.filter((_, idx) => idx !== ci);
                   setCustomTemplates(updated);
                   saveCustomTemplates(updated);
@@ -337,7 +342,7 @@ export function CastEmailPage() {
               } : undefined}
             >
               {tpl.label}
-              {i >= BUILTIN_TEMPLATES.length && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.5 }}>✕</span>}
+              {i >= builtinTemplates.length && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.5 }}>✕</span>}
             </span>
           ))}
         </div>
@@ -347,7 +352,7 @@ export function CastEmailPage() {
       <div style={S.card}>
         {/* To */}
         <div style={{ marginBottom: 14 }}>
-          <div style={S.sectionLabel}>收件人</div>
+          <div style={S.sectionLabel}>{t.email.to}</div>
           <input
             style={{ ...S.input, borderColor: emailError ? 'var(--c-danger, #dc2626)' : undefined }}
             placeholder="example@company.com"
@@ -368,12 +373,12 @@ export function CastEmailPage() {
           {showCcBcc && (
             <>
               <div style={{ marginTop: 8 }}>
-                <div style={{ ...S.sectionLabel, fontSize: 11 }}>CC</div>
-                <input style={S.input} placeholder="抄送邮箱" value={cc} onChange={(e) => setCc(e.target.value)} />
+                <div style={{ ...S.sectionLabel, fontSize: 11 }}>{t.email.ccLabel}</div>
+                <input style={S.input} placeholder={t.email.ccPlaceholder} value={cc} onChange={(e) => setCc(e.target.value)} />
               </div>
               <div style={{ marginTop: 8 }}>
-                <div style={{ ...S.sectionLabel, fontSize: 11 }}>BCC</div>
-                <input style={S.input} placeholder="密送邮箱" value={bcc} onChange={(e) => setBcc(e.target.value)} />
+                <div style={{ ...S.sectionLabel, fontSize: 11 }}>{t.email.bccLabel}</div>
+                <input style={S.input} placeholder={t.email.bccPlaceholder} value={bcc} onChange={(e) => setBcc(e.target.value)} />
               </div>
             </>
           )}
@@ -381,10 +386,10 @@ export function CastEmailPage() {
 
         {/* Subject */}
         <div style={{ marginBottom: 14 }}>
-          <div style={S.sectionLabel}>主题</div>
+          <div style={S.sectionLabel}>{t.email.subject}</div>
           <input
             style={S.input}
-            placeholder="邮件主题"
+            placeholder={t.email.subjectPlaceholder}
             value={subject}
             onChange={(e) => {
               setSubject(e.target.value);
@@ -395,10 +400,10 @@ export function CastEmailPage() {
 
         {/* Body */}
         <div style={{ marginBottom: 16 }}>
-          <div style={S.sectionLabel}>正文</div>
+          <div style={S.sectionLabel}>{t.email.body}</div>
           <textarea
             style={{ ...S.textarea, minHeight: 180 }}
-            placeholder="在此输入邮件正文..."
+            placeholder={t.email.bodyPlaceholder}
             value={body}
             onChange={(e) => {
               setBody(e.target.value);
@@ -421,12 +426,12 @@ export function CastEmailPage() {
             onClick={handleGenerate}
           >
             {generating && <span style={S.spinner} />}
-            {generating ? '生成中...' : '生成邮件'}
+            {generating ? t.email.generating : t.email.generate}
           </button>
 
           {!email.available && !email.loading && (
             <span style={{ fontSize: 12, color: 'var(--c-textMute)' }}>
-              暂无可用的邮件工具
+              {t.email.noTool}
             </span>
           )}
         </div>
@@ -434,7 +439,7 @@ export function CastEmailPage() {
         {error && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...S.errorText }}>
             <span style={{ flex: 1 }}>{error}</span>
-            <button onClick={() => void handleGenerate()} style={{ fontSize: 11, padding: '2px 6px', background: 'transparent', border: '1px solid var(--c-danger)', borderRadius: 'var(--r-sm)', color: 'var(--c-danger)', cursor: 'pointer' }}>重试</button>
+            <button onClick={() => void handleGenerate()} style={{ fontSize: 11, padding: '2px 6px', background: 'transparent', border: '1px solid var(--c-danger)', borderRadius: 'var(--r-sm)', color: 'var(--c-danger)', cursor: 'pointer' }}>{t.email.retry}</button>
             <button onClick={() => setError(null)} style={{ fontSize: 14, background: 'transparent', border: 'none', color: 'var(--c-danger)', cursor: 'pointer', padding: '0 2px' }}>×</button>
           </div>
         )}
@@ -444,11 +449,11 @@ export function CastEmailPage() {
       {(result || generating) && (
         <div style={{ marginTop: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div style={S.sectionLabel}>预览</div>
+            <div style={S.sectionLabel}>{t.email.preview}</div>
             <div style={{ display: 'flex', gap: 6 }}>
               {result && (
                 <button style={S.secondaryBtn} onClick={handleCopy}>
-                  {copied ? '已复制' : '复制'}
+                  {copied ? t.email.copied : t.email.copy}
                 </button>
               )}
               {result && (
@@ -461,14 +466,34 @@ export function CastEmailPage() {
                   a.click();
                   URL.revokeObjectURL(url);
                 }}>
-                  下载
+                  {t.email.download}
                 </button>
+              )}
+              {result && (
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      sendToPage(e.target.value, result);
+                      window.location.hash = '';
+                      window.location.pathname = e.target.value;
+                    }
+                    e.target.value = '';
+                  }}
+                  style={{ ...S.secondaryBtn, appearance: 'none' as any, paddingRight: 20, cursor: 'pointer' }}
+                  defaultValue=""
+                  title={t.email.sendTo}
+                >
+                  <option value="" disabled>{t.email.sendTo}</option>
+                  {PIPELINE_TARGETS.filter(t => t.path !== '/cast/email').map(t => (
+                    <option key={t.path} value={t.path}>{t.label}</option>
+                  ))}
+                </select>
               )}
             </div>
           </div>
           <div style={S.previewBox}>
             {generating && !result && (
-              <span style={{ color: 'var(--c-textMute)' }}>正在生成邮件内容...</span>
+              <span style={{ color: 'var(--c-textMute)' }}>{t.email.generatingContent}</span>
             )}
             {result !== null && (
               <textarea

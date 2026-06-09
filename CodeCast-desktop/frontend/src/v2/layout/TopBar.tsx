@@ -1,6 +1,7 @@
 import { ThemeToggle } from '../lib/theme-toggle';
 import { forwardRef, type RefObject } from 'react';
 import { useError } from '../lib/useError';
+import { useI18n } from '../lib/useI18n';
 
 interface Props {
   onPrevSession?: () => void;
@@ -33,6 +34,7 @@ export function TopBar({
   sessionName,
 }: Props) {
   useError('model');
+  const t = useI18n();
   if (onBack) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', height: '100%', padding: '0 8px', gap: 4, fontSize: 13, color: 'var(--c-text)' }}>
@@ -49,7 +51,7 @@ export function TopBar({
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M10 4 6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          {backLabel || '返回'}
+          {backLabel || t.topbar.back}
         </button>
       </div>
     );
@@ -70,29 +72,29 @@ export function TopBar({
     >
       {/* 左侧按钮组 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-        <TopIconBtn ref={menuButtonRef} aria-label="主菜单" title="主菜单" onClick={onOpenMenu} active={menuOpen}>
+        <TopIconBtn ref={menuButtonRef} aria-label={t.topbar.mainMenu} title={t.topbar.mainMenu} onClick={onOpenMenu} active={menuOpen}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </TopIconBtn>
-        <TopIconBtn aria-label="分屏" title="分屏视图 (即将推出)" onClick={onToggleSplit} style={{ opacity: 0.4, cursor: 'default' }}>
+        <TopIconBtn aria-label={t.topbar.splitView} title={t.topbar.splitViewComingSoon} onClick={onToggleSplit} style={{ opacity: 0.4, cursor: 'default' }}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <rect x="2" y="3" width="5" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" />
             <rect x="9" y="3" width="5" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" />
           </svg>
         </TopIconBtn>
-        <TopIconBtn aria-label="搜索" title="搜索 (⌘P)" onClick={onOpenSearch}>
+        <TopIconBtn aria-label={t.topbar.search} title={t.topbar.searchShortcut} onClick={onOpenSearch}>
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4" />
             <path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </TopIconBtn>
-        <TopIconBtn aria-label="上一会话" title="上一会话" onClick={onPrevSession}>
+        <TopIconBtn aria-label={t.topbar.prevSession} title={t.topbar.prevSession} onClick={onPrevSession}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M10 4 6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </TopIconBtn>
-        <TopIconBtn aria-label="下一会话" title="下一会话" onClick={onNextSession}>
+        <TopIconBtn aria-label={t.topbar.nextSession} title={t.topbar.nextSession} onClick={onNextSession}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="m6 4 4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -122,17 +124,17 @@ export function TopBar({
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <ThemeToggle />
         <div style={{ width: 1, height: 18, background: 'var(--c-border)', margin: '0 4px' }} />
-        <TopIconBtn aria-label="最小化" title="最小化" onClick={onMinimize}>
+        <TopIconBtn aria-label={t.topbar.minimize} title={t.topbar.minimize} onClick={onMinimize}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M3 8h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </TopIconBtn>
-        <TopIconBtn aria-label="最大化" title="最大化" onClick={onMaximize}>
+        <TopIconBtn aria-label={t.topbar.maximize} title={t.topbar.maximize} onClick={onMaximize}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <rect x="3" y="3" width="10" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
           </svg>
         </TopIconBtn>
-        <TopIconBtn aria-label="关闭" title="关闭" onClick={onClose} danger>
+        <TopIconBtn aria-label={t.topbar.close} title={t.topbar.close} onClick={onClose} danger>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="m4 4 8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
